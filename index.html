@@ -129,7 +129,7 @@ textarea{min-height:68px}.row{display:flex;gap:8px}.row>*{flex:1}
 
 <section id="backup" class="view hidden"><div class="card">
 <h2>Cloud / Backups</h2>
-<div class="notice"><b>Firebase live sync is active.</b> This page is now your safety area: check cloud status, create manual cloud backups, restore a previous backup, or export/import JSON if needed.</div>
+<div class="notice"><b>Firebase live sync is active with split Firestore collections.</b> This page is now your safety area: check cloud status, create manual cloud backups, restore a previous backup, or export/import JSON if needed.</div>
 <div class="row">
   <div><label>Cloud Status</label><input id="cloudStatus" readonly value="Starting..."></div>
   <div><label>Last Cloud Update</label><input id="lastCloudUpdate" readonly value="Not loaded yet"></div>
@@ -148,7 +148,7 @@ textarea{min-height:68px}.row{display:flex;gap:8px}.row>*{flex:1}
 <div class="row">
   <button onclick="restore()">Restore From JSON Box</button>
 </div>
-<p class="small">Tip: create a cloud backup before big editing sessions or before testing new features.</p>
+<p class="small">Data now saves into separate Firestore collections: coachingOSPractices, coachingOSSessions, coachingOSWordbanks and coachingOSBackups. Tip: create a cloud backup before big editing sessions or before testing new features.</p>
 </div></section>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
@@ -165,7 +165,8 @@ import {
   getDocs,
   query,
   orderBy,
-  limit
+  limit,
+  writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -180,44 +181,152 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const firestore = getFirestore(app);
 
+const COLLECTIONS = {
+  practices: "coachingOSPractices",
+  sessions: "coachingOSSessions",
+  wordbanks: "coachingOSWordbanks",
+  meta: "coachingOSMeta",
+  backups: "coachingOSBackups",
+  legacy: "coachingOS"
+};
+
+function clean(data) {
+  return JSON.parse(JSON.stringify(data || {}));
+}
+
+function makeDocId(value, fallback) {
+  const raw = String(value || fallback || ("item-" + Date.now()));
+  return encodeURIComponent(raw).replace(/\./g, "%2E").slice(0, 140) || fallback;
+}
+
+function normaliseCloudDb(data) {
+  const safe = clean(data);
+  safe.practices = Array.isArray(safe.practices) ? safe.practices : [];
+  safe.sessions = Array.isArray(safe.sessions) ? safe.sessions : [];
+  safe.banks = safe.banks && typeof safe.banks === "object" ? safe.banks : {};
+
+  safe.practices = safe.practices.map((p, i) => ({
+    ...p,
+    id: p.id || ("practice-" + (i + 1))
+  }));
+
+  safe.sessions = safe.sessions.map((s, i) => ({
+    ...s,
+    id: s.id || makeDocId([s.date, s.team, s.theme, i].join("-"), "session-" + (i + 1))
+  }));
+
+  return safe;
+}
+
+async function loadCollectionDocs(collectionName) {
+  const snap = await getDocs(collection(firestore, collectionName));
+  return snap.docs.map(d => ({ _docId: d.id, ...(d.data().data || d.data()) }));
+}
+
+async function saveCollection(collectionName, items, idGetter) {
+  const snap = await getDocs(collection(firestore, collectionName));
+  const existingIds = new Set(snap.docs.map(d => d.id));
+  const batch = writeBatch(firestore);
+  const wantedIds = new Set();
+
+  items.forEach((item, index) => {
+    const docId = makeDocId(idGetter(item, index), "item-" + index);
+    wantedIds.add(docId);
+    batch.set(doc(firestore, collectionName, docId), {
+      data: clean(item),
+      updatedAt: serverTimestamp()
+    });
+  });
+
+  existingIds.forEach(id => {
+    if (!wantedIds.has(id)) {
+      batch.delete(doc(firestore, collectionName, id));
+    }
+  });
+
+  await batch.commit();
+}
+
+async function loadStructuredDb() {
+  const [practiceDocs, sessionDocs, bankSnap] = await Promise.all([
+    loadCollectionDocs(COLLECTIONS.practices),
+    loadCollectionDocs(COLLECTIONS.sessions),
+    getDoc(doc(firestore, COLLECTIONS.wordbanks, "master"))
+  ]);
+
+  const hasStructuredData = practiceDocs.length || sessionDocs.length || bankSnap.exists();
+
+  if (hasStructuredData) {
+    return normaliseCloudDb({
+      practices: practiceDocs.map(p => p.data || p),
+      sessions: sessionDocs.map(s => s.data || s),
+      banks: bankSnap.exists() ? (bankSnap.data().data || bankSnap.data() || {}) : {}
+    });
+  }
+
+  // Migration fallback: if your old single-document database still exists,
+  // load it once so it can be saved into the new separate collections.
+  const legacySnap = await getDoc(doc(firestore, COLLECTIONS.legacy, "main"));
+  if (legacySnap.exists() && legacySnap.data().data) {
+    const legacyDb = normaliseCloudDb(legacySnap.data().data);
+    await window.nickCloud.save(legacyDb);
+    return legacyDb;
+  }
+
+  return null;
+}
+
 window.nickCloud = {
   save: async function(data) {
-    const cleanData = JSON.parse(JSON.stringify(data));
+    const cleanData = normaliseCloudDb(data);
 
-    await setDoc(doc(firestore, "coachingOS", "main"), {
-      data: cleanData,
-      updatedAt: serverTimestamp()
+    await Promise.all([
+      saveCollection(COLLECTIONS.practices, cleanData.practices, p => p.id),
+      saveCollection(COLLECTIONS.sessions, cleanData.sessions, s => s.id),
+      setDoc(doc(firestore, COLLECTIONS.wordbanks, "master"), {
+        data: cleanData.banks,
+        updatedAt: serverTimestamp()
+      })
+    ]);
+
+    await setDoc(doc(firestore, COLLECTIONS.meta, "main"), {
+      updatedAt: serverTimestamp(),
+      structure: "split-collections-v1",
+      practiceCount: cleanData.practices.length,
+      sessionCount: cleanData.sessions.length
     });
   },
 
   getCurrent: async function() {
-    const snap = await getDoc(doc(firestore, "coachingOS", "main"));
-    return snap.exists() ? snap.data() : null;
+    return await loadStructuredDb();
   },
 
   listen: function(callback) {
     return onSnapshot(
-      doc(firestore, "coachingOS", "main"),
-      function(snapshot) {
-        if (snapshot.exists()) {
-          callback(snapshot.data());
-        }
+      doc(firestore, COLLECTIONS.meta, "main"),
+      async function() {
+        const cloudDb = await loadStructuredDb();
+        callback(cloudDb ? { data: cloudDb } : null);
+      },
+      function(error) {
+        console.error("Firebase listener failed", error);
       }
     );
   },
 
   createBackup: async function(data) {
-    const cleanData = JSON.parse(JSON.stringify(data));
-    await addDoc(collection(firestore, "coachingOSBackups"), {
+    const cleanData = normaliseCloudDb(data);
+    await addDoc(collection(firestore, COLLECTIONS.backups), {
       data: cleanData,
       createdAt: serverTimestamp(),
-      label: new Date().toLocaleString("en-GB")
+      label: new Date().toLocaleString("en-GB"),
+      structure: "split-collections-v1"
     });
   },
 
   loadBackups: async function() {
     const q = query(
-      collection(firestore, "coachingOSBackups"),
+      collection(firestore, COLLECTIONS.backups),
       orderBy("createdAt", "desc"),
       limit(25)
     );
@@ -250,10 +359,21 @@ links:["Width","Depth","Play Forward","Free Player","Third Man","Break Lines","C
 cues:["Width","Depth","Forward","Bounce","Switch","Third Man","Fix Him","Lock","Show","Screen","Trap","Jump","Shift","Squeeze","Recover","Protect Centre","Free Player","Five Lanes","Rest Defence","Hunt"],
 reflect:["Did we achieve the objective?","What behaviour improved?","What behaviour was missing?","What should next session build on?","Which players understood the detail?","What did I overcoach?","What needs repeating?"]
 };
-let db=JSON.parse(localStorage.getItem("nickCoachOSv3")||'null')||{practices:[],sessions:[],banks:defaultBanks};
+let db=normaliseDbShape(JSON.parse(localStorage.getItem("nickCoachOSv3")||'null')||{practices:[],sessions:[],banks:defaultBanks});
 let diagram=[], drag=null, off=[0,0], selected=null, pickStage="Activation", pitchMode="full";
 let cloudReady=false, applyingCloudUpdate=false, lastCloudJson="";
+function makeLocalId(prefix){return prefix+"-"+Date.now()+"-"+Math.random().toString(36).slice(2,8)}
+function normaliseDbShape(data){
+  data=data||{};
+  data.practices=Array.isArray(data.practices)?data.practices:[];
+  data.sessions=Array.isArray(data.sessions)?data.sessions:[];
+  data.banks=data.banks&&typeof data.banks==="object"?data.banks:defaultBanks;
+  data.practices.forEach((p,i)=>{if(!p.id)p.id="practice-"+(i+1)});
+  data.sessions.forEach(s=>{if(!s.id)s.id=makeLocalId("session")});
+  return data;
+}
 async function store(){
+  db=normaliseDbShape(db);
   localStorage.setItem("nickCoachOSv3", JSON.stringify(db));
   renderAll();
 
@@ -334,9 +454,9 @@ function nl(x){return (x||"").replace(/\n/g,"<br>")}
 function setPickStage(s){pickStage=s;renderVisualPicker()}
 function renderVisualPicker(){["pickActivation","pickSkill","pickTactical","pickConditioned"].forEach(id=>document.getElementById(id).classList.remove("activeStage"));let id=pickStage==="Activation"?"pickActivation":pickStage==="Skill Practice"?"pickSkill":pickStage==="Tactical Practice"?"pickTactical":"pickConditioned";document.getElementById(id).classList.add("activeStage");visualPicker.innerHTML="";let theme=sTheme.value;db.practices.filter(p=>p.stage===pickStage && (!theme||p.theme===theme)).forEach(p=>{let card=document.createElement("div");let selectedId=pickStage==="Activation"?act.value:pickStage==="Skill Practice"?skill.value:pickStage==="Tactical Practice"?tact.value:cond.value;card.className="pitchCard "+(selectedId===p.id?"selectedCard":"");card.onclick=()=>selectPracticeForStage(p.id);card.innerHTML=`<div id="vmini-${safe(p.id)}"></div><div><h3 style="margin:0">${p.id} · ${p.name}</h3><span class="pill">${p.theme}</span><span class="pill">${p.stage}</span><span class="pill">${p.players||""}</span><p>${p.desc||""}</p><p class="small"><b>Progressions:</b><br>${nl(p.prog||"")}</p></div>`;visualPicker.appendChild(card);setTimeout(()=>drawMini(`vmini-${safe(p.id)}`,p.diagram||[],p.pitchMode||"full"),0)});if(!visualPicker.innerHTML)visualPicker.innerHTML='<p class="small">No practices match this stage/theme yet.</p>'}
 function selectPracticeForStage(id){if(pickStage==="Activation")act.value=id;else if(pickStage==="Skill Practice")skill.value=id;else if(pickStage==="Tactical Practice")tact.value=id;else cond.value=id;renderPreview();renderVisualPicker()}
-function saveSession(){db.sessions.push({date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,act:act.value,skill:skill.value,tact:tact.value,cond:cond.value,reflect:reflect.value});store();alert("Session saved")}
+function saveSession(){db.sessions.push({id:makeLocalId("session"),date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,act:act.value,skill:skill.value,tact:tact.value,cond:cond.value,reflect:reflect.value});store();alert("Session saved")}
 function renderArchive(){archiveList.innerHTML="";db.sessions.sort((a,b)=>a.date.localeCompare(b.date)).forEach((s,i)=>{let d=document.createElement("div");d.className="session";d.innerHTML=`<h3>${s.date} · ${s.team||""} · ${s.theme||""}</h3><p><b>Objective:</b><br>${nl(s.objective||"")}</p><p><b>Cues:</b><br>${nl(s.cues||"")}</p>${mini(s.act)}${mini(s.skill)}${mini(s.tact)}${mini(s.cond)}<p><b>Reflection:</b><br>${nl(s.reflect||"")}</p><button class="noPrint" onclick="duplicateSession(${i})">Duplicate Session</button>`;archiveList.appendChild(d)})}
-function duplicateSession(i){let s=JSON.parse(JSON.stringify(db.sessions[i]));s.date=new Date().toISOString().slice(0,10);db.sessions.push(s);store();alert("Session duplicated with today's date.")}
+function duplicateSession(i){let s=JSON.parse(JSON.stringify(db.sessions[i]));s.id=makeLocalId("session");s.date=new Date().toISOString().slice(0,10);db.sessions.push(s);store();alert("Session duplicated with today's date.")}
 function updateCloudStatus(status, when){
   const cs=document.getElementById("cloudStatus");
   const lu=document.getElementById("lastCloudUpdate");
@@ -383,7 +503,7 @@ async function restoreSelectedBackup(){
   const backupData=JSON.parse(opt.dataset.payload||"{}");
   if(!backupData.practices && !backupData.sessions) return alert("This backup looks empty.");
   if(!confirm("Restore this backup? This will replace the current live database.")) return;
-  db=backupData;
+  db=normaliseDbShape(backupData);
   localStorage.setItem("nickCoachOSv3", JSON.stringify(db));
   renderAll();
   await store();
@@ -391,7 +511,7 @@ async function restoreSelectedBackup(){
 }
 
 function backup(){backupBox.value=JSON.stringify(db,null,2)}
-function restore(){try{db=JSON.parse(backupBox.value);store();alert("Restored")}catch(e){alert("Invalid backup")}}
+function restore(){try{db=normaliseDbShape(JSON.parse(backupBox.value));store();alert("Restored")}catch(e){alert("Invalid backup")}}
 updateCloudStatus("Connecting to Firebase...", "");
 renderAll();
 
@@ -410,7 +530,7 @@ setTimeout(function(){
       if (incomingJson === lastCloudJson) return;
 
       applyingCloudUpdate = true;
-      db = cloudDoc.data;
+      db = normaliseDbShape(cloudDoc.data);
       lastCloudJson = incomingJson;
       localStorage.setItem("nickCoachOSv3", JSON.stringify(db));
       renderAll();
