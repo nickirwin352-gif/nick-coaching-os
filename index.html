@@ -85,6 +85,7 @@ textarea{min-height:68px}.row{display:flex;gap:8px}.row>*{flex:1}
 <label>Coaching Points Word Bank</label><div id="cpChips" class="chips"></div><textarea id="cp" placeholder="Click chips above or write your own..."></textarea>
 <label>Progressions Word Bank</label><div id="progChips" class="chips"></div><textarea id="prog"></textarea>
 <label>Regressions Word Bank</label><div id="regChips" class="chips"></div><textarea id="reg"></textarea>
+<div id="condRulesBlock"><label>Conditioned Game Rules / Constraints Word Bank</label><div id="condGameChips" class="chips"></div><textarea id="condRules" placeholder="Use for conditioned games: scoring rules, constraints, bonus points, transition rules..."></textarea></div>
 <div class="row"><button onclick="savePractice()">Save</button><button onclick="duplicatePractice()">Duplicate Practice</button><button class="danger" onclick="deletePractice()">Delete</button></div>
 <p class="small">Select an object on the pitch, then resize/rotate it below. Double-click players/text to edit label.</p>
 </div>
@@ -130,6 +131,7 @@ textarea{min-height:68px}.row{display:flex;gap:8px}.row>*{flex:1}
 <div class="card"><h2>Practice Regressions</h2><textarea id="bankReg"></textarea><button onclick="saveBanks()">Save Bank</button></div>
 <div class="card"><h2>Generic Weekly Objectives</h2><textarea id="bankObj"></textarea><button onclick="saveBanks()">Save Bank</button><p class="small">Used if no theme-specific objectives are set.</p></div>
 <div class="card"><h2>Theme-Specific Objectives</h2><label>Choose Theme</label><select id="objectiveThemeSelect" onchange="loadThemeObjectives()"></select><textarea id="bankThemeObj" placeholder="Objectives for selected theme..."></textarea><button onclick="saveThemeObjectives()">Save Theme Objectives</button><p class="small">These are the chips that appear in the Session Planner after selecting a theme.</p></div>
+<div class="card"><h2>Theme-Specific Conditioned Game Rules</h2><label>Choose Theme</label><select id="conditionedThemeSelect" onchange="loadThemeConditionedRules()"></select><textarea id="bankThemeCond" placeholder="Conditioned game rules/constraints for selected theme..."></textarea><button onclick="saveThemeConditionedRules()">Save Conditioned Rules</button><p class="small">These chips appear in Add/Edit Practice when the stage is Conditioned Game.</p></div>
 <div class="card"><h2>Game Model Links</h2><textarea id="bankLinks"></textarea><button onclick="saveBanks()">Save Bank</button></div>
 <div class="card"><h2>Coach's Cues</h2><textarea id="bankCues"></textarea><button onclick="saveBanks()">Save Bank</button></div>
 <div class="card"><h2>Reflection Prompts</h2><textarea id="bankReflect"></textarea><button onclick="saveBanks()">Save Bank</button></div>
@@ -361,6 +363,18 @@ cpByTheme:{
 "Defensive Transition":["Protect centre on loss","Delay the counter","Recover behind the ball","Track forward runs","Counter press if close enough","Communicate early"],
 "Set Plays":["Clear roles before delivery","Attack first contact","React to second ball","Block legally","Rest defence balance","Deliver with quality"]
 },
+condByTheme:{
+"Build Up":["Goal counts after building through thirds","Must connect with pivot before scoring","Bonus point for using GK to switch play","Opposition score if they win it and finish in 6 seconds","Limit touches in first line"],
+"Midfield Progression":["Goal only counts after a line-breaking pass","Bonus point for third-man combination","Must play through central zone before scoring","One midfielder can rotate zones","Transition point if regain leads to forward pass"],
+"Chance Creation":["Goal counts double from cut-back or cross","Bonus point for 2v1 wide overload before finish","Must enter final third through wide lane","Time limit to finish once in final third","Extra point for blindside run assist"],
+"Finishing":["Finish within 8 seconds of entering final third","Double goal from first-time finish","Bonus point for rebound reaction","Wide delivery must be attacked by three runners","Goal only counts if front/back post occupied"],
+"High Press":["Pressing team scores by winning high and finishing quickly","Build team scores by escaping into target player","Restart from GK after every goal","Bonus point for forcing play wide before regain","Press starts on trigger pass to full-back"],
+"Mid Block":["Defending team scores by regaining and countering into mini goals","Attacking team must break central line to score","Block team gets point for forcing wide regain","Counter goal counts double within 8 seconds","Teams reset if block loses compactness"],
+"Counter Press":["Team has 5 seconds to win it back after loss","Double goal if scored straight after counter press regain","Opposition gets bonus point for first forward pass out","Immediate transition on every turnover","Nearest three players must hunt the ball"],
+"Attacking Transition":["Finish within 10 seconds of regain","Bonus point for first pass forward","Counter attack must have support around ball","If counter is not on, secure possession for point","Defending team scores by delaying recovery"],
+"Defensive Transition":["On loss, team scores by delaying for 5 seconds","Opposition must counter quickly to score","Recover behind ball before normal scoring resumes","Bonus point for protecting centre after loss","Counter press allowed only if closest players are connected"],
+"Set Plays":["Restart with corner/free-kick/throw-in pattern","Bonus point for first contact","Second-ball goal counts double","Rest-defence team scores by stopping counter","Rotate set-play roles every restart"]
+},
 prog:["Reduce touches","Reduce space","Add active defenders","Add transition on regain","Add scoring target","Add time limit","Make it directional","Add neutral player constraint","Lock players into zones","Allow one player to rotate zones"],
 reg:["Unlimited touches","Increase space","Make defenders passive","Add neutral overload","Remove time limit","Simplify scoring","Start unopposed","Freeze and walk through movement","Reduce number of opponents","Allow coach serve/restart"],
 obj:["Create and exploit overloads","Progress through midfield with control","Protect the centre and force wide","Win the ball high and attack quickly","Counter press immediately after losing possession","Create high-quality chances from wide areas","Break lines using third-man combinations"],
@@ -388,7 +402,9 @@ function normaliseDbShape(data){
   data=data||{};
   data.practices=Array.isArray(data.practices)?data.practices:[];
   data.sessions=Array.isArray(data.sessions)?data.sessions:[];
-  data.banks=data.banks&&typeof data.banks==="object"?data.banks:defaultBanks;
+  data.banks=data.banks&&typeof data.banks==="object"?data.banks:JSON.parse(JSON.stringify(defaultBanks));
+  if(!data.banks.cpByTheme)data.banks.cpByTheme=defaultBanks.cpByTheme;
+  if(!data.banks.condByTheme)data.banks.condByTheme=defaultBanks.condByTheme;
   data.practices.forEach((p,i)=>{if(!p.id)p.id="practice-"+(i+1)});
   data.sessions.forEach(s=>{if(!s.id)s.id=makeLocalId("session")});
   return data;
@@ -418,9 +434,9 @@ async function store(){
     }
   }
 }
-function fill(id,arr,all=false){let e=document.getElementById(id);if(!e)return;e.innerHTML=all?'<option value="">All</option>':'';arr.forEach(x=>{let o=document.createElement("option");o.value=x;o.textContent=x;e.appendChild(o)})}
+function fill(id,arr,all=false){let e=document.getElementById(id);if(!e)return;let prev=e.value;e.innerHTML=all?'<option value="">All</option>':'';arr.forEach(x=>{let o=document.createElement("option");o.value=x;o.textContent=x;e.appendChild(o)});if(prev!==undefined && [...e.options].some(o=>o.value===prev))e.value=prev;else if(all)e.value="";}
 function opts(stage){return '<option value="">Select...</option>'+db.practices.filter(p=>p.stage===stage).map(p=>`<option value="${p.id}">${p.id} · ${p.name}</option>`).join("")}
-function renderAll(){["theme","filterTheme","sTheme","objectiveThemeSelect"].forEach((id,i)=>fill(id,themes,i==1));["stage","filterStage"].forEach((id,i)=>fill(id,stages,i==1));act.innerHTML=opts("Activation");skill.innerHTML=opts("Skill Practice");tact.innerHTML=opts("Tactical Practice");cond.innerHTML=opts("Conditioned Game");renderList();renderArchive();renderPreview();renderBanks();renderVisualPicker();draw()}
+function renderAll(){["theme","filterTheme","sTheme","objectiveThemeSelect","conditionedThemeSelect"].forEach((id,i)=>fill(id,themes,i==1));["stage","filterStage"].forEach((id,i)=>fill(id,stages,i==1));act.innerHTML=opts("Activation");skill.innerHTML=opts("Skill Practice");tact.innerHTML=opts("Tactical Practice");cond.innerHTML=opts("Conditioned Game");renderList();renderArchive();renderPreview();renderBanks();renderVisualPicker();draw()}
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active");document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));document.getElementById(b.dataset.tab).classList.remove("hidden")})
 function renderList(){
 let q=search.value.toLowerCase(),ft=filterTheme.value,fs=filterStage.value,ff=(document.getElementById("filterFav")||{}).checked;practiceList.innerHTML="";if(document.getElementById("favList"))favList.innerHTML="";
@@ -431,12 +447,17 @@ db.practices.filter(p=>(!ft||p.theme==ft)&&(!fs||p.stage==fs)&&(!ff||p.fav)&&JSO
 function toggleFav(ev,id){ev.stopPropagation();let p=db.practices.find(x=>x.id===id);if(!p)return;p.fav=!p.fav;store()}
 function safe(s){return String(s).replace(/[^a-zA-Z0-9]/g,'')}
 search.oninput=filterTheme.oninput=filterStage.oninput=renderList;
+theme.oninput=()=>{renderPracticeCpChips();renderConditionedGameChips();toggleConditionedRulesBlock()};
+stage.oninput=()=>{toggleConditionedRulesBlock();renderConditionedGameChips()};
 if(document.getElementById("theme")) theme.oninput=()=>{renderPracticeCpChips();};
 function renderBanks(){
 if(!db.banks.cpByTheme)db.banks.cpByTheme=defaultBanks.cpByTheme;
+if(!db.banks.condByTheme)db.banks.condByTheme=defaultBanks.condByTheme;
 bankCP.value=db.banks.cp.join("\n");bankProg.value=db.banks.prog.join("\n");bankReg.value=db.banks.reg.join("\n");bankObj.value=db.banks.obj.join("\n");bankLinks.value=db.banks.links.join("\n");bankCues.value=db.banks.cues.join("\n");bankReflect.value=db.banks.reflect.join("\n");
-renderPracticeCpChips();renderChipBox("progChips",db.banks.prog,"prog");renderChipBox("regChips",db.banks.reg,"reg");renderObjectiveChips();renderChipBox("linkChips",db.banks.links,"links");renderChipBox("cueChips",db.banks.cues,"cues");renderChipBox("reflectChips",db.banks.reflect,"reflect");loadThemeObjectives(false)}
+renderPracticeCpChips();renderConditionedGameChips();renderChipBox("progChips",db.banks.prog,"prog");renderChipBox("regChips",db.banks.reg,"reg");renderObjectiveChips();renderChipBox("linkChips",db.banks.links,"links");renderChipBox("cueChips",db.banks.cues,"cues");renderChipBox("reflectChips",db.banks.reflect,"reflect");loadThemeObjectives(false);loadThemeConditionedRules(false);toggleConditionedRulesBlock();}
 function renderPracticeCpChips(){let t=(document.getElementById("theme")||{}).value;let arr=(db.banks.cpByTheme&&db.banks.cpByTheme[t])?db.banks.cpByTheme[t]:db.banks.cp;renderChipBox("cpChips",arr,"cp")}
+function renderConditionedGameChips(){let t=(document.getElementById("theme")||{}).value;let arr=(db.banks.condByTheme&&db.banks.condByTheme[t])?db.banks.condByTheme[t]:[];renderChipBox("condGameChips",arr,"condRules")}
+function toggleConditionedRulesBlock(){let block=document.getElementById("condRulesBlock");if(!block)return;block.style.display=(stage.value==="Conditioned Game")?"block":"none";}
 function loadThemeObjectives(overwrite=true){
 let sel=document.getElementById("objectiveThemeSelect");let box=document.getElementById("bankThemeObj");if(!sel||!box)return;
 let t=sel.value||themes[0];if(overwrite||!box.value){box.value=((db.banks.objByTheme&&db.banks.objByTheme[t])?db.banks.objByTheme[t]:[]).join("\n");}
@@ -445,19 +466,27 @@ function saveThemeObjectives(){
 let sel=document.getElementById("objectiveThemeSelect");let box=document.getElementById("bankThemeObj");if(!db.banks.objByTheme)db.banks.objByTheme={};
 db.banks.objByTheme[sel.value]=box.value.split("\n").filter(Boolean);store();alert("Theme objectives saved.");
 }
+function loadThemeConditionedRules(overwrite=true){
+let sel=document.getElementById("conditionedThemeSelect");let box=document.getElementById("bankThemeCond");if(!sel||!box)return;
+let t=sel.value||themes[0];if(overwrite||!box.value){box.value=((db.banks.condByTheme&&db.banks.condByTheme[t])?db.banks.condByTheme[t]:[]).join("\n");}
+}
+function saveThemeConditionedRules(){
+let sel=document.getElementById("conditionedThemeSelect");let box=document.getElementById("bankThemeCond");if(!db.banks.condByTheme)db.banks.condByTheme={};
+db.banks.condByTheme[sel.value]=box.value.split("\n").filter(Boolean);store();alert("Conditioned game rules saved.");
+}
 function renderObjectiveChips(){
 let themeVal=(document.getElementById("sTheme")||{}).value;
 let arr=(db.banks.objByTheme&&db.banks.objByTheme[themeVal])?db.banks.objByTheme[themeVal]:db.banks.obj;
 renderChipBox("objChips",arr,"objective");
 }
-function renderChipBox(id,arr,target){let box=document.getElementById(id);if(!box)return;box.innerHTML="";arr.forEach(t=>{let c=document.createElement("span");c.className="chip";c.textContent=t;c.onclick=()=>toggleText(target,t,c);box.appendChild(c)})}
+function renderChipBox(id,arr,target){let box=document.getElementById(id);if(!box)return;box.innerHTML="";let ta=document.getElementById(target);let chosen=(ta&&ta.value?ta.value.split("\n").filter(Boolean):[]);arr.forEach(t=>{let c=document.createElement("span");c.className="chip"+(chosen.includes(t)?" on":"");c.textContent=t;c.onclick=()=>toggleText(target,t,c);box.appendChild(c)})}
 function toggleText(targetId,text,chip){let ta=document.getElementById(targetId);let lines=ta.value.split("\n").filter(Boolean);if(lines.includes(text)){lines=lines.filter(x=>x!==text);chip.classList.remove("on")}else{lines.push(text);chip.classList.add("on")}ta.value=lines.join("\n");renderPreview()}
-function saveBanks(){db.banks.cp=bankCP.value.split("\n").filter(Boolean);if(!db.banks.cpByTheme)db.banks.cpByTheme=defaultBanks.cpByTheme;db.banks.prog=bankProg.value.split("\n").filter(Boolean);db.banks.reg=bankReg.value.split("\n").filter(Boolean);db.banks.obj=bankObj.value.split("\n").filter(Boolean);db.banks.links=bankLinks.value.split("\n").filter(Boolean);db.banks.cues=bankCues.value.split("\n").filter(Boolean);db.banks.reflect=bankReflect.value.split("\n").filter(Boolean);store();alert("Word banks saved")}
+function saveBanks(){db.banks.cp=bankCP.value.split("\n").filter(Boolean);if(!db.banks.cpByTheme)db.banks.cpByTheme=defaultBanks.cpByTheme;if(!db.banks.condByTheme)db.banks.condByTheme=defaultBanks.condByTheme;db.banks.prog=bankProg.value.split("\n").filter(Boolean);db.banks.reg=bankReg.value.split("\n").filter(Boolean);db.banks.obj=bankObj.value.split("\n").filter(Boolean);db.banks.links=bankLinks.value.split("\n").filter(Boolean);db.banks.cues=bankCues.value.split("\n").filter(Boolean);db.banks.reflect=bankReflect.value.split("\n").filter(Boolean);store();alert("Word banks saved")}
 function newPractice(){clearForm();document.querySelector('[data-tab="editor"]').click()}
-function clearForm(){["oldId","pid","pname","players","time","area","desc","prog","reg","cp"].forEach(id=>document.getElementById(id).value="");diagram=[];pitchMode="full";selected=null;draw()}
-function editPractice(id){let p=db.practices.find(x=>x.id==id);document.querySelector('[data-tab="editor"]').click();oldId.value=p.id;pid.value=p.id;pname.value=p.name;theme.value=p.theme;stage.value=p.stage;players.value=p.players||"";time.value=p.time||"";area.value=p.area||"";desc.value=p.desc||"";prog.value=p.prog||"";reg.value=p.reg||"";cp.value=p.cp||"";diagram=JSON.parse(JSON.stringify(p.diagram||[]));pitchMode=p.pitchMode||"full";selected=null;draw()}
-function savePractice(){let p={id:pid.value.trim(),name:pname.value.trim(),theme:theme.value,stage:stage.value,players:players.value,time:time.value,area:area.value,desc:desc.value,prog:prog.value,reg:reg.value,cp:cp.value,diagram,pitchMode};if(!p.id||!p.name)return alert("Add ID and name.");db.practices=db.practices.filter(x=>x.id!==oldId.value&&x.id!==p.id);db.practices.push(p);oldId.value=p.id;store();alert("Saved")}
-function duplicatePractice(){let baseId=pid.value.trim();if(!baseId)return alert("Save or open a practice first.");oldId.value="";pid.value=baseId+"-COPY";pname.value=pname.value+" Copy";alert("Duplicated. Change ID/name and press Save.")}
+function clearForm(){["oldId","pid","pname","players","time","area","desc","prog","reg","cp","condRules"].forEach(id=>document.getElementById(id).value="");diagram=[];pitchMode="full";selected=null;draw()}
+function editPractice(id){let p=db.practices.find(x=>x.id==id);document.querySelector('[data-tab="editor"]').click();oldId.value=p.id;pid.value=p.id;pname.value=p.name;theme.value=p.theme;stage.value=p.stage;players.value=p.players||"";time.value=p.time||"";area.value=p.area||"";desc.value=p.desc||"";prog.value=p.prog||"";reg.value=p.reg||"";cp.value=p.cp||"";condRules.value=p.condRules||"";diagram=JSON.parse(JSON.stringify(p.diagram||[]));pitchMode=p.pitchMode||"full";selected=null;draw()}
+function savePractice(){let p={id:pid.value.trim(),name:pname.value.trim(),theme:theme.value,stage:stage.value,players:players.value,time:time.value,area:area.value,desc:desc.value,prog:prog.value,reg:reg.value,cp:cp.value,condRules:condRules.value,diagram,pitchMode};if(!p.id||!p.name)return alert("Add ID and name.");db.practices=db.practices.filter(x=>x.id!==oldId.value&&x.id!==p.id);db.practices.push(p);oldId.value=p.id;store();alert("Saved")}
+function duplicatePractice(){let baseId=pid.value.trim();if(!baseId)return alert("Save or open a practice first.");let keepTheme=theme.value, keepStage=stage.value;oldId.value="";pid.value=baseId+"-COPY";pname.value=pname.value+" Copy";theme.value=keepTheme;stage.value=keepStage;renderPracticeCpChips();renderConditionedGameChips();renderChipBox("progChips",db.banks.prog,"prog");renderChipBox("regChips",db.banks.reg,"reg");toggleConditionedRulesBlock();alert("Duplicated exactly. Change ID/name if needed, then press Save.")}
 function deletePractice(){let id=oldId.value||pid.value;if(id&&confirm("Delete?")){db.practices=db.practices.filter(p=>p.id!==id);clearForm();store()}}
 function base(){
 if(pitchMode==="quarters")return '<div class="quarterLabel q1">Practice 1</div><div class="quarterLabel q2">Progression 1</div><div class="quarterLabel q3">Progression 2</div><div class="quarterLabel q4">Progression 3</div>';
@@ -485,13 +514,32 @@ function get(id){return db.practices.find(p=>p.id==id)}
 ["act","skill","tact","cond","objective","links","cues","reflect"].forEach(id=>document.getElementById(id).oninput=()=>{renderPreview();renderVisualPicker()})
 document.getElementById("sTheme").oninput=()=>{renderObjectiveChips();renderPreview();renderVisualPicker()}
 function mini(id){return practiceDetail(id,true)}
-function practiceDetail(id,compact=false){let p=get(id);if(!p)return"";let mid=`sessionmini-${safe(id)}-${Math.random().toString(36).slice(2,7)}`;setTimeout(()=>drawMini(mid,p.diagram||[],p.pitchMode||"full"),0);return `<div class="practiceDetail"><div id="${mid}"></div><div><h3>${p.stage}: ${p.id} · ${p.name}</h3><span class="pill">${p.theme}</span><span class="pill">${p.players||""}</span><span class="pill">${p.time||""}</span><p>${nl(p.desc||"")}</p><div class="practiceCols"><div class="infoBox"><b>Coaching Points</b><br>${nl(p.cp||"—")}</div><div class="infoBox"><b>Progressions</b><br>${nl(p.prog||"—")}</div><div class="infoBox"><b>Regressions</b><br>${nl(p.reg||"—")}</div></div></div></div>`}
+function practiceDetail(id,compact=false){let p=get(id);if(!p)return"";let mid=`sessionmini-${safe(id)}-${Math.random().toString(36).slice(2,7)}`;setTimeout(()=>drawMini(mid,p.diagram||[],p.pitchMode||"full"),0);return `<div class="practiceDetail"><div id="${mid}"></div><div><h3>${p.stage}: ${p.id} · ${p.name}</h3><span class="pill">${p.theme}</span><span class="pill">${p.players||""}</span><span class="pill">${p.time||""}</span><p>${nl(p.desc||"")}</p><div class="practiceCols"><div class="infoBox"><b>Coaching Points</b><br>${nl(p.cp||"—")}</div><div class="infoBox"><b>Progressions</b><br>${nl(p.prog||"—")}</div><div class="infoBox"><b>Regressions</b><br>${nl(p.reg||"—")}</div>${p.condRules?`<div class="infoBox"><b>Conditioned Game Rules</b><br>${nl(p.condRules)}</div>`:""}</div></div></div>`}
 function renderPreview(){preview.innerHTML=`<h2>Session Preview</h2><p><b>Theme:</b> ${sTheme.value||""}</p><p><b>Objective:</b><br>${nl(objective.value)}</p><p><b>Links:</b><br>${nl(links.value)}</p><p><b>Cues:</b><br>${nl(cues.value)}</p>${practiceDetail(act.value)}${practiceDetail(skill.value)}${practiceDetail(tact.value)}${practiceDetail(cond.value)}`}
 function nl(x){return (x||"").replace(/\n/g,"<br>")}
 function setPickStage(s){pickStage=s;renderVisualPicker()}
 function renderVisualPicker(){["pickActivation","pickSkill","pickTactical","pickConditioned"].forEach(id=>document.getElementById(id).classList.remove("activeStage"));let id=pickStage==="Activation"?"pickActivation":pickStage==="Skill Practice"?"pickSkill":pickStage==="Tactical Practice"?"pickTactical":"pickConditioned";document.getElementById(id).classList.add("activeStage");visualPicker.innerHTML="";let theme=sTheme.value;db.practices.filter(p=>p.stage===pickStage && (!theme||p.theme===theme)).forEach(p=>{let card=document.createElement("div");let selectedId=pickStage==="Activation"?act.value:pickStage==="Skill Practice"?skill.value:pickStage==="Tactical Practice"?tact.value:cond.value;card.className="pitchCard "+(selectedId===p.id?"selectedCard":"");card.onclick=()=>selectPracticeForStage(p.id);card.innerHTML=`<div id="vmini-${safe(p.id)}"></div><div><h3 style="margin:0">${p.id} · ${p.name}</h3><span class="pill">${p.theme}</span><span class="pill">${p.stage}</span><span class="pill">${p.players||""}</span><p>${p.desc||""}</p><p class="small"><b>Progressions:</b><br>${nl(p.prog||"")}</p></div>`;visualPicker.appendChild(card);setTimeout(()=>drawMini(`vmini-${safe(p.id)}`,p.diagram||[],p.pitchMode||"full"),0)});if(!visualPicker.innerHTML)visualPicker.innerHTML='<p class="small">No practices match this stage/theme yet.</p>'}
 function selectPracticeForStage(id){if(pickStage==="Activation")act.value=id;else if(pickStage==="Skill Practice")skill.value=id;else if(pickStage==="Tactical Practice")tact.value=id;else cond.value=id;renderPreview();renderVisualPicker()}
-function saveSession(){db.sessions.push({id:makeLocalId("session"),date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,act:act.value,skill:skill.value,tact:tact.value,cond:cond.value,reflect:reflect.value});store();alert("Session saved")}
+function resetSessionPlanner(){
+  const today=new Date().toISOString().slice(0,10);
+  if(document.getElementById("sDate"))sDate.value=today;
+  if(document.getElementById("team"))team.value="";
+  if(document.getElementById("sTheme"))sTheme.value="";
+  ["objective","links","cues","act","skill","tact","cond","reflect"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.value="";
+  });
+  pickStage="Activation";
+  renderObjectiveChips();
+  renderPreview();
+  renderVisualPicker();
+}
+function saveSession(){
+  db.sessions.push({id:makeLocalId("session"),date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,act:act.value,skill:skill.value,tact:tact.value,cond:cond.value,reflect:reflect.value});
+  store();
+  resetSessionPlanner();
+  alert("Session saved. Session Planner has been reset.");
+}
 function renderArchive(){
 let y=archiveMonth.getFullYear(),m=archiveMonth.getMonth();let title=document.getElementById('archiveMonthTitle');if(title)title.textContent=archiveMonth.toLocaleString('en-GB',{month:'long',year:'numeric'});let cal=document.getElementById('archiveCalendar');let list=document.getElementById('archiveList');if(!cal||!list)return;cal.innerHTML='';let first=new Date(y,m,1),start=(first.getDay()+6)%7;let days=new Date(y,m+1,0).getDate();['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d=>{let h=document.createElement('div');h.className='small';h.style.textAlign='center';h.style.fontWeight='800';h.textContent=d;cal.appendChild(h)});for(let i=0;i<start;i++){let e=document.createElement('div');cal.appendChild(e)}let today=new Date().toISOString().slice(0,10);if(!selectedArchiveDate)selectedArchiveDate=today;for(let d=1;d<=days;d++){let date=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;let sessions=db.sessions.filter(s=>s.date===date);let cell=document.createElement('div');cell.className='calDay '+(selectedArchiveDate===date?'activeDay':'');cell.onclick=()=>{selectedArchiveDate=date;renderArchive()};cell.innerHTML=`<div class="calDate">${d}</div>`+sessions.slice(0,3).map(s=>`<div class="calSessionDot">${s.theme||'Session'}</div>`).join('')+(sessions.length>3?`<div class="small">+${sessions.length-3} more</div>`:'');cal.appendChild(cell)}renderArchiveDay();}
 function renderArchiveDay(){let list=document.getElementById('archiveList');let title=document.getElementById('selectedArchiveTitle');let sessions=db.sessions.filter(s=>s.date===selectedArchiveDate).sort((a,b)=>(a.team||'').localeCompare(b.team||''));if(title)title.textContent=`${selectedArchiveDate||''} Sessions`;list.innerHTML='';if(!sessions.length){list.innerHTML='<p class="small">No sessions saved for this day.</p>';return;}sessions.forEach((s)=>{let i=db.sessions.indexOf(s);let d=document.createElement('div');d.className='session';d.innerHTML=`<h3>${s.date} · ${s.team||""} · ${s.theme||""}</h3><p><b>Objective:</b><br>${nl(s.objective||"")}</p><p><b>Cues:</b><br>${nl(s.cues||"")}</p><div class="favGrid">${[s.act,s.skill,s.tact,s.cond].filter(Boolean).map(id=>{let p=get(id);let mid='arch-'+safe(id)+'-'+Math.random().toString(36).slice(2,6);setTimeout(()=>drawMini(mid,(p&&p.diagram)||[],(p&&p.pitchMode)||'full'),0);return `<div><b class="small">${p?p.stage:id}</b><div id="${mid}"></div></div>`}).join('')}</div>${practiceDetail(s.act)}${practiceDetail(s.skill)}${practiceDetail(s.tact)}${practiceDetail(s.cond)}<p><b>Reflection:</b><br>${nl(s.reflect||"")}</p><div class="sessionActions noPrint"><button onclick="duplicateSession(${i})">Duplicate to Planner</button><button onclick="loadSessionToPlanner(${i})">Edit in Planner</button></div>`;list.appendChild(d)})}
