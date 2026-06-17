@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Nick's Coaching OS Clean Sync Test</title>
+<style>
+body{margin:0;background:#0f172a;color:#e5e7eb;font-family:Arial,Segoe UI,sans-serif}
+header{padding:18px 24px;background:#020617;border-bottom:1px solid #334155}
+h1{margin:0;font-size:24px}.sub{color:#94a3b8;font-size:13px}
+nav{display:flex;gap:8px;padding:12px 20px;background:#071024;flex-wrap:wrap}
+button{border:1px solid #334155;background:#1e293b;color:#e5e7eb;padding:9px 12px;border-radius:9px;cursor:pointer;font-weight:700}
+.active,button:hover{background:#38bdf8;color:#00111c}.danger:hover{background:#ef4444;color:white}
+.view{padding:20px;max-width:1450px;margin:auto}.hidden{display:none}.grid{display:grid;gap:16px}.two{grid-template-columns:410px 1fr}.three{grid-template-columns:1fr 1fr 1fr}
+.card{background:#111827;border:1px solid #334155;border-radius:16px;padding:16px}
+label{display:block;color:#94a3b8;font-size:12px;margin:10px 0 5px}
+input,select,textarea{width:100%;background:#020617;color:#e5e7eb;border:1px solid #334155;border-radius:9px;padding:9px;box-sizing:border-box}
+textarea{min-height:68px}.row{display:flex;gap:8px}.row>*{flex:1}
+.item{padding:10px;border:1px solid #334155;border-radius:10px;background:#0b1220;margin-bottom:8px;cursor:pointer;position:relative}
+.item:hover{border-color:#38bdf8}.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#0b2536;border:1px solid #164e63;color:#bae6fd;font-size:12px;margin:2px}
+.small{font-size:12px;color:#94a3b8}.tools{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+#pitch{position:relative;height:520px;background:#166534;border:2px solid rgba(255,255,255,.5);border-radius:8px;overflow:hidden}
+.pitchMini{position:relative;width:320px;height:180px;background:#166534;border:1px solid rgba(255,255,255,.5);border-radius:6px;overflow:hidden;margin-top:8px}
+.pitchCard{display:grid;grid-template-columns:340px 1fr;gap:12px;align-items:start;border:1px solid #334155;border-radius:12px;padding:10px;background:#0b1220;margin:10px 0;cursor:pointer}
+.pitchCard:hover{border-color:#38bdf8}.pitchCard.selectedCard{border-color:#22c55e;background:#071a13}
+.half{position:absolute;left:50%;top:0;bottom:0;width:2px;background:rgba(255,255,255,.5)}.circ{position:absolute;left:50%;top:50%;width:110px;height:110px;border:2px solid rgba(255,255,255,.5);border-radius:50%;transform:translate(-50%,-50%)}
+.box{position:absolute;border:2px solid rgba(255,255,255,.5);top:155px;width:95px;height:210px}.l{left:0;border-left:0}.r{right:0;border-right:0}
+.miniHalf{position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(255,255,255,.5)}.miniCirc{position:absolute;left:50%;top:50%;width:42px;height:42px;border:1px solid rgba(255,255,255,.5);border-radius:50%;transform:translate(-50%,-50%)}
+.obj{position:absolute;cursor:move;display:flex;align-items:center;justify-content:center;text-align:center;user-select:none}
+.player{z-index:30}.txt{z-index:35}.cone{z-index:25}.goal{z-index:20}.arrow{z-index:15}.zone{z-index:5}
+.player{width:34px;height:34px;border-radius:50%;font-size:11px;font-weight:800;color:white;border:2px solid white}
+.orange{background:#f97316}.yellow{background:#eab308;color:#111827}.blue{background:#2563eb}.green{background:#22c55e}
+.cone{width:22px;height:22px;background:linear-gradient(180deg,#fb923c,#ea580c);clip-path:polygon(50% 0,7% 100%,93% 100%);filter:drop-shadow(0 3px 2px rgba(0,0,0,.35));border-bottom:3px solid #fed7aa}
+.goal{width:48px;height:22px;border:3px solid white;border-radius:3px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.18) 0 2px,transparent 2px 7px)}.zone{width:120px;height:80px;border:2px dashed white;background:rgba(255,255,255,.08)}
+.arrow{width:90px;height:4px;background:white;transform-origin:left center}.arrow:after{content:"";position:absolute;right:-8px;top:-6px;border-left:12px solid white;border-top:8px solid transparent;border-bottom:8px solid transparent}
+.txt{min-width:40px;min-height:20px;background:rgba(0,0,0,.4);padding:4px 7px;border-radius:5px;font-weight:700}
+.selected{outline:3px solid #38bdf8!important}.session{border:1px solid #334155;border-radius:12px;padding:12px;background:#0b1220;margin:10px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.chip{padding:7px 9px;border-radius:999px;border:1px solid #334155;background:#020617;color:#e5e7eb;cursor:pointer;font-size:12px}.chip.on{background:#38bdf8;color:#00111c;border-color:#38bdf8}
+.hoverPreview{display:none;position:absolute;left:102%;top:0;z-index:20;width:360px;background:#020617;border:1px solid #38bdf8;border-radius:12px;padding:10px;box-shadow:0 20px 45px rgba(0,0,0,.5)}
+.item:hover .hoverPreview{display:block}
+.notice{background:#082f49;border:1px solid #0ea5e9;border-radius:12px;padding:12px;color:#e0f2fe}
+.stageBtns{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.stageBtns button.activeStage{background:#22c55e;color:#04130a;border-color:#22c55e}
+#pitch.quarters{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;padding:8px;background:#064e3b}
+#pitch.quarters:before,#pitch.quarters:after{content:"";position:absolute;background:rgba(255,255,255,.55);z-index:1}
+#pitch.quarters:before{left:50%;top:0;bottom:0;width:2px}
+#pitch.quarters:after{top:50%;left:0;right:0;height:2px}
+.quarterLabel{position:absolute;color:rgba(255,255,255,.75);font-weight:800;font-size:12px;z-index:2;background:rgba(0,0,0,.22);padding:4px 7px;border-radius:999px}
+.q1{left:12px;top:12px}.q2{right:12px;top:12px}.q3{left:12px;bottom:12px}.q4{right:12px;bottom:12px}
+@media print{nav,header,.noPrint{display:none}body{background:white;color:black}.card,.session{background:white;color:black;border:1px solid #ccc}}
+</style>
+</head>
+<body>
+<header><h1>⚽ Nick's Coaching OS Clean Sync Test</h1><div class="sub">Editable library · clean Google Sheets manual sync test</div></header>
+<nav>
+<button class="tab active" data-tab="library">Practice Library</button>
+<button class="tab" data-tab="editor">Add / Edit Practice</button>
+<button class="tab" data-tab="planner">Weekly Planner</button>
+<button class="tab" data-tab="archive">Session Archive</button>
+<button class="tab" data-tab="wordbank">Word Banks</button>
+<button class="tab" data-tab="backup">Backup / Sync</button>
+</nav>
+
+<section id="library" class="view">
+<div class="grid two">
+<div class="card"><h2>Filters</h2><label>Search</label><input id="search"><label>Theme</label><select id="filterTheme"></select><label>Stage</label><select id="filterStage"></select><button onclick="newPractice()">+ New Practice</button></div>
+<div class="card"><h2>Practice Library</h2><p class="small">Hover over a practice to preview its diagram and description. Click to edit.</p><div id="practiceList"></div></div>
+</div>
+</section>
+
+<section id="editor" class="view hidden">
+<div class="grid two">
+<div class="card">
+<h2>Add / Edit Practice</h2><input type="hidden" id="oldId">
+<div class="row"><div><label>ID</label><input id="pid" placeholder="BU-A01"></div><div><label>Stage</label><select id="stage"></select></div></div>
+<label>Name</label><input id="pname">
+<div class="row"><div><label>Theme</label><select id="theme"></select></div><div><label>Players</label><input id="players" placeholder="10-16"></div></div>
+<div class="row"><div><label>Time</label><input id="time" placeholder="15 mins"></div><div><label>Area</label><input id="area" placeholder="40x30"></div></div>
+<label>Description</label><textarea id="desc"></textarea>
+<label>Coaching Points Word Bank</label><div id="cpChips" class="chips"></div><textarea id="cp" placeholder="Click chips above or write your own..."></textarea>
+<label>Progressions Word Bank</label><div id="progChips" class="chips"></div><textarea id="prog"></textarea>
+<label>Regressions Word Bank</label><div id="regChips" class="chips"></div><textarea id="reg"></textarea>
+<div class="row"><button onclick="savePractice()">Save</button><button onclick="duplicatePractice()">Duplicate Practice</button><button class="danger" onclick="deletePractice()">Delete</button></div>
+<p class="small">Select an object on the pitch, then resize/rotate it below. Double-click players/text to edit label.</p>
+</div>
+<div class="card">
+<h2>Editable Pitch Diagram</h2>
+<div class="tools noPrint"><button onclick="addObj('player','orange')">Orange</button><button onclick="addObj('player','yellow')">Yellow</button><button onclick="addObj('player','blue')">Blue</button><button onclick="addObj('player','green')">Green</button><button onclick="addObj('cone')">Cone</button><button onclick="addObj('goal')">Goal</button><button onclick="addObj('zone')">Zone</button><button onclick="addObj('arrow')">Arrow</button><button onclick="addObj('txt')">Text</button><button onclick="duplicateSelectedObj()">Duplicate Selected</button><button onclick="deleteSelectedObj()">Delete Selected</button><button onclick="setPitchMode('full')">Full Pitch</button><button onclick="setPitchMode('quarters')">4 Quarter Pitches</button><button onclick="clearPitch()">Clear</button></div>
+<div class="row noPrint"><div><label>Selected Width</label><input type="range" id="objW" min="10" max="400" oninput="resizeSelected()"></div><div><label>Selected Height</label><input type="range" id="objH" min="4" max="250" oninput="resizeSelected()"></div><div><label>Rotation</label><input type="range" id="objR" min="-180" max="180" oninput="resizeSelected()"></div></div>
+<div id="pitch"></div>
+</div>
+</div>
+</section>
+
+<section id="planner" class="view hidden">
+<div class="grid two">
+<div class="card"><h2>Weekly Session Planner</h2>
+<div class="row"><div><label>Date</label><input id="sDate" type="date"></div><div><label>Team</label><input id="team" placeholder="GMFC"></div></div>
+<label>Theme</label><select id="sTheme"></select>
+<label>Session Objective Bank</label><div id="objChips" class="chips"></div><textarea id="objective"></textarea>
+<label>Game Model Links Bank</label><div id="linkChips" class="chips"></div><textarea id="links"></textarea>
+<label>Coach's Cues Bank</label><div id="cueChips" class="chips"></div><textarea id="cues"></textarea>
+<div class="row"><div><label>Activation</label><select id="act"></select></div><div><label>Skill</label><select id="skill"></select></div></div>
+<div class="row"><div><label>Tactical</label><select id="tact"></select></div><div><label>Conditioned</label><select id="cond"></select></div></div>
+<label>Reflection Bank</label><div id="reflectChips" class="chips"></div><textarea id="reflect"></textarea>
+<button onclick="saveSession()">Save Session</button></div>
+<div class="card">
+<h2>Visual Practice Picker</h2>
+<p class="small">Click a stage, then click a practice card. It will fill the matching dropdown.</p>
+<div class="stageBtns"><button id="pickActivation" onclick="setPickStage('Activation')">Activation</button><button id="pickSkill" onclick="setPickStage('Skill Practice')">Skill</button><button id="pickTactical" onclick="setPickStage('Tactical Practice')">Tactical</button><button id="pickConditioned" onclick="setPickStage('Conditioned Game')">Conditioned</button></div>
+<div id="visualPicker"></div>
+<hr style="border-color:#334155"><div id="preview"></div>
+</div>
+</div>
+</section>
+
+<section id="archive" class="view hidden"><div class="card"><h2>Session Archive</h2><button onclick="window.print()" class="noPrint">Print / Save PDF</button><div id="archiveList"></div></div></section>
+
+<section id="wordbank" class="view hidden">
+<div class="grid three">
+<div class="card"><h2>Practice Coaching Points</h2><textarea id="bankCP"></textarea><button onclick="saveBanks()">Save Bank</button></div>
+<div class="card"><h2>Practice Progressions</h2><textarea id="bankProg"></textarea><button onclick="saveBanks()">Save Bank</button></div>
+<div class="card"><h2>Practice Regressions</h2><textarea id="bankReg"></textarea><button onclick="saveBanks()">Save Bank</button></div>
+<div class="card"><h2>Generic Weekly Objectives</h2><textarea id="bankObj"></textarea><button onclick="saveBanks()">Save Bank</button><p class="small">Used if no theme-specific objectives are set.</p></div>
+<div class="card"><h2>Theme-Specific Objectives</h2><label>Choose Theme</label><select id="objectiveThemeSelect" onchange="loadThemeObjectives()"></select><textarea id="bankThemeObj" placeholder="Objectives for selected theme..."></textarea><button onclick="saveThemeObjectives()">Save Theme Objectives</button><p class="small">These are the chips that appear in the Weekly Planner after selecting a theme.</p></div>
+<div class="card"><h2>Game Model Links</h2><textarea id="bankLinks"></textarea><button onclick="saveBanks()">Save Bank</button></div>
+<div class="card"><h2>Coach's Cues</h2><textarea id="bankCues"></textarea><button onclick="saveBanks()">Save Bank</button></div>
+<div class="card"><h2>Reflection Prompts</h2><textarea id="bankReflect"></textarea><button onclick="saveBanks()">Save Bank</button></div>
+</div>
+</section>
+
+<section id="backup" class="view hidden"><div class="card">
+<h2>Backup / Phone-Laptop Sync</h2>
+<div class="notice"><b>Important:</b> this offline version saves to the device/browser you open it on. Your laptop and phone will not automatically stay in sync unless we add a cloud database later, for example Firebase, Supabase or Google Sheets. For now, use backup/restore to move data between devices.</div>
+<label>Google Apps Script Web App URL</label>
+<input id="syncUrl" placeholder="Paste your deployed Google Apps Script Web App URL here">
+<div class="row">
+<button onclick="saveSyncUrl()">Save Sync URL</button>
+<button onclick="syncToGoogle()">Sync TO Google Sheets</button>
+<button onclick="syncFromGoogle()">Sync FROM Google Sheets</button>
+</div>
+<hr style="border-color:#334155">
+<button onclick="backup()">Generate Backup</button><button onclick="restore()">Restore From Box</button>
+<textarea id="backupBox" style="min-height:320px"></textarea>
+<h3>Google Sheets Apps Script code</h3>
+<p class="small">Create a Google Sheet, go to Extensions → Apps Script, paste this code, deploy as Web App, then paste the Web App URL above.</p>
+<textarea id="scriptBox" style="min-height:360px" readonly></textarea>
+</div></section>
+
+<script>
+const themes=["Build Up","Midfield Progression","Chance Creation","Finishing","High Press","Mid Block","Counter Press","Attacking Transition","Defensive Transition","Set Plays"];
+const stages=["Activation","Skill Practice","Tactical Practice","Conditioned Game"];
+const defaultBanks={
+cp:["Quality of pass","First touch out of feet","Scan before receiving","Open body shape","Play forward when possible","Create angles","Support underneath","Move after pass","Protect centre","Force wide","Lock one side","Show outside","Screen the pivot","Jump on trigger","Squeeze together","Counter press immediately","Recover compactly","Attack with pace","Arrive in the box","Communicate"],
+prog:["Reduce touches","Reduce space","Add active defenders","Add transition on regain","Add scoring target","Add time limit","Make it directional","Add neutral player constraint","Lock players into zones","Allow one player to rotate zones"],
+reg:["Unlimited touches","Increase space","Make defenders passive","Add neutral overload","Remove time limit","Simplify scoring","Start unopposed","Freeze and walk through movement","Reduce number of opponents","Allow coach serve/restart"],
+obj:["Create and exploit overloads","Progress through midfield with control","Protect the centre and force wide","Win the ball high and attack quickly","Counter press immediately after losing possession","Create high-quality chances from wide areas","Break lines using third-man combinations"],
+objByTheme:{
+"Build Up":["Progress the ball into midfield under control","Create numerical superiority in the first line","Attract pressure and play through, around or over","Create better angles to play out from the back","Find the free player when building under pressure"],
+"Midfield Progression":["Break lines through midfield with control","Use third-man combinations to progress centrally","Switch play to find the free side","Receive on the half-turn and play forward","Create midfield overloads to progress the ball"],
+"Chance Creation":["Create high-quality chances in the final third","Create and exploit overloads around the box","Use blindside movement to disorganise defenders","Create cut-back and crossing opportunities","Find the free player in advanced areas"],
+"Finishing":["Improve movement and timing in the box","Attack front post, back post and second balls","Finish from crosses and cut-backs","Create quick finishing actions under pressure","React quickly to rebounds and loose balls"],
+"High Press":["Win the ball high and attack quickly","Protect the centre while pressing aggressively","Lock one side and force predictable passes","Press on clear triggers as a unit","Surround opposition pivots and jump on the pass"],
+"Mid Block":["Protect central spaces and force play wide","Stay compact between units","Delay the attack and prevent central progression","Shift together as the ball travels","Regain in wide areas and counter quickly"],
+"Counter Press":["React immediately after losing possession","Hunt the ball carrier and closest options","Stop the opposition’s first forward pass","Win the ball back before the opponent can counter","Counter press as a connected unit"],
+"Attacking Transition":["Exploit disorganisation after regaining possession","Play forward quickly on regain","Support around the ball during the counter attack","Attack space before the opponent recovers","Make quick decisions after winning possession"],
+"Defensive Transition":["Recover compactly after losing possession","Protect the centre first after loss","Delay the counter attack","Recover behind the ball when counter press is not possible","Stop forward runs after losing possession"],
+"Set Plays":["Create clear roles and movements from set plays","Improve attacking corners and second-ball reactions","Defend set plays with organisation and bravery","Create effective throw-in routines","Use rest defence effectively from attacking set plays"]
+},
+links:["Width","Depth","Play Forward","Free Player","Third Man","Break Lines","Create Overloads","Five Lanes","Arrivals In Box","Rest Defence","Protect Centre","Force Wide","Lock","Show","Screen","Shift","Trap","Jump","Squeeze","Recover Compactly","Counter Press","React","Hunt","Recover","Exploit Space","Support Around Ball"],
+cues:["Width","Depth","Forward","Bounce","Switch","Third Man","Fix Him","Lock","Show","Screen","Trap","Jump","Shift","Squeeze","Recover","Protect Centre","Free Player","Five Lanes","Rest Defence","Hunt"],
+reflect:["Did we achieve the objective?","What behaviour improved?","What behaviour was missing?","What should next session build on?","Which players understood the detail?","What did I overcoach?","What needs repeating?"]
+};
+let db=JSON.parse(localStorage.getItem("nickCoachOSv3")||'null')||{practices:[],sessions:[],banks:defaultBanks};
+let diagram=[], drag=null, off=[0,0], selected=null, pickStage="Activation";
+function store(){localStorage.setItem("nickCoachOSv3",JSON.stringify(db));renderAll()}
+function fill(id,arr,all=false){let e=document.getElementById(id);if(!e)return;e.innerHTML=all?'<option value="">All</option>':'';arr.forEach(x=>{let o=document.createElement("option");o.value=x;o.textContent=x;e.appendChild(o)})}
+function opts(stage){return '<option value="">Select...</option>'+db.practices.filter(p=>p.stage===stage).map(p=>`<option value="${p.id}">${p.id} · ${p.name}</option>`).join("")}
+function renderAll(){["theme","filterTheme","sTheme","objectiveThemeSelect"].forEach((id,i)=>fill(id,themes,i==1));["stage","filterStage"].forEach((id,i)=>fill(id,stages,i==1));act.innerHTML=opts("Activation");skill.innerHTML=opts("Skill Practice");tact.innerHTML=opts("Tactical Practice");cond.innerHTML=opts("Conditioned Game");renderList();renderArchive();renderPreview();renderBanks();renderVisualPicker();draw()}
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active");document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));document.getElementById(b.dataset.tab).classList.remove("hidden")})
+function renderList(){let q=search.value.toLowerCase(),ft=filterTheme.value,fs=filterStage.value;practiceList.innerHTML="";db.practices.filter(p=>(!ft||p.theme==ft)&&(!fs||p.stage==fs)&&JSON.stringify(p).toLowerCase().includes(q)).forEach(p=>{let d=document.createElement("div");d.className="item";d.onclick=()=>editPractice(p.id);d.innerHTML=`<strong>${p.id} · ${p.name}</strong><span class="pill">${p.theme}</span><span class="pill">${p.stage}</span><div class="small">${p.players||""} · ${p.time||""}</div><div class="hoverPreview"><b>${p.id} · ${p.name}</b><div id="mini-${safe(p.id)}"></div><p class="small">${p.desc||""}</p></div>`;practiceList.appendChild(d);setTimeout(()=>drawMini(`mini-${safe(p.id)}`,p.diagram||[],p.pitchMode||"full"),0)})}
+function safe(s){return String(s).replace(/[^a-zA-Z0-9]/g,'')}
+search.oninput=filterTheme.oninput=filterStage.oninput=renderList;
+function renderBanks(){bankCP.value=db.banks.cp.join("\n");bankProg.value=db.banks.prog.join("\n");bankReg.value=db.banks.reg.join("\n");bankObj.value=db.banks.obj.join("\n");bankLinks.value=db.banks.links.join("\n");bankCues.value=db.banks.cues.join("\n");bankReflect.value=db.banks.reflect.join("\n");
+renderChipBox("cpChips",db.banks.cp,"cp");renderChipBox("progChips",db.banks.prog,"prog");renderChipBox("regChips",db.banks.reg,"reg");renderObjectiveChips();renderChipBox("linkChips",db.banks.links,"links");renderChipBox("cueChips",db.banks.cues,"cues");renderChipBox("reflectChips",db.banks.reflect,"reflect");loadThemeObjectives(false)}
+function loadThemeObjectives(overwrite=true){
+let sel=document.getElementById("objectiveThemeSelect");let box=document.getElementById("bankThemeObj");if(!sel||!box)return;
+let t=sel.value||themes[0];if(overwrite||!box.value){box.value=((db.banks.objByTheme&&db.banks.objByTheme[t])?db.banks.objByTheme[t]:[]).join("\n");}
+}
+function saveThemeObjectives(){
+let sel=document.getElementById("objectiveThemeSelect");let box=document.getElementById("bankThemeObj");if(!db.banks.objByTheme)db.banks.objByTheme={};
+db.banks.objByTheme[sel.value]=box.value.split("\n").filter(Boolean);store();alert("Theme objectives saved.");
+}
+function renderObjectiveChips(){
+let themeVal=(document.getElementById("sTheme")||{}).value;
+let arr=(db.banks.objByTheme&&db.banks.objByTheme[themeVal])?db.banks.objByTheme[themeVal]:db.banks.obj;
+renderChipBox("objChips",arr,"objective");
+}
+function renderChipBox(id,arr,target){let box=document.getElementById(id);if(!box)return;box.innerHTML="";arr.forEach(t=>{let c=document.createElement("span");c.className="chip";c.textContent=t;c.onclick=()=>toggleText(target,t,c);box.appendChild(c)})}
+function toggleText(targetId,text,chip){let ta=document.getElementById(targetId);let lines=ta.value.split("\n").filter(Boolean);if(lines.includes(text)){lines=lines.filter(x=>x!==text);chip.classList.remove("on")}else{lines.push(text);chip.classList.add("on")}ta.value=lines.join("\n");renderPreview()}
+function saveBanks(){db.banks.cp=bankCP.value.split("\n").filter(Boolean);db.banks.prog=bankProg.value.split("\n").filter(Boolean);db.banks.reg=bankReg.value.split("\n").filter(Boolean);db.banks.obj=bankObj.value.split("\n").filter(Boolean);db.banks.links=bankLinks.value.split("\n").filter(Boolean);db.banks.cues=bankCues.value.split("\n").filter(Boolean);db.banks.reflect=bankReflect.value.split("\n").filter(Boolean);store();alert("Word banks saved")}
+function newPractice(){clearForm();document.querySelector('[data-tab="editor"]').click()}
+function clearForm(){["oldId","pid","pname","players","time","area","desc","prog","reg","cp"].forEach(id=>document.getElementById(id).value="");diagram=[];pitchMode="full";selected=null;draw()}
+function editPractice(id){let p=db.practices.find(x=>x.id==id);document.querySelector('[data-tab="editor"]').click();oldId.value=p.id;pid.value=p.id;pname.value=p.name;theme.value=p.theme;stage.value=p.stage;players.value=p.players||"";time.value=p.time||"";area.value=p.area||"";desc.value=p.desc||"";prog.value=p.prog||"";reg.value=p.reg||"";cp.value=p.cp||"";diagram=JSON.parse(JSON.stringify(p.diagram||[]));pitchMode=p.pitchMode||"full";selected=null;draw()}
+function savePractice(){let p={id:pid.value.trim(),name:pname.value.trim(),theme:theme.value,stage:stage.value,players:players.value,time:time.value,area:area.value,desc:desc.value,prog:prog.value,reg:reg.value,cp:cp.value,diagram,pitchMode};if(!p.id||!p.name)return alert("Add ID and name.");db.practices=db.practices.filter(x=>x.id!==oldId.value&&x.id!==p.id);db.practices.push(p);oldId.value=p.id;store();alert("Saved")}
+function duplicatePractice(){let baseId=pid.value.trim();if(!baseId)return alert("Save or open a practice first.");oldId.value="";pid.value=baseId+"-COPY";pname.value=pname.value+" Copy";alert("Duplicated. Change ID/name and press Save.")}
+function deletePractice(){let id=oldId.value||pid.value;if(id&&confirm("Delete?")){db.practices=db.practices.filter(p=>p.id!==id);clearForm();store()}}
+function base(){
+if(pitchMode==="quarters")return '<div class="quarterLabel q1">Practice 1</div><div class="quarterLabel q2">Progression 1</div><div class="quarterLabel q3">Progression 2</div><div class="quarterLabel q4">Progression 3</div>';
+return '<div class="half"></div><div class="circ"></div><div class="box l"></div><div class="box r"></div>';
+}
+function draw(){pitch.className=pitchMode==="quarters"?"quarters":"";pitch.innerHTML=base();diagram.forEach((o,i)=>{let e=document.createElement("div");e.className=`obj ${o.type} ${o.color||""} ${selected===i?'selected':''}`;e.style.left=o.x+"px";e.style.top=o.y+"px";e.style.width=(o.w||defaultW(o.type))+"px";e.style.height=(o.h||defaultH(o.type))+"px";if(o.rot)e.style.transform=`rotate(${o.rot}deg)`;e.textContent=o.label||"";e.onmousedown=ev=>{selected=i;drag=i;off=[ev.offsetX,ev.offsetY];setSliders();draw()};e.ondblclick=()=>{if(o.type==="player"||o.type==="txt")o.label=prompt("Label",o.label||"")||o.label;if(o.type==="arrow")o.rot=+(prompt("Angle",o.rot||0)||0);draw()};pitch.appendChild(e)})}
+function defaultW(t){return t==="player"?34:t==="cone"?18:t==="goal"?42:t==="zone"?120:t==="arrow"?90:50}
+function defaultH(t){return t==="player"?34:t==="cone"?18:t==="goal"?18:t==="zone"?80:t==="arrow"?4:24}
+function setSliders(){if(selected==null)return;let o=diagram[selected];objW.value=o.w||defaultW(o.type);objH.value=o.h||defaultH(o.type);objR.value=o.rot||0}
+function resizeSelected(){if(selected==null)return;let o=diagram[selected];o.w=+objW.value;o.h=+objH.value;o.rot=+objR.value;draw()}
+function addObj(type,color){let label=type=="player"?prompt("Label","6"):(type=="txt"?prompt("Text","Note"):"");diagram.push({type,color,label,x:100,y:100,w:defaultW(type),h:defaultH(type),rot:0});selected=diagram.length-1;draw();setSliders()}
+function setPitchMode(mode){pitchMode=mode;draw()}
+function duplicateSelectedObj(){if(selected==null)return alert("Click an object first.");let copy=JSON.parse(JSON.stringify(diagram[selected]));copy.x=(copy.x||0)+25;copy.y=(copy.y||0)+25;diagram.push(copy);selected=diagram.length-1;draw();setSliders()}
+function deleteSelectedObj(){if(selected==null)return alert("Click an object first.");diagram.splice(selected,1);selected=null;draw()}
+function clearPitch(){if(confirm("Clear pitch?")){diagram=[];selected=null;draw()}}
+document.onmousemove=e=>{if(drag===null)return;let r=pitch.getBoundingClientRect();diagram[drag].x=Math.max(0,Math.min(e.clientX-r.left-off[0],r.width-20));diagram[drag].y=Math.max(0,Math.min(e.clientY-r.top-off[1],r.height-20));draw()}
+document.onmouseup=()=>drag=null;
+function drawMini(id,dia,mode="full"){let el=document.getElementById(id);if(!el)return;el.innerHTML='<div class="pitchMini"><div class="miniHalf"></div><div class="miniCirc"></div></div>'; if(mode==='quarters'){el.querySelector('.pitchMini').style.background='#064e3b';}let p=el.querySelector(".pitchMini");dia.forEach(o=>{let e=document.createElement("div");e.className=`obj ${o.type} ${o.color||""}`;e.style.left=((o.x||0)*320/900)+"px";e.style.top=((o.y||0)*180/520)+"px";e.style.width=((o.w||defaultW(o.type))*0.45)+"px";e.style.height=((o.h||defaultH(o.type))*0.45)+"px";if(o.rot)e.style.transform=`rotate(${o.rot}deg)`;e.style.fontSize="8px";e.textContent=o.label||"";p.appendChild(e)})}
+function get(id){return db.practices.find(p=>p.id==id)}
+["act","skill","tact","cond","objective","links","cues","reflect"].forEach(id=>document.getElementById(id).oninput=()=>{renderPreview();renderVisualPicker()})
+document.getElementById("sTheme").oninput=()=>{renderObjectiveChips();renderPreview();renderVisualPicker()}
+function mini(id){let p=get(id);return p?`<div class="session"><strong>${p.stage}: ${p.id} · ${p.name}</strong><br><span class="pill">${p.theme}</span><span class="pill">${p.players||""}</span><span class="pill">${p.time||""}</span><p>${p.desc||""}</p></div>`:""}
+function renderPreview(){preview.innerHTML=`<h2>Session Preview</h2><p><b>Theme:</b> ${sTheme.value||""}</p><p><b>Objective:</b><br>${nl(objective.value)}</p><p><b>Links:</b><br>${nl(links.value)}</p><p><b>Cues:</b><br>${nl(cues.value)}</p>${mini(act.value)}${mini(skill.value)}${mini(tact.value)}${mini(cond.value)}`}
+function nl(x){return (x||"").replace(/\n/g,"<br>")}
+function setPickStage(s){pickStage=s;renderVisualPicker()}
+function renderVisualPicker(){["pickActivation","pickSkill","pickTactical","pickConditioned"].forEach(id=>document.getElementById(id).classList.remove("activeStage"));let id=pickStage==="Activation"?"pickActivation":pickStage==="Skill Practice"?"pickSkill":pickStage==="Tactical Practice"?"pickTactical":"pickConditioned";document.getElementById(id).classList.add("activeStage");visualPicker.innerHTML="";let theme=sTheme.value;db.practices.filter(p=>p.stage===pickStage && (!theme||p.theme===theme)).forEach(p=>{let card=document.createElement("div");let selectedId=pickStage==="Activation"?act.value:pickStage==="Skill Practice"?skill.value:pickStage==="Tactical Practice"?tact.value:cond.value;card.className="pitchCard "+(selectedId===p.id?"selectedCard":"");card.onclick=()=>selectPracticeForStage(p.id);card.innerHTML=`<div id="vmini-${safe(p.id)}"></div><div><h3 style="margin:0">${p.id} · ${p.name}</h3><span class="pill">${p.theme}</span><span class="pill">${p.stage}</span><span class="pill">${p.players||""}</span><p>${p.desc||""}</p><p class="small"><b>Progressions:</b><br>${nl(p.prog||"")}</p></div>`;visualPicker.appendChild(card);setTimeout(()=>drawMini(`vmini-${safe(p.id)}`,p.diagram||[],p.pitchMode||"full"),0)});if(!visualPicker.innerHTML)visualPicker.innerHTML='<p class="small">No practices match this stage/theme yet.</p>'}
+function selectPracticeForStage(id){if(pickStage==="Activation")act.value=id;else if(pickStage==="Skill Practice")skill.value=id;else if(pickStage==="Tactical Practice")tact.value=id;else cond.value=id;renderPreview();renderVisualPicker()}
+function saveSession(){db.sessions.push({date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,act:act.value,skill:skill.value,tact:tact.value,cond:cond.value,reflect:reflect.value});store();alert("Session saved")}
+function renderArchive(){archiveList.innerHTML="";db.sessions.sort((a,b)=>a.date.localeCompare(b.date)).forEach((s,i)=>{let d=document.createElement("div");d.className="session";d.innerHTML=`<h3>${s.date} · ${s.team||""} · ${s.theme||""}</h3><p><b>Objective:</b><br>${nl(s.objective||"")}</p><p><b>Cues:</b><br>${nl(s.cues||"")}</p>${mini(s.act)}${mini(s.skill)}${mini(s.tact)}${mini(s.cond)}<p><b>Reflection:</b><br>${nl(s.reflect||"")}</p><button class="noPrint" onclick="duplicateSession(${i})">Duplicate Session</button>`;archiveList.appendChild(d)})}
+function duplicateSession(i){let s=JSON.parse(JSON.stringify(db.sessions[i]));s.date=new Date().toISOString().slice(0,10);db.sessions.push(s);store();alert("Session duplicated with today's date.")}
+function backup(){backupBox.value=JSON.stringify(db,null,2)}
+function restore(){try{db=JSON.parse(backupBox.value);store();alert("Restored")}catch(e){alert("Invalid backup")}}
+
+const googleScriptCode = `const SHEET_NAME = "CoachingOS";
+
+function getSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAME);
+
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAME);
+  }
+
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(["updatedAt", "json"]);
+  }
+
+  return sheet;
+}
+
+function doGet() {
+  const sheet = getSheet_();
+  const json = sheet.getRange("B2").getValue();
+
+  return ContentService
+    .createTextOutput(json || JSON.stringify({
+      practices: [],
+      sessions: [],
+      banks: {}
+    }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  const sheet = getSheet_();
+  const body = e && e.postData && e.postData.contents ? e.postData.contents : "{}";
+
+  sheet.getRange("A2").setValue(new Date());
+  sheet.getRange("B2").setValue(body);
+
+  return ContentService
+    .createTextOutput(JSON.stringify({ success: true }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function testWrite() {
+  const sheet = getSheet_();
+  sheet.getRange("A2").setValue(new Date());
+  sheet.getRange("B2").setValue(JSON.stringify({
+    test: true,
+    message: "Apps Script direct test worked"
+  }));
+}`;
+
+function initSync(){
+  const u=localStorage.getItem("nickCoachOSSyncUrl")||"";
+  const su=document.getElementById("syncUrl");
+  const sb=document.getElementById("scriptBox");
+  if(su) su.value=u;
+  if(sb) sb.value=googleScriptCode;
+}
+
+function saveSyncUrl(){
+  localStorage.setItem("nickCoachOSSyncUrl", syncUrl.value.trim());
+  alert("Sync URL saved.");
+}
+
+async function syncToGoogle(){
+  const url=(syncUrl.value||localStorage.getItem("nickCoachOSSyncUrl")||"").trim();
+  if(!url) return alert("Paste your Google Apps Script Web App URL first.");
+
+  try{
+    await fetch(url,{
+      method:"POST",
+      mode:"no-cors",
+      headers:{"Content-Type":"text/plain"},
+      body:JSON.stringify(db)
+    });
+    alert("Save request sent. Refresh Google Sheet and check A2/B2.");
+  }catch(e){
+    alert("Sync failed: "+e.message);
+  }
+}
+
+async function syncFromGoogle(){
+  const url=(syncUrl.value||localStorage.getItem("nickCoachOSSyncUrl")||"").trim();
+  if(!url) return alert("Paste your Google Apps Script Web App URL first.");
+
+  try{
+    const res=await fetch(url + (url.includes("?") ? "&" : "?") + "t=" + Date.now());
+    const text=await res.text();
+    const cloud=JSON.parse(text);
+    db=cloud;
+    localStorage.setItem("nickCoachOSv3",JSON.stringify(db));
+    renderAll();
+    alert("Loaded latest data from Google Sheets.");
+  }catch(e){
+    alert("Load failed: "+e.message);
+  }
+}
+
+initSync();
+renderAll()
+</script>
+</body></html>
