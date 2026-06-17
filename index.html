@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Nick's Coaching OS Clean Sync Test</title>
+<title>Nick's Coaching OS</title>
 <style>
 body{margin:0;background:#0f172a;color:#e5e7eb;font-family:Arial,Segoe UI,sans-serif}
 header{padding:18px 24px;background:#020617;border-bottom:1px solid #334155}
@@ -49,14 +49,14 @@ textarea{min-height:68px}.row{display:flex;gap:8px}.row>*{flex:1}
 </style>
 </head>
 <body>
-<header><h1>⚽ Nick's Coaching OS Clean Sync Test</h1><div class="sub">Editable library · clean Google Sheets manual sync test</div></header>
+<header><h1>⚽ Nick's Coaching OS</h1><div class="sub">Editable library · Firebase live sync · cloud backups</div></header>
 <nav>
 <button class="tab active" data-tab="library">Practice Library</button>
 <button class="tab" data-tab="editor">Add / Edit Practice</button>
 <button class="tab" data-tab="planner">Weekly Planner</button>
 <button class="tab" data-tab="archive">Session Archive</button>
 <button class="tab" data-tab="wordbank">Word Banks</button>
-<button class="tab" data-tab="backup">Backup / Sync</button>
+<button class="tab" data-tab="backup">Cloud / Backups</button>
 </nav>
 
 <section id="library" class="view">
@@ -128,21 +128,27 @@ textarea{min-height:68px}.row{display:flex;gap:8px}.row>*{flex:1}
 </section>
 
 <section id="backup" class="view hidden"><div class="card">
-<h2>Backup / Phone-Laptop Sync</h2>
-<div class="notice"><b>Important:</b> this offline version saves to the device/browser you open it on. Your laptop and phone will not automatically stay in sync unless we add a cloud database later, for example Firebase, Supabase or Google Sheets. For now, use backup/restore to move data between devices.</div>
-<label>Google Apps Script Web App URL</label>
-<input id="syncUrl" placeholder="Paste your deployed Google Apps Script Web App URL here">
+<h2>Cloud / Backups</h2>
+<div class="notice"><b>Firebase live sync is active.</b> This page is now your safety area: check cloud status, create manual cloud backups, restore a previous backup, or export/import JSON if needed.</div>
 <div class="row">
-<button onclick="saveSyncUrl()">Save Sync URL</button>
-<button onclick="syncToGoogle()">Sync TO Google Sheets</button>
-<button onclick="syncFromGoogle()">Sync FROM Google Sheets</button>
+  <div><label>Cloud Status</label><input id="cloudStatus" readonly value="Starting..."></div>
+  <div><label>Last Cloud Update</label><input id="lastCloudUpdate" readonly value="Not loaded yet"></div>
 </div>
-<hr style="border-color:#334155">
-<button onclick="backup()">Generate Backup</button><button onclick="restore()">Restore From Box</button>
-<textarea id="backupBox" style="min-height:320px"></textarea>
-<h3>Google Sheets Apps Script code</h3>
-<p class="small">Create a Google Sheet, go to Extensions → Apps Script, paste this code, deploy as Web App, then paste the Web App URL above.</p>
-<textarea id="scriptBox" style="min-height:360px" readonly></textarea>
+<div class="row">
+  <button onclick="createCloudBackup()">Create Cloud Backup</button>
+  <button onclick="loadCloudBackups()">Refresh Backup List</button>
+</div>
+<label>Cloud Backups</label>
+<select id="backupSelect"></select>
+<div class="row">
+  <button onclick="restoreSelectedBackup()">Restore Selected Backup</button>
+  <button onclick="backup()">Generate Local JSON Backup</button>
+</div>
+<textarea id="backupBox" style="min-height:320px" placeholder="Local JSON backup / restore box"></textarea>
+<div class="row">
+  <button onclick="restore()">Restore From JSON Box</button>
+</div>
+<p class="small">Tip: create a cloud backup before big editing sessions or before testing new features.</p>
 </div></section>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
@@ -151,8 +157,15 @@ import {
   getFirestore,
   doc,
   setDoc,
+  getDoc,
   onSnapshot,
-  serverTimestamp
+  serverTimestamp,
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  orderBy,
+  limit
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -168,24 +181,48 @@ const app = initializeApp(firebaseConfig);
 const firestore = getFirestore(app);
 
 window.nickCloud = {
- save: async function(data) {
-  const cleanData = JSON.parse(JSON.stringify(data));
+  save: async function(data) {
+    const cleanData = JSON.parse(JSON.stringify(data));
 
-  await setDoc(doc(firestore, "coachingOS", "main"), {
-    data: cleanData,
-    updatedAt: serverTimestamp()
-  });
-},
+    await setDoc(doc(firestore, "coachingOS", "main"), {
+      data: cleanData,
+      updatedAt: serverTimestamp()
+    });
+  },
+
+  getCurrent: async function() {
+    const snap = await getDoc(doc(firestore, "coachingOS", "main"));
+    return snap.exists() ? snap.data() : null;
+  },
 
   listen: function(callback) {
     return onSnapshot(
       doc(firestore, "coachingOS", "main"),
       function(snapshot) {
         if (snapshot.exists()) {
-          callback(snapshot.data().data);
+          callback(snapshot.data());
         }
       }
     );
+  },
+
+  createBackup: async function(data) {
+    const cleanData = JSON.parse(JSON.stringify(data));
+    await addDoc(collection(firestore, "coachingOSBackups"), {
+      data: cleanData,
+      createdAt: serverTimestamp(),
+      label: new Date().toLocaleString("en-GB")
+    });
+  },
+
+  loadBackups: async function() {
+    const q = query(
+      collection(firestore, "coachingOSBackups"),
+      orderBy("createdAt", "desc"),
+      limit(25)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   }
 };
 </script>
@@ -215,16 +252,27 @@ reflect:["Did we achieve the objective?","What behaviour improved?","What behavi
 };
 let db=JSON.parse(localStorage.getItem("nickCoachOSv3")||'null')||{practices:[],sessions:[],banks:defaultBanks};
 let diagram=[], drag=null, off=[0,0], selected=null, pickStage="Activation", pitchMode="full";
+let cloudReady=false, applyingCloudUpdate=false, lastCloudJson="";
 async function store(){
   localStorage.setItem("nickCoachOSv3", JSON.stringify(db));
   renderAll();
 
+  if (applyingCloudUpdate) return;
+
+  if (!cloudReady) {
+    alert("Cloud is still loading. Wait a second, then save again.");
+    return;
+  }
+
   if (window.nickCloud && window.nickCloud.save) {
     try {
       await window.nickCloud.save(db);
+      lastCloudJson = JSON.stringify(db);
+      updateCloudStatus("Saved to Firebase", new Date().toLocaleString("en-GB"));
       console.log("Saved to Firebase");
     } catch (e) {
       console.error("Firebase save failed", e);
+      updateCloudStatus("Firebase save failed", "Check console");
       alert("Saved locally, but Firebase sync failed.");
     }
   }
@@ -289,130 +337,90 @@ function selectPracticeForStage(id){if(pickStage==="Activation")act.value=id;els
 function saveSession(){db.sessions.push({date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,act:act.value,skill:skill.value,tact:tact.value,cond:cond.value,reflect:reflect.value});store();alert("Session saved")}
 function renderArchive(){archiveList.innerHTML="";db.sessions.sort((a,b)=>a.date.localeCompare(b.date)).forEach((s,i)=>{let d=document.createElement("div");d.className="session";d.innerHTML=`<h3>${s.date} · ${s.team||""} · ${s.theme||""}</h3><p><b>Objective:</b><br>${nl(s.objective||"")}</p><p><b>Cues:</b><br>${nl(s.cues||"")}</p>${mini(s.act)}${mini(s.skill)}${mini(s.tact)}${mini(s.cond)}<p><b>Reflection:</b><br>${nl(s.reflect||"")}</p><button class="noPrint" onclick="duplicateSession(${i})">Duplicate Session</button>`;archiveList.appendChild(d)})}
 function duplicateSession(i){let s=JSON.parse(JSON.stringify(db.sessions[i]));s.date=new Date().toISOString().slice(0,10);db.sessions.push(s);store();alert("Session duplicated with today's date.")}
+function updateCloudStatus(status, when){
+  const cs=document.getElementById("cloudStatus");
+  const lu=document.getElementById("lastCloudUpdate");
+  if(cs) cs.value=status||"Unknown";
+  if(lu) lu.value=when||"";
+}
+
+async function createCloudBackup(){
+  if(!window.nickCloud || !window.nickCloud.createBackup) return alert("Firebase is not ready yet.");
+  try{
+    await window.nickCloud.createBackup(db);
+    alert("Cloud backup created.");
+    loadCloudBackups();
+  }catch(e){
+    console.error("Backup failed", e);
+    alert("Cloud backup failed. Check console.");
+  }
+}
+
+async function loadCloudBackups(){
+  const sel=document.getElementById("backupSelect");
+  if(!sel) return;
+  sel.innerHTML='<option value="">Loading...</option>';
+  try{
+    const backups=await window.nickCloud.loadBackups();
+    sel.innerHTML='<option value="">Select a backup...</option>';
+    backups.forEach(b=>{
+      const o=document.createElement("option");
+      o.value=b.id;
+      o.textContent=(b.label||"Backup") + " · " + ((b.data&&b.data.practices)?b.data.practices.length:0) + " practices · " + ((b.data&&b.data.sessions)?b.data.sessions.length:0) + " sessions";
+      o.dataset.payload=JSON.stringify(b.data||{});
+      sel.appendChild(o);
+    });
+  }catch(e){
+    console.error("Load backups failed", e);
+    sel.innerHTML='<option value="">Could not load backups</option>';
+  }
+}
+
+async function restoreSelectedBackup(){
+  const sel=document.getElementById("backupSelect");
+  if(!sel || !sel.value) return alert("Select a backup first.");
+  const opt=sel.options[sel.selectedIndex];
+  const backupData=JSON.parse(opt.dataset.payload||"{}");
+  if(!backupData.practices && !backupData.sessions) return alert("This backup looks empty.");
+  if(!confirm("Restore this backup? This will replace the current live database.")) return;
+  db=backupData;
+  localStorage.setItem("nickCoachOSv3", JSON.stringify(db));
+  renderAll();
+  await store();
+  alert("Backup restored to Firebase.");
+}
+
 function backup(){backupBox.value=JSON.stringify(db,null,2)}
 function restore(){try{db=JSON.parse(backupBox.value);store();alert("Restored")}catch(e){alert("Invalid backup")}}
-
-const googleScriptCode = `const SHEET_NAME = "CoachingOS";
-
-function getSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(SHEET_NAME);
-
-  if (!sheet) {
-    sheet = ss.insertSheet(SHEET_NAME);
-  }
-
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(["updatedAt", "json"]);
-  }
-
-  return sheet;
-}
-
-function doGet() {
-  const sheet = getSheet_();
-  const json = sheet.getRange("B2").getValue();
-
-  return ContentService
-    .createTextOutput(json || JSON.stringify({
-      practices: [],
-      sessions: [],
-      banks: {}
-    }))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-function doPost(e) {
-  const sheet = getSheet_();
-  const body = e && e.postData && e.postData.contents ? e.postData.contents : "{}";
-
-  sheet.getRange("A2").setValue(new Date());
-  sheet.getRange("B2").setValue(body);
-
-  return ContentService
-    .createTextOutput(JSON.stringify({ success: true }))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-function testWrite() {
-  const sheet = getSheet_();
-  sheet.getRange("A2").setValue(new Date());
-  sheet.getRange("B2").setValue(JSON.stringify({
-    test: true,
-    message: "Apps Script direct test worked"
-  }));
-}`;
-
-function initSync(){
-  const u=localStorage.getItem("nickCoachOSSyncUrl")||"";
-  const su=document.getElementById("syncUrl");
-  const sb=document.getElementById("scriptBox");
-  if(su) su.value=u;
-  if(sb) sb.value=googleScriptCode;
-}
-
-function saveSyncUrl(){
-  localStorage.setItem("nickCoachOSSyncUrl", syncUrl.value.trim());
-  alert("Sync URL saved.");
-}
-
-async function syncToGoogle(){
-  const url=(syncUrl.value||localStorage.getItem("nickCoachOSSyncUrl")||"").trim();
-  if(!url) return alert("Paste your Google Apps Script Web App URL first.");
-
-  try{
-    await fetch(url,{
-      method:"POST",
-      mode:"no-cors",
-      headers:{"Content-Type":"text/plain"},
-      body:JSON.stringify(db)
-    });
-    alert("Save request sent. Refresh Google Sheet and check A2/B2.");
-  }catch(e){
-    alert("Sync failed: "+e.message);
-  }
-}
-
-async function syncFromGoogle(){
-  const url=(syncUrl.value||localStorage.getItem("nickCoachOSSyncUrl")||"").trim();
-  if(!url) return alert("Paste your Google Apps Script Web App URL first.");
-
-  try{
-    const res=await fetch(url + (url.includes("?") ? "&" : "?") + "t=" + Date.now());
-    const text=await res.text();
-    const cloud=JSON.parse(text);
-    db=cloud;
-    localStorage.setItem("nickCoachOSv3",JSON.stringify(db));
-    renderAll();
-    alert("Loaded latest data from Google Sheets.");
-  }catch(e){
-    alert("Load failed: "+e.message);
-  }
-}
-
-initSync();
+updateCloudStatus("Connecting to Firebase...", "");
 renderAll();
 
 setTimeout(function(){
   if (window.nickCloud && window.nickCloud.listen) {
-    window.nickCloud.listen(function(cloudDb){
+    window.nickCloud.listen(function(cloudDoc){
+      cloudReady = true;
+      updateCloudStatus("Firebase connected", new Date().toLocaleString("en-GB"));
 
-      if (!cloudDb) return;
+      if (!cloudDoc || !cloudDoc.data) {
+        console.log("No cloud data yet. Using local data until first save.");
+        return;
+      }
 
-      db = cloudDb;
+      const incomingJson = JSON.stringify(cloudDoc.data);
+      if (incomingJson === lastCloudJson) return;
 
-      localStorage.setItem(
-        "nickCoachOSv3",
-        JSON.stringify(db)
-      );
-
+      applyingCloudUpdate = true;
+      db = cloudDoc.data;
+      lastCloudJson = incomingJson;
+      localStorage.setItem("nickCoachOSv3", JSON.stringify(db));
       renderAll();
+      applyingCloudUpdate = false;
 
-      console.log(
-        "Live Firebase update received"
-      );
-
+      console.log("Live Firebase update received");
     });
+  } else {
+    cloudReady = true;
+    updateCloudStatus("Firebase not available", "Using local mode");
   }
 }, 500);
 </script>
