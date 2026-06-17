@@ -144,7 +144,49 @@ textarea{min-height:68px}.row{display:flex;gap:8px}.row>*{flex:1}
 <p class="small">Create a Google Sheet, go to Extensions → Apps Script, paste this code, deploy as Web App, then paste the Web App URL above.</p>
 <textarea id="scriptBox" style="min-height:360px" readonly></textarea>
 </div></section>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  onSnapshot,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDbBy2QfJZ2y-Mq8cpeqLjDEBgrcIdclYI",
+  authDomain: "nick-coaching-os.firebaseapp.com",
+  projectId: "nick-coaching-os",
+  storageBucket: "nick-coaching-os.firebasestorage.app",
+  messagingSenderId: "250479748129",
+  appId: "1:250479748129:web:5b8bd15b91d6a14a7d2f60"
+};
+
+const app = initializeApp(firebaseConfig);
+const firestore = getFirestore(app);
+
+window.nickCloud = {
+  save: async function(data) {
+    await setDoc(doc(firestore, "coachingOS", "main"), {
+      data: data,
+      updatedAt: serverTimestamp()
+    });
+  },
+
+  listen: function(callback) {
+    return onSnapshot(
+      doc(firestore, "coachingOS", "main"),
+      function(snapshot) {
+        if (snapshot.exists()) {
+          callback(snapshot.data().data);
+        }
+      }
+    );
+  }
+};
+</script>
 <script>
 const themes=["Build Up","Midfield Progression","Chance Creation","Finishing","High Press","Mid Block","Counter Press","Attacking Transition","Defensive Transition","Set Plays"];
 const stages=["Activation","Skill Practice","Tactical Practice","Conditioned Game"];
@@ -171,7 +213,20 @@ reflect:["Did we achieve the objective?","What behaviour improved?","What behavi
 };
 let db=JSON.parse(localStorage.getItem("nickCoachOSv3")||'null')||{practices:[],sessions:[],banks:defaultBanks};
 let diagram=[], drag=null, off=[0,0], selected=null, pickStage="Activation";
-function store(){localStorage.setItem("nickCoachOSv3",JSON.stringify(db));renderAll()}
+async function store(){
+  localStorage.setItem("nickCoachOSv3", JSON.stringify(db));
+  renderAll();
+
+  if (window.nickCloud && window.nickCloud.save) {
+    try {
+      await window.nickCloud.save(db);
+      console.log("Saved to Firebase");
+    } catch (e) {
+      console.error("Firebase save failed", e);
+      alert("Saved locally, but Firebase sync failed.");
+    }
+  }
+}
 function fill(id,arr,all=false){let e=document.getElementById(id);if(!e)return;e.innerHTML=all?'<option value="">All</option>':'';arr.forEach(x=>{let o=document.createElement("option");o.value=x;o.textContent=x;e.appendChild(o)})}
 function opts(stage){return '<option value="">Select...</option>'+db.practices.filter(p=>p.stage===stage).map(p=>`<option value="${p.id}">${p.id} · ${p.name}</option>`).join("")}
 function renderAll(){["theme","filterTheme","sTheme","objectiveThemeSelect"].forEach((id,i)=>fill(id,themes,i==1));["stage","filterStage"].forEach((id,i)=>fill(id,stages,i==1));act.innerHTML=opts("Activation");skill.innerHTML=opts("Skill Practice");tact.innerHTML=opts("Tactical Practice");cond.innerHTML=opts("Conditioned Game");renderList();renderArchive();renderPreview();renderBanks();renderVisualPicker();draw()}
@@ -334,6 +389,29 @@ async function syncFromGoogle(){
 }
 
 initSync();
-renderAll()
+renderAll();
+
+setTimeout(function(){
+  if (window.nickCloud && window.nickCloud.listen) {
+    window.nickCloud.listen(function(cloudDb){
+
+      if (!cloudDb) return;
+
+      db = cloudDb;
+
+      localStorage.setItem(
+        "nickCoachOSv3",
+        JSON.stringify(db)
+      );
+
+      renderAll();
+
+      console.log(
+        "Live Firebase update received"
+      );
+
+    });
+  }
+}, 500);
 </script>
 </body></html>
