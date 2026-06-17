@@ -212,7 +212,7 @@ cues:["Width","Depth","Forward","Bounce","Switch","Third Man","Fix Him","Lock","
 reflect:["Did we achieve the objective?","What behaviour improved?","What behaviour was missing?","What should next session build on?","Which players understood the detail?","What did I overcoach?","What needs repeating?"]
 };
 let db=JSON.parse(localStorage.getItem("nickCoachOSv3")||'null')||{practices:[],sessions:[],banks:defaultBanks};
-let diagram=[], drag=null, off=[0,0], selected=null, pickStage="Activation";
+let diagram=[], drag=null, off=[0,0], selected=null, pickStage="Activation", pitchMode="full";
 async function store(){
   localStorage.setItem("nickCoachOSv3", JSON.stringify(db));
   renderAll();
