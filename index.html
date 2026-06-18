@@ -61,6 +61,7 @@ textarea{min-height:68px}.row{display:flex;gap:8px}.row>*{flex:1}
 <button class="tab active" data-tab="library">Practice Library</button>
 <button class="tab" data-tab="editor">Add / Edit Practice</button>
 <button class="tab" data-tab="planner">Session Planner</button>
+<button class="tab" data-tab="sessionLibrary">Session Library</button>
 <button class="tab" data-tab="archive">Session Archive</button>
 <button class="tab" data-tab="wordbank">Word Banks</button>
 <button class="tab" data-tab="backup">Cloud / Backups</button>
@@ -111,7 +112,7 @@ textarea{min-height:68px}.row{display:flex;gap:8px}.row>*{flex:1}
 <div class="row"><div><label>Activation</label><select id="act"></select></div><div><label>Skill</label><select id="skill"></select></div></div>
 <div class="row"><div><label>Tactical</label><select id="tact"></select></div><div><label>Conditioned</label><select id="cond"></select></div></div>
 <label>Reflection Bank</label><div id="reflectChips" class="chips"></div><textarea id="reflect"></textarea>
-<button onclick="saveSession()">Save Session</button></div>
+<div class="row"><button onclick="saveSession()">Save Session</button><button onclick="saveSessionTemplateFromPlanner()">Save as Blueprint</button></div></div>
 <div class="card">
 <h2>Visual Practice Picker</h2>
 <p class="small">Click a stage, then click a practice card. It will fill the matching dropdown.</p>
@@ -119,6 +120,25 @@ textarea{min-height:68px}.row{display:flex;gap:8px}.row>*{flex:1}
 <div id="visualPicker"></div>
 <hr style="border-color:#334155"><div id="preview"></div>
 </div>
+</div>
+</section>
+
+<section id="sessionLibrary" class="view hidden">
+<div class="grid two">
+  <div class="card">
+    <h2>Session Library</h2>
+    <p class="small">Save your best combinations as reusable blueprints. Favourite the ones that work, then load them straight back into the Session Planner.</p>
+    <label>Search</label><input id="templateSearch" oninput="renderSessionLibrary()" placeholder="Search blueprints...">
+    <label>Theme</label><select id="templateThemeFilter" onchange="renderSessionLibrary()"></select>
+    <label><input id="templateFavOnly" type="checkbox" style="width:auto;margin-right:6px" oninput="renderSessionLibrary()"> Favourites only</label>
+    <button onclick="saveSessionTemplateFromPlanner()">+ Save Current Planner as Blueprint</button>
+    <h3>⭐ Favourite Sessions</h3>
+    <div id="favTemplateList" class="favGrid"></div>
+  </div>
+  <div class="card">
+    <h2>Blueprints</h2>
+    <div id="sessionTemplateList"></div>
+  </div>
 </div>
 </section>
 
@@ -159,7 +179,7 @@ textarea{min-height:68px}.row{display:flex;gap:8px}.row>*{flex:1}
 <div class="row">
   <button onclick="restore()">Restore From JSON Box</button>
 </div>
-<p class="small">Data now saves into separate Firestore collections: coachingOSPractices, coachingOSSessions, coachingOSWordbanks and coachingOSBackups. Tip: create a cloud backup before big editing sessions or before testing new features.</p>
+<p class="small">Data now saves into separate Firestore collections: coachingOSPractices, coachingOSSessions, coachingOSSessionBlueprints, coachingOSWordbanks and coachingOSBackups. Tip: create a cloud backup before big editing sessions or before testing new features.</p>
 </div></section>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
@@ -195,6 +215,7 @@ const firestore = getFirestore(app);
 const COLLECTIONS = {
   practices: "coachingOSPractices",
   sessions: "coachingOSSessions",
+  templates: "coachingOSSessionBlueprints",
   wordbanks: "coachingOSWordbanks",
   meta: "coachingOSMeta",
   backups: "coachingOSBackups",
@@ -214,6 +235,7 @@ function normaliseCloudDb(data) {
   const safe = clean(data);
   safe.practices = Array.isArray(safe.practices) ? safe.practices : [];
   safe.sessions = Array.isArray(safe.sessions) ? safe.sessions : [];
+  safe.sessionTemplates = Array.isArray(safe.sessionTemplates) ? safe.sessionTemplates : [];
   safe.banks = safe.banks && typeof safe.banks === "object" ? safe.banks : {};
 
   safe.practices = safe.practices.map((p, i) => ({
@@ -224,6 +246,13 @@ function normaliseCloudDb(data) {
   safe.sessions = safe.sessions.map((s, i) => ({
     ...s,
     id: s.id || makeDocId([s.date, s.team, s.theme, i].join("-"), "session-" + (i + 1))
+  }));
+
+  safe.sessionTemplates = safe.sessionTemplates.map((t, i) => ({
+    ...t,
+    id: t.id || makeDocId([t.name, t.theme, i].join("-"), "blueprint-" + (i + 1)),
+    fav: !!t.fav,
+    useCount: Number(t.useCount || 0)
   }));
 
   return safe;
@@ -259,18 +288,20 @@ async function saveCollection(collectionName, items, idGetter) {
 }
 
 async function loadStructuredDb() {
-  const [practiceDocs, sessionDocs, bankSnap] = await Promise.all([
+  const [practiceDocs, sessionDocs, templateDocs, bankSnap] = await Promise.all([
     loadCollectionDocs(COLLECTIONS.practices),
     loadCollectionDocs(COLLECTIONS.sessions),
+    loadCollectionDocs(COLLECTIONS.templates),
     getDoc(doc(firestore, COLLECTIONS.wordbanks, "master"))
   ]);
 
-  const hasStructuredData = practiceDocs.length || sessionDocs.length || bankSnap.exists();
+  const hasStructuredData = practiceDocs.length || sessionDocs.length || templateDocs.length || bankSnap.exists();
 
   if (hasStructuredData) {
     return normaliseCloudDb({
       practices: practiceDocs.map(p => p.data || p),
       sessions: sessionDocs.map(s => s.data || s),
+      sessionTemplates: templateDocs.map(t => t.data || t),
       banks: bankSnap.exists() ? (bankSnap.data().data || bankSnap.data() || {}) : {}
     });
   }
@@ -294,6 +325,7 @@ window.nickCloud = {
     await Promise.all([
       saveCollection(COLLECTIONS.practices, cleanData.practices, p => p.id),
       saveCollection(COLLECTIONS.sessions, cleanData.sessions, s => s.id),
+      saveCollection(COLLECTIONS.templates, cleanData.sessionTemplates, t => t.id),
       setDoc(doc(firestore, COLLECTIONS.wordbanks, "master"), {
         data: cleanData.banks,
         updatedAt: serverTimestamp()
@@ -304,7 +336,8 @@ window.nickCloud = {
       updatedAt: serverTimestamp(),
       structure: "split-collections-v1",
       practiceCount: cleanData.practices.length,
-      sessionCount: cleanData.sessions.length
+      sessionCount: cleanData.sessions.length,
+      templateCount: cleanData.sessionTemplates.length
     });
   },
 
@@ -394,7 +427,7 @@ links:["Width","Depth","Play Forward","Free Player","Third Man","Break Lines","C
 cues:["Width","Depth","Forward","Bounce","Switch","Third Man","Fix Him","Lock","Show","Screen","Trap","Jump","Shift","Squeeze","Recover","Protect Centre","Free Player","Five Lanes","Rest Defence","Hunt"],
 reflect:["Did we achieve the objective?","What behaviour improved?","What behaviour was missing?","What should next session build on?","Which players understood the detail?","What did I overcoach?","What needs repeating?"]
 };
-let db=normaliseDbShape(JSON.parse(localStorage.getItem("nickCoachOSv3")||'null')||{practices:[],sessions:[],banks:defaultBanks});
+let db=normaliseDbShape(JSON.parse(localStorage.getItem("nickCoachOSv3")||'null')||{practices:[],sessions:[],sessionTemplates:[],banks:defaultBanks});
 let diagram=[], drag=null, off=[0,0], selected=null, pickStage="Activation", pitchMode="full", archiveMonth=new Date(), selectedArchiveDate=null, rotateDrag=null, resizeDrag=null;
 let cloudReady=false, applyingCloudUpdate=false, lastCloudJson="";
 function makeLocalId(prefix){return prefix+"-"+Date.now()+"-"+Math.random().toString(36).slice(2,8)}
@@ -402,11 +435,13 @@ function normaliseDbShape(data){
   data=data||{};
   data.practices=Array.isArray(data.practices)?data.practices:[];
   data.sessions=Array.isArray(data.sessions)?data.sessions:[];
+  data.sessionTemplates=Array.isArray(data.sessionTemplates)?data.sessionTemplates:[];
   data.banks=data.banks&&typeof data.banks==="object"?data.banks:JSON.parse(JSON.stringify(defaultBanks));
   if(!data.banks.cpByTheme)data.banks.cpByTheme=defaultBanks.cpByTheme;
   if(!data.banks.condByTheme)data.banks.condByTheme=defaultBanks.condByTheme;
   data.practices.forEach((p,i)=>{if(!p.id)p.id="practice-"+(i+1)});
   data.sessions.forEach(s=>{if(!s.id)s.id=makeLocalId("session")});
+  data.sessionTemplates.forEach(t=>{if(!t.id)t.id=makeLocalId("blueprint");t.fav=!!t.fav;t.useCount=Number(t.useCount||0)});
   return data;
 }
 async function store(){
@@ -436,14 +471,14 @@ async function store(){
 }
 function fill(id,arr,all=false){let e=document.getElementById(id);if(!e)return;let prev=e.value;e.innerHTML=all?'<option value="">All</option>':'';arr.forEach(x=>{let o=document.createElement("option");o.value=x;o.textContent=x;e.appendChild(o)});if(prev!==undefined && [...e.options].some(o=>o.value===prev))e.value=prev;else if(all)e.value="";}
 function opts(stage){return '<option value="">Select...</option>'+db.practices.filter(p=>p.stage===stage).map(p=>`<option value="${p.id}">${p.id} · ${p.name}</option>`).join("")}
-function renderAll(){["theme","filterTheme","sTheme","objectiveThemeSelect","conditionedThemeSelect"].forEach((id,i)=>fill(id,themes,i==1));["stage","filterStage"].forEach((id,i)=>fill(id,stages,i==1));act.innerHTML=opts("Activation");skill.innerHTML=opts("Skill Practice");tact.innerHTML=opts("Tactical Practice");cond.innerHTML=opts("Conditioned Game");renderList();renderArchive();renderPreview();renderBanks();renderVisualPicker();draw()}
+function renderAll(){["theme","filterTheme","sTheme","objectiveThemeSelect","conditionedThemeSelect","templateThemeFilter"].forEach((id,i)=>fill(id,themes,i==1));["stage","filterStage"].forEach((id,i)=>fill(id,stages,i==1));act.innerHTML=opts("Activation");skill.innerHTML=opts("Skill Practice");tact.innerHTML=opts("Tactical Practice");cond.innerHTML=opts("Conditioned Game");renderList();renderSessionLibrary();renderArchive();renderPreview();renderBanks();renderVisualPicker();draw()}
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active");document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));document.getElementById(b.dataset.tab).classList.remove("hidden")})
 function renderList(){
 let q=search.value.toLowerCase(),ft=filterTheme.value,fs=filterStage.value,ff=(document.getElementById("filterFav")||{}).checked;practiceList.innerHTML="";if(document.getElementById("favList"))favList.innerHTML="";
 let favs=db.practices.filter(p=>p.fav);
 favs.forEach(p=>{let f=document.createElement("div");f.className="favCard";f.onclick=()=>editPractice(p.id);f.innerHTML=`<b>⭐ ${p.id}</b><br><span class="small">${p.name}</span><br><span class="pill">${p.theme}</span>`;favList&&favList.appendChild(f)});
 if(favList && !favs.length)favList.innerHTML='<p class="small">No favourites yet. Star your core practices.</p>';
-db.practices.filter(p=>(!ft||p.theme==ft)&&(!fs||p.stage==fs)&&(!ff||p.fav)&&JSON.stringify(p).toLowerCase().includes(q)).forEach(p=>{let d=document.createElement("div");d.className="item";d.onclick=()=>editPractice(p.id);d.innerHTML=`<div class="row" style="align-items:center"><div><strong>${p.id} · ${p.name}</strong><span class="pill">${p.theme}</span><span class="pill">${p.stage}</span><div class="small">${p.players||""} · ${p.time||""}</div></div><button class="starBtn ${p.fav?'starred':''}" onclick="toggleFav(event,'${p.id.replace(/'/g,"\\'")}')">${p.fav?'★':'☆'}</button></div><div class="hoverPreview"><b>${p.id} · ${p.name}</b><div id="mini-${safe(p.id)}"></div><p class="small">${p.desc||""}</p></div>`;practiceList.appendChild(d);setTimeout(()=>drawMini(`mini-${safe(p.id)}`,p.diagram||[],p.pitchMode||"full"),0)})}
+db.practices.filter(p=>(!ft||p.theme==ft)&&(!fs||p.stage==fs)&&(!ff||p.fav)&&JSON.stringify(p).toLowerCase().includes(q)).forEach(p=>{let d=document.createElement("div");d.className="item";d.onclick=()=>editPractice(p.id);d.innerHTML=`<div class="row" style="align-items:center"><div><strong>${p.id} · ${p.name}</strong><span class="pill">${p.theme}</span><span class="pill">${p.stage}</span><div class="small">${p.players||""} · ${p.time||""} · Used ${practiceUsageCount(p.id)} times</div></div><button class="starBtn ${p.fav?'starred':''}" onclick="toggleFav(event,'${p.id.replace(/'/g,"\\'")}')">${p.fav?'★':'☆'}</button></div><div class="hoverPreview"><b>${p.id} · ${p.name}</b><div id="mini-${safe(p.id)}"></div><p class="small">${p.desc||""}</p></div>`;practiceList.appendChild(d);setTimeout(()=>drawMini(`mini-${safe(p.id)}`,p.diagram||[],p.pitchMode||"full"),0)})}
 function toggleFav(ev,id){ev.stopPropagation();let p=db.practices.find(x=>x.id===id);if(!p)return;p.fav=!p.fav;store()}
 function safe(s){return String(s).replace(/[^a-zA-Z0-9]/g,'')}
 search.oninput=filterTheme.oninput=filterStage.oninput=renderList;
@@ -487,7 +522,16 @@ function clearForm(){["oldId","pid","pname","players","time","area","desc","prog
 function editPractice(id){let p=db.practices.find(x=>x.id==id);document.querySelector('[data-tab="editor"]').click();oldId.value=p.id;pid.value=p.id;pname.value=p.name;theme.value=p.theme;stage.value=p.stage;players.value=p.players||"";time.value=p.time||"";area.value=p.area||"";desc.value=p.desc||"";prog.value=p.prog||"";reg.value=p.reg||"";cp.value=p.cp||"";condRules.value=p.condRules||"";diagram=JSON.parse(JSON.stringify(p.diagram||[]));pitchMode=p.pitchMode||"full";selected=null;draw()}
 function savePractice(){let p={id:pid.value.trim(),name:pname.value.trim(),theme:theme.value,stage:stage.value,players:players.value,time:time.value,area:area.value,desc:desc.value,prog:prog.value,reg:reg.value,cp:cp.value,condRules:condRules.value,diagram,pitchMode};if(!p.id||!p.name)return alert("Add ID and name.");db.practices=db.practices.filter(x=>x.id!==oldId.value&&x.id!==p.id);db.practices.push(p);oldId.value=p.id;store();alert("Saved")}
 function duplicatePractice(){let baseId=pid.value.trim();if(!baseId)return alert("Save or open a practice first.");let keepTheme=theme.value, keepStage=stage.value;oldId.value="";pid.value=baseId+"-COPY";pname.value=pname.value+" Copy";theme.value=keepTheme;stage.value=keepStage;renderPracticeCpChips();renderConditionedGameChips();renderChipBox("progChips",db.banks.prog,"prog");renderChipBox("regChips",db.banks.reg,"reg");toggleConditionedRulesBlock();alert("Duplicated exactly. Change ID/name if needed, then press Save.")}
-function deletePractice(){let id=oldId.value||pid.value;if(id&&confirm("Delete?")){db.practices=db.practices.filter(p=>p.id!==id);clearForm();store()}}
+function deletePractice(){
+let id=oldId.value||pid.value;
+if(id&&confirm("Delete this practice? Any archived sessions or blueprints using it will also be removed so it does not keep appearing later.")){
+  db.practices=db.practices.filter(p=>p.id!==id);
+  db.sessions=db.sessions.filter(s=>![s.act,s.skill,s.tact,s.cond].includes(id));
+  db.sessionTemplates=db.sessionTemplates.filter(t=>![t.act,t.skill,t.tact,t.cond].includes(id));
+  clearForm();
+  store();
+}
+}
 function base(){
 if(pitchMode==="quarters")return '<div class="quarterLabel q1">Practice 1</div><div class="quarterLabel q2">Progression 1</div><div class="quarterLabel q3">Progression 2</div><div class="quarterLabel q4">Progression 3</div>';
 return '<div class="half"></div><div class="circ"></div><div class="box l"></div><div class="box r"></div>';
@@ -535,17 +579,83 @@ function resetSessionPlanner(){
   renderVisualPicker();
 }
 function saveSession(){
-  db.sessions.push({id:makeLocalId("session"),date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,act:act.value,skill:skill.value,tact:tact.value,cond:cond.value,reflect:reflect.value});
+  const session={id:makeLocalId("session"),date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,act:act.value,skill:skill.value,tact:tact.value,cond:cond.value,reflect:reflect.value};
+  db.sessions.push(session);
+  incrementMatchingTemplateUsage(session);
   store();
   resetSessionPlanner();
   alert("Session saved. Session Planner has been reset.");
 }
 function renderArchive(){
 let y=archiveMonth.getFullYear(),m=archiveMonth.getMonth();let title=document.getElementById('archiveMonthTitle');if(title)title.textContent=archiveMonth.toLocaleString('en-GB',{month:'long',year:'numeric'});let cal=document.getElementById('archiveCalendar');let list=document.getElementById('archiveList');if(!cal||!list)return;cal.innerHTML='';let first=new Date(y,m,1),start=(first.getDay()+6)%7;let days=new Date(y,m+1,0).getDate();['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d=>{let h=document.createElement('div');h.className='small';h.style.textAlign='center';h.style.fontWeight='800';h.textContent=d;cal.appendChild(h)});for(let i=0;i<start;i++){let e=document.createElement('div');cal.appendChild(e)}let today=new Date().toISOString().slice(0,10);if(!selectedArchiveDate)selectedArchiveDate=today;for(let d=1;d<=days;d++){let date=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;let sessions=db.sessions.filter(s=>s.date===date);let cell=document.createElement('div');cell.className='calDay '+(selectedArchiveDate===date?'activeDay':'');cell.onclick=()=>{selectedArchiveDate=date;renderArchive()};cell.innerHTML=`<div class="calDate">${d}</div>`+sessions.slice(0,3).map(s=>`<div class="calSessionDot">${s.theme||'Session'}</div>`).join('')+(sessions.length>3?`<div class="small">+${sessions.length-3} more</div>`:'');cal.appendChild(cell)}renderArchiveDay();}
-function renderArchiveDay(){let list=document.getElementById('archiveList');let title=document.getElementById('selectedArchiveTitle');let sessions=db.sessions.filter(s=>s.date===selectedArchiveDate).sort((a,b)=>(a.team||'').localeCompare(b.team||''));if(title)title.textContent=`${selectedArchiveDate||''} Sessions`;list.innerHTML='';if(!sessions.length){list.innerHTML='<p class="small">No sessions saved for this day.</p>';return;}sessions.forEach((s)=>{let i=db.sessions.indexOf(s);let d=document.createElement('div');d.className='session';d.innerHTML=`<h3>${s.date} · ${s.team||""} · ${s.theme||""}</h3><p><b>Objective:</b><br>${nl(s.objective||"")}</p><p><b>Cues:</b><br>${nl(s.cues||"")}</p><div class="favGrid">${[s.act,s.skill,s.tact,s.cond].filter(Boolean).map(id=>{let p=get(id);let mid='arch-'+safe(id)+'-'+Math.random().toString(36).slice(2,6);setTimeout(()=>drawMini(mid,(p&&p.diagram)||[],(p&&p.pitchMode)||'full'),0);return `<div><b class="small">${p?p.stage:id}</b><div id="${mid}"></div></div>`}).join('')}</div>${practiceDetail(s.act)}${practiceDetail(s.skill)}${practiceDetail(s.tact)}${practiceDetail(s.cond)}<p><b>Reflection:</b><br>${nl(s.reflect||"")}</p><div class="sessionActions noPrint"><button onclick="duplicateSession(${i})">Duplicate to Planner</button><button onclick="loadSessionToPlanner(${i})">Edit in Planner</button></div>`;list.appendChild(d)})}
+function renderArchiveDay(){let list=document.getElementById('archiveList');let title=document.getElementById('selectedArchiveTitle');let sessions=db.sessions.filter(s=>s.date===selectedArchiveDate).sort((a,b)=>(a.team||'').localeCompare(b.team||''));if(title)title.textContent=`${selectedArchiveDate||''} Sessions`;list.innerHTML='';if(!sessions.length){list.innerHTML='<p class="small">No sessions saved for this day.</p>';return;}sessions.forEach((s)=>{let i=db.sessions.indexOf(s);let d=document.createElement('div');d.className='session';d.innerHTML=`<h3>${s.date} · ${s.team||""} · ${s.theme||""}</h3><p><b>Objective:</b><br>${nl(s.objective||"")}</p><p><b>Cues:</b><br>${nl(s.cues||"")}</p><div class="favGrid">${[s.act,s.skill,s.tact,s.cond].filter(Boolean).map(id=>{let p=get(id);let mid='arch-'+safe(id)+'-'+Math.random().toString(36).slice(2,6);setTimeout(()=>drawMini(mid,(p&&p.diagram)||[],(p&&p.pitchMode)||'full'),0);return `<div><b class="small">${p?p.stage:id}</b><div id="${mid}"></div></div>`}).join('')}</div>${practiceDetail(s.act)}${practiceDetail(s.skill)}${practiceDetail(s.tact)}${practiceDetail(s.cond)}<p><b>Reflection:</b><br>${nl(s.reflect||"")}</p><div class="sessionActions noPrint"><button onclick="duplicateSession(${i})">Duplicate to Planner</button><button onclick="loadSessionToPlanner(${i})">Edit in Planner</button><button class="danger" onclick="deleteSession(${i})">Delete Session</button></div>`;list.appendChild(d)})}
 function moveArchiveMonth(delta){archiveMonth=new Date(archiveMonth.getFullYear(),archiveMonth.getMonth()+delta,1);selectedArchiveDate=null;renderArchive()}
 function loadSessionToPlanner(i){let s=db.sessions[i];if(!s)return;sDate.value=new Date().toISOString().slice(0,10);team.value=s.team||'';sTheme.value=s.theme||'';objective.value=s.objective||'';links.value=s.links||'';cues.value=s.cues||'';act.value=s.act||'';skill.value=s.skill||'';tact.value=s.tact||'';cond.value=s.cond||'';reflect.value=s.reflect||'';document.querySelector('[data-tab="planner"]').click();renderObjectiveChips();renderPreview();renderVisualPicker();window.scrollTo(0,0)}
 function duplicateSession(i){loadSessionToPlanner(i);alert("Duplicated into Session Planner. Make your changes, then press Save Session.")}
+function practiceUsageCount(id){
+  if(!id)return 0;
+  return db.sessions.filter(s=>[s.act,s.skill,s.tact,s.cond].includes(id)).length;
+}
+function sessionSignature(s){
+  return [s.theme||'',s.objective||'',s.links||'',s.cues||'',s.act||'',s.skill||'',s.tact||'',s.cond||''].join('|');
+}
+function currentPlannerSession(){
+  return {date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,act:act.value,skill:skill.value,tact:tact.value,cond:cond.value,reflect:reflect.value};
+}
+function templateCard(t){
+  const usage=Number(t.useCount||0);
+  const ids=[t.act,t.skill,t.tact,t.cond].filter(Boolean);
+  const miniHtml=ids.map(id=>{let p=get(id);let mid='tpl-'+safe(t.id)+'-'+safe(id)+'-'+Math.random().toString(36).slice(2,6);setTimeout(()=>drawMini(mid,(p&&p.diagram)||[],(p&&p.pitchMode)||'full'),0);return `<div><b class="small">${p?p.stage:id}</b><div id="${mid}"></div></div>`}).join('');
+  return `<div class="session">
+    <div class="row" style="align-items:center"><div><h3 style="margin:0">${t.name||t.theme||'Session Blueprint'}</h3><span class="pill">${t.theme||'No Theme'}</span><span class="pill">Used ${usage} times</span></div><button class="starBtn ${t.fav?'starred':''}" onclick="toggleTemplateFav(event,'${String(t.id).replace(/'/g,"\'")}')">${t.fav?'★':'☆'}</button></div>
+    <p class="small"><b>Objective:</b><br>${nl(t.objective||'')}</p>
+    <div class="favGrid">${miniHtml}</div>
+    <div class="sessionActions noPrint"><button onclick="loadTemplateToPlanner('${String(t.id).replace(/'/g,"\'")}')">Use Blueprint</button><button onclick="saveTemplateFromTemplate('${String(t.id).replace(/'/g,"\'")}')">Duplicate Blueprint</button><button class="danger" onclick="deleteSessionTemplate('${String(t.id).replace(/'/g,"\'")}')">Delete</button></div>
+  </div>`;
+}
+function renderSessionLibrary(){
+  const list=document.getElementById('sessionTemplateList');
+  const fav=document.getElementById('favTemplateList');
+  if(!list)return;
+  const q=((document.getElementById('templateSearch')||{}).value||'').toLowerCase();
+  const theme=((document.getElementById('templateThemeFilter')||{}).value||'');
+  const favOnly=!!((document.getElementById('templateFavOnly')||{}).checked);
+  let templates=(db.sessionTemplates||[]).filter(t=>(!theme||t.theme===theme)&&(!favOnly||t.fav)&&JSON.stringify(t).toLowerCase().includes(q));
+  templates.sort((a,b)=>(b.fav-a.fav)||(b.useCount||0)-(a.useCount||0)||(a.name||'').localeCompare(b.name||''));
+  list.innerHTML=templates.length?templates.map(templateCard).join(''):'<p class="small">No session blueprints saved yet. Build a session in the planner and press Save as Blueprint.</p>';
+  if(fav){
+    const favs=(db.sessionTemplates||[]).filter(t=>t.fav).slice(0,8);
+    fav.innerHTML=favs.length?favs.map(t=>`<div class="item" onclick="loadTemplateToPlanner('${String(t.id).replace(/'/g,"\'")}')"><b>${t.name||t.theme}</b><div class="small">${t.theme||''} · Used ${t.useCount||0} times</div></div>`).join(''):'<p class="small">No favourite session blueprints yet.</p>';
+  }
+}
+function saveSessionTemplateFromPlanner(){
+  const s=currentPlannerSession();
+  if(!s.theme && !s.act && !s.skill && !s.tact && !s.cond)return alert('Build or load a session first.');
+  const name=prompt('Blueprint name', `${s.theme||'Session'} Blueprint`);
+  if(!name)return;
+  db.sessionTemplates.push({...s,id:makeLocalId('blueprint'),name,createdAt:new Date().toISOString(),fav:false,useCount:0});
+  store();
+  alert('Session blueprint saved.');
+}
+function saveTemplateFromTemplate(id){
+  const t=(db.sessionTemplates||[]).find(x=>x.id===id);if(!t)return;
+  const name=prompt('New blueprint name',(t.name||'Blueprint')+' Copy');if(!name)return;
+  db.sessionTemplates.push({...JSON.parse(JSON.stringify(t)),id:makeLocalId('blueprint'),name,fav:false,useCount:0,createdAt:new Date().toISOString()});
+  store();
+}
+function loadTemplateToPlanner(id){
+  const t=(db.sessionTemplates||[]).find(x=>x.id===id);if(!t)return;
+  sDate.value=new Date().toISOString().slice(0,10);team.value=t.team||'';sTheme.value=t.theme||'';objective.value=t.objective||'';links.value=t.links||'';cues.value=t.cues||'';act.value=t.act||'';skill.value=t.skill||'';tact.value=t.tact||'';cond.value=t.cond||'';reflect.value=t.reflect||'';
+  document.querySelector('[data-tab="planner"]').click();renderObjectiveChips();renderPreview();renderVisualPicker();window.scrollTo(0,0);
+}
+function toggleTemplateFav(ev,id){ev.stopPropagation();let t=(db.sessionTemplates||[]).find(x=>x.id===id);if(!t)return;t.fav=!t.fav;store();}
+function deleteSessionTemplate(id){if(!confirm('Delete this session blueprint?'))return;db.sessionTemplates=(db.sessionTemplates||[]).filter(t=>t.id!==id);store();}
+function incrementMatchingTemplateUsage(session){
+  const sig=sessionSignature(session);
+  (db.sessionTemplates||[]).forEach(t=>{if(sessionSignature(t)===sig)t.useCount=Number(t.useCount||0)+1});
+}
+function deleteSession(i){if(!db.sessions[i])return;if(confirm('Delete this session from the archive?')){db.sessions.splice(i,1);store();}}
+
 function updateCloudStatus(status, when){
   const cs=document.getElementById("cloudStatus");
   const lu=document.getElementById("lastCloudUpdate");
