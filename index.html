@@ -121,7 +121,7 @@ textarea{min-height:68px}.row{display:flex;gap:8px}.row>*{flex:1}
 <button class="toolBtn" title="Arrow" onclick="addObj('arrow')"><span class="toolIcon arrow"></span></button>
 <button class="toolBtn" title="Dotted Running Path" onclick="addObj('runline')"><span class="toolIcon runline"></span></button>
 <button class="toolBtn" title="Text" onclick="addObj('txt')"><span class="toolIcon textIcon">T</span></button>
-<button onclick="duplicateSelectedObj()">Duplicate</button><button onclick="deleteSelectedObj()">Delete</button><button onclick="selectAllObjects()">Select All</button><button onclick="clearSelection()">Deselect</button><button onclick="copySelectedToQuarter(1)">Copy → Q1</button><button onclick="copySelectedToQuarter(2)">Copy → Q2</button><button onclick="copySelectedToQuarter(3)">Copy → Q3</button><button onclick="copySelectedToQuarter(4)">Copy → Q4</button><button onclick="setPitchMode('full')">Full Pitch</button><button onclick="setPitchMode('quarters')">4 Quarter Pitches</button><button onclick="clearPitch()">Clear</button>
+<button onclick="duplicateSelectedObj()">Duplicate</button><button onclick="deleteSelectedObj()">Delete</button><button onclick="selectAllObjects()">Select All</button><button onclick="clearSelection()">Deselect</button><button onclick="copySelectedToQuarter(1)">Selected → Q1</button><button onclick="copySelectedToQuarter(2)">Selected → Q2</button><button onclick="copySelectedToQuarter(3)">Selected → Q3</button><button onclick="copySelectedToQuarter(4)">Selected → Q4</button><select id="quarterCopyFrom" title="Source quarter" style="width:auto;min-width:90px"><option value="1">From Q1</option><option value="2">From Q2</option><option value="3">From Q3</option><option value="4">From Q4</option></select><select id="quarterCopyTo" title="Destination quarter" style="width:auto;min-width:80px"><option value="2">To Q2</option><option value="3">To Q3</option><option value="4">To Q4</option><option value="1">To Q1</option></select><button onclick="copyWholeQuarter()">Copy Whole Quarter</button><button onclick="setPitchMode('full')">Full Pitch</button><button onclick="setPitchMode('quarters')">4 Quarter Pitches</button><button onclick="clearPitch()">Clear</button>
 </div>
 <div class="row noPrint"><div><label>Selected Width</label><input type="range" id="objW" min="10" max="400" oninput="resizeSelected()"></div><div><label>Selected Height</label><input type="range" id="objH" min="4" max="250" oninput="resizeSelected()"></div><div><label>Rotation</label><input type="range" id="objR" min="-180" max="180" oninput="resizeSelected()"></div></div>
 <div class="quickControls noPrint"><button onclick="nudgeRotate(-15)">↶ -15°</button><button onclick="nudgeRotate(15)">↷ +15°</button><button onclick="scaleSelected(0.9)">− Size</button><button onclick="scaleSelected(1.1)">+ Size</button><button onclick="flipSelected('x')">Flip ↔</button><button onclick="flipSelected('y')">Flip ↕</button><button class="wide" onclick="duplicateSelectedObj()">Duplicate</button><button class="wide" onclick="deleteSelectedObj()">Delete</button></div>
@@ -668,6 +668,38 @@ function copySelectedToQuarter(q){
   const [qx,qy]=getQuarterOrigin(q); const pad=35;
   copies.forEach(o=>{o.x=qx+pad+((o.x||0)-minX);o.y=qy+pad+((o.y||0)-minY);diagram.push(o);});
   selectedSet=new Set(copies.map((_,idx)=>diagram.length-copies.length+idx));selected=diagram.length-copies.length;draw();setSliders();
+}
+function getQuarterBounds(q){
+  const [x,y]=getQuarterOrigin(q);
+  return {x,y,w:450,h:260};
+}
+function objectCentre(o){
+  return {x:(o.x||0)+(o.w||defaultW(o.type))/2,y:(o.y||0)+(o.h||defaultH(o.type))/2};
+}
+function objectsInQuarter(q){
+  const b=getQuarterBounds(q);
+  return diagram.map((o,i)=>({o,i,c:objectCentre(o)})).filter(item=>item.c.x>=b.x&&item.c.x<b.x+b.w&&item.c.y>=b.y&&item.c.y<b.y+b.h);
+}
+function copyQuarterToQuarter(fromQ,toQ){
+  fromQ=Number(fromQ);toQ=Number(toQ);
+  if(fromQ===toQ)return alert("Choose a different destination quarter.");
+  if(pitchMode!=="quarters")pitchMode="quarters";
+  const src=getQuarterBounds(fromQ), dst=getQuarterBounds(toQ);
+  const items=objectsInQuarter(fromQ);
+  if(!items.length)return alert(`Q${fromQ} has no objects to copy.`);
+  const newIds=[];
+  items.forEach(({o})=>{
+    const copy=JSON.parse(JSON.stringify(o));
+    copy.x=dst.x+((o.x||0)-src.x);
+    copy.y=dst.y+((o.y||0)-src.y);
+    diagram.push(copy);newIds.push(diagram.length-1);
+  });
+  selectedSet=new Set(newIds);selected=newIds[0];draw();setSliders();
+}
+function copyWholeQuarter(){
+  const from=document.getElementById('quarterCopyFrom')?.value||1;
+  const to=document.getElementById('quarterCopyTo')?.value||2;
+  copyQuarterToQuarter(from,to);
 }
 function clearPitch(){if(confirm("Clear pitch?")){diagram=[];selected=null;selectedSet.clear();draw();objH.disabled=false}}
 let diagramClipboard=null;
