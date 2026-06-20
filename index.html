@@ -56,6 +56,15 @@ textarea{min-height:68px}.row{display:flex;gap:8px}.row>*{flex:1}
 .iconTools{align-items:center}.toolBtn{width:46px;height:42px;display:flex;align-items:center;justify-content:center;padding:5px}.toolIcon{position:relative;display:inline-flex;align-items:center;justify-content:center;transform:scale(.72);pointer-events:none}.toolIcon.player{width:30px;height:30px;border-radius:50%;border:2px solid white}.toolIcon.cone{width:24px;height:24px;background:linear-gradient(180deg,#fb923c,#ea580c);clip-path:polygon(50% 0,7% 100%,93% 100%);border-bottom:3px solid #fed7aa}.toolIcon.goal{width:42px;height:20px;border:3px solid white;border-radius:3px}.toolIcon.zone{width:42px;height:28px;border:2px dashed white;background:rgba(255,255,255,.08)}.toolIcon.arrow{width:48px;height:4px;background:white}.toolIcon.arrow:after{content:"";position:absolute;right:-8px;top:-6px;border-left:12px solid white;border-top:8px solid transparent;border-bottom:8px solid transparent}.toolIcon.runline{width:48px;height:0;border-top:4px dotted white}.toolIcon.runline:after{content:"";position:absolute;right:-8px;top:-8px;border-left:12px solid white;border-top:8px solid transparent;border-bottom:8px solid transparent}.obj.runline{height:0!important;border-top:4px dotted white;background:transparent!important;overflow:visible}.obj.runline:after{content:"";position:absolute;right:-8px;top:-8px;border-left:12px solid white;border-top:8px solid transparent;border-bottom:8px solid transparent}.textIcon{background:#020617;border:1px solid #334155;border-radius:6px;color:#e5e7eb;font-weight:900;width:30px;height:26px}.coachModeCard{max-width:980px;margin:auto}.coachHeader{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}.coachTimer{position:sticky;top:58px;z-index:90;background:#020617;border:1px solid #334155;border-radius:14px;padding:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0}.coachTimer strong{font-size:28px;margin-left:auto}.coachStage{border:1px solid #334155;background:#071024;border-radius:16px;padding:14px;margin:12px 0}.coachStage h3{margin:0 0 8px;font-size:22px}.coachStage .pitchMini{width:100%;height:260px}.coachBigText{font-size:16px;line-height:1.45}.ratingStars{font-size:20px;color:#facc15;letter-spacing:1px}.dashBarRow{display:grid;grid-template-columns:170px 1fr 70px;gap:10px;align-items:center;margin:8px 0}.dashBarTrack{height:20px;background:#020617;border:1px solid #334155;border-radius:999px;overflow:hidden}.dashBarFill{height:100%;background:#38bdf8;border-radius:999px}.dashStats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:12px 0}.statBox{background:#020617;border:1px solid #334155;border-radius:12px;padding:12px}.statBox b{font-size:22px;color:#bae6fd}
 @media(max-width:850px){.coachTimer{top:48px}.coachTimer strong{width:100%;margin-left:0;text-align:center;font-size:34px}.coachStage h3{font-size:20px}.coachStage .pitchMini{height:220px}.dashBarRow{grid-template-columns:1fr}.dashBarRow .small{text-align:left!important}}
 
+
+.ball{z-index:40;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid #111827;box-shadow:inset 0 0 0 3px #e5e7eb,0 2px 6px rgba(0,0,0,.35)}
+.fixedGoal{position:absolute;right:0;top:205px;width:20px;height:110px;border:4px solid white;border-right:0;border-radius:8px 0 0 8px;background:rgba(255,255,255,.08);z-index:2;pointer-events:none}
+.fixedGoalMini{position:absolute;right:0;top:66px;width:9px;height:46px;border:2px solid white;border-right:0;border-radius:4px 0 0 4px;background:rgba(255,255,255,.08);z-index:2;pointer-events:none}
+.editorHelper{background:#020617;border:1px solid #334155;border-radius:12px;padding:10px;margin:10px 0}
+.editorHelper h3{margin:0 0 8px;font-size:15px;color:#bae6fd}
+.editorHelper .row{align-items:end}
+.lockHint{font-size:11px;color:#94a3b8;margin-top:4px}
+
 @media print{nav,header,.noPrint{display:none}body{background:white;color:black}.card,.session{background:white;color:black;border:1px solid #ccc}}
 </style>
 </head>
@@ -103,6 +112,7 @@ textarea{min-height:68px}.row{display:flex;gap:8px}.row>*{flex:1}
 <button class="toolBtn" title="Yellow Player" onclick="addObj('player','yellow')"><span class="toolIcon player yellow"></span></button>
 <button class="toolBtn" title="Blue Player" onclick="addObj('player','blue')"><span class="toolIcon player blue"></span></button>
 <button class="toolBtn" title="Green Player" onclick="addObj('player','green')"><span class="toolIcon player green"></span></button>
+<button class="toolBtn" title="Ball" onclick="addObj('ball')"><span class="toolIcon ball"></span></button>
 <button class="toolBtn" title="Cone" onclick="addObj('cone')"><span class="toolIcon cone"></span></button>
 <button class="toolBtn" title="Goal" onclick="addObj('goal')"><span class="toolIcon goal"></span></button>
 <button class="toolBtn" title="Zone" onclick="addObj('zone')"><span class="toolIcon zone"></span></button>
@@ -113,7 +123,8 @@ textarea{min-height:68px}.row{display:flex;gap:8px}.row>*{flex:1}
 </div>
 <div class="row noPrint"><div><label>Selected Width</label><input type="range" id="objW" min="10" max="400" oninput="resizeSelected()"></div><div><label>Selected Height</label><input type="range" id="objH" min="4" max="250" oninput="resizeSelected()"></div><div><label>Rotation</label><input type="range" id="objR" min="-180" max="180" oninput="resizeSelected()"></div></div>
 <div class="quickControls noPrint"><button onclick="nudgeRotate(-15)">↶ -15°</button><button onclick="nudgeRotate(15)">↷ +15°</button><button onclick="scaleSelected(0.9)">− Size</button><button onclick="scaleSelected(1.1)">+ Size</button><button onclick="flipSelected('x')">Flip ↔</button><button onclick="flipSelected('y')">Flip ↕</button><button class="wide" onclick="duplicateSelectedObj()">Duplicate</button><button class="wide" onclick="deleteSelectedObj()">Delete</button></div>
-<p class="small desktopHint">Tip: select an object, then use the rotate handle above it or the quick buttons. Arrows now rotate without dragging to the slider.</p>
+<div class="editorHelper noPrint"><h3>Diagram Transfer</h3><div class="row"><button onclick="copyCurrentDiagram()">Copy This Diagram</button><button onclick="pasteCopiedDiagram()">Paste Copied Diagram</button></div><label>Copy diagram from another practice</label><div class="row"><select id="diagramSourceSelect"></select><button onclick="loadDiagramFromPractice()">Load Selected Diagram</button></div><div class="lockHint">This only changes the diagram. It keeps the written content, coaching points, progressions and regressions on the current practice.</div></div>
+<p class="small desktopHint">Tip: click the pitch background to deselect. Arrows/running lines resize by length only and rotate around their starting point.</p>
 <div id="pitch"></div>
 </div>
 </div>
@@ -515,7 +526,7 @@ async function store(){
 }
 function fill(id,arr,all=false){let e=document.getElementById(id);if(!e)return;let prev=e.value;e.innerHTML=all?'<option value="">All</option>':'';arr.forEach(x=>{let o=document.createElement("option");o.value=x;o.textContent=x;e.appendChild(o)});if(prev!==undefined && [...e.options].some(o=>o.value===prev))e.value=prev;else if(all)e.value="";}
 function opts(stage){return '<option value="">Select...</option>'+db.practices.filter(p=>p.stage===stage).map(p=>`<option value="${p.id}">${p.id} · ${p.name}</option>`).join("")}
-function renderAll(){["theme","filterTheme","sTheme","objectiveThemeSelect","conditionedThemeSelect","templateThemeFilter"].forEach((id,i)=>fill(id,themes,i==1));["stage","filterStage"].forEach((id,i)=>fill(id,stages,i==1));act.innerHTML=opts("Activation");skill.innerHTML=opts("Skill Practice");tact.innerHTML=opts("Tactical Practice");cond.innerHTML=opts("Conditioned Game");renderList();renderSessionLibrary();renderArchive();renderPreview();renderBanks();renderVisualPicker();draw()}
+function renderAll(){["theme","filterTheme","sTheme","objectiveThemeSelect","conditionedThemeSelect","templateThemeFilter"].forEach((id,i)=>fill(id,themes,i==1));["stage","filterStage"].forEach((id,i)=>fill(id,stages,i==1));act.innerHTML=opts("Activation");skill.innerHTML=opts("Skill Practice");tact.innerHTML=opts("Tactical Practice");cond.innerHTML=opts("Conditioned Game");renderList();renderSessionLibrary();renderArchive();renderPreview();renderBanks();renderVisualPicker();populateDiagramSourceSelect();draw()}
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active");document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));document.getElementById(b.dataset.tab).classList.remove("hidden")})
 function renderList(){
 let q=search.value.toLowerCase(),ft=filterTheme.value,fs=filterStage.value,ff=(document.getElementById("filterFav")||{}).checked;practiceList.innerHTML="";if(document.getElementById("favList"))favList.innerHTML="";
@@ -577,31 +588,66 @@ if(id&&confirm("Delete this practice? Any archived sessions or blueprints using 
 }
 }
 function base(){
-if(pitchMode==="quarters")return '<div class="quarterLabel q1">Practice 1</div><div class="quarterLabel q2">Progression 1</div><div class="quarterLabel q3">Progression 2</div><div class="quarterLabel q4">Progression 3</div>';
-return '<div class="half"></div><div class="circ"></div><div class="box l"></div><div class="box r"></div>';
+if(pitchMode==="quarters")return '<div class="quarterLabel q1">Practice 1</div><div class="quarterLabel q2">Progression 1</div><div class="quarterLabel q3">Progression 2</div><div class="quarterLabel q4">Progression 3</div><div class="fixedGoal"></div>';
+return '<div class="half"></div><div class="circ"></div><div class="box l"></div><div class="box r"></div><div class="fixedGoal"></div>';
 }
-function draw(){pitch.className=pitchMode==="quarters"?"quarters":"";pitch.innerHTML=base();pitch.onmousedown=ev=>{if(!ev.target.closest('.obj')&&!ev.target.classList.contains('handle')){selected=null;drag=null;rotateDrag=null;resizeDrag=null;draw();}};diagram.forEach((o,i)=>{let e=document.createElement("div");e.className=`obj ${o.type} ${o.color||""} ${selected===i?'selected':''} ${o.flipX?'mirrorX':''} ${o.flipY?'mirrorY':''}`;e.style.left=o.x+"px";e.style.top=o.y+"px";e.style.width=(o.w||defaultW(o.type))+"px";e.style.height=(o.h||defaultH(o.type))+"px";let transforms=[];if(o.rot)transforms.push(`rotate(${o.rot}deg)`);if(o.flipX)transforms.push('scaleX(-1)');if(o.flipY)transforms.push('scaleY(-1)');if(transforms.length)e.style.transform=transforms.join(' ');e.textContent=(o.type==="arrow"||o.type==="runline")?"":(o.label||"");e.onmousedown=ev=>{if(ev.target.classList.contains('handle'))return;ev.preventDefault();ev.stopPropagation();let pr=pitch.getBoundingClientRect();selected=i;drag={i,offsetX:ev.clientX-pr.left-(o.x||0),offsetY:ev.clientY-pr.top-(o.y||0)};setSliders();draw()};e.ondblclick=()=>{if(o.type==="player"||o.type==="txt")o.label=prompt("Label",o.label||"")||o.label;if(o.type==="arrow"||o.type==="runline")o.rot=+(prompt("Angle",o.rot||0)||0);draw()};pitch.appendChild(e);
-if(selected===i){let rw=o.w||defaultW(o.type), rh=o.h||defaultH(o.type);let rot=document.createElement('div');rot.className='handle rotateHandle';rot.textContent='↻';rot.style.left=(o.x+rw/2-12)+'px';rot.style.top=(o.y-34)+'px';rot.onmousedown=ev=>{ev.stopPropagation();rotateDrag={i,cx:o.x+rw/2,cy:o.y+rh/2};};pitch.appendChild(rot);let res=document.createElement('div');res.className='handle resizeHandle';res.style.left=(o.x+rw+6)+'px';res.style.top=(o.y+rh+6)+'px';res.onmousedown=ev=>{ev.stopPropagation();resizeDrag={i,startX:ev.clientX,startY:ev.clientY,w:rw,h:rh};};pitch.appendChild(res);}
-})}
-function defaultW(t){return t==="player"?28:t==="cone"?16:t==="goal"?38:t==="zone"?90:t==="arrow"?70:44}
-function defaultH(t){return t==="player"?28:t==="cone"?16:t==="goal"?17:t==="zone"?58:t==="arrow"?4:22}
-function defaultW(t){return t==="player"?28:t==="cone"?16:t==="goal"?38:t==="zone"?90:(t==="arrow"||t==="runline")?70:44}
-function defaultH(t){return t==="player"?28:t==="cone"?16:t==="goal"?17:t==="zone"?58:(t==="arrow"||t==="runline")?4:22}
-function setSliders(){if(selected==null)return;let o=diagram[selected];objW.value=o.w||defaultW(o.type);objH.value=o.h||defaultH(o.type);objR.value=o.rot||0}
-function resizeSelected(){if(selected==null)return;let o=diagram[selected];o.w=+objW.value;o.h=+objH.value;o.rot=+objR.value;draw()}
+function defaultW(t){return t==="player"?28:t==="cone"?16:t==="goal"?38:t==="zone"?90:(t==="arrow"||t==="runline")?85:t==="ball"?18:44}
+function defaultH(t){return t==="player"?28:t==="cone"?16:t==="goal"?17:t==="zone"?58:(t==="arrow"||t==="runline")?4:t==="ball"?18:22}
+function objectText(o){return (o.type==="arrow"||o.type==="runline"||o.type==="ball")?"":(o.label||"")}
+function objectTransform(o){let trans=[];if(o.rot)trans.push(`rotate(${o.rot}deg)`);if(o.flipX)trans.push('scaleX(-1)');if(o.flipY)trans.push('scaleY(-1)');return trans.join(' ')}
+function draw(){
+  pitch.className=pitchMode==="quarters"?"quarters":"";
+  pitch.innerHTML=base();
+  pitch.onmousedown=ev=>{if(!ev.target.closest('.obj')&&!ev.target.classList.contains('handle')){selected=null;drag=null;rotateDrag=null;resizeDrag=null;draw();}};
+  diagram.forEach((o,i)=>{
+    let e=document.createElement("div");
+    e.className=`obj ${o.type} ${o.color||""} ${selected===i?'selected':''}`;
+    e.style.left=(o.x||0)+"px"; e.style.top=(o.y||0)+"px";
+    e.style.width=(o.w||defaultW(o.type))+"px"; e.style.height=(o.h||defaultH(o.type))+"px";
+    e.style.transformOrigin=(o.type==="arrow"||o.type==="runline")?"left center":"center center";
+    const tr=objectTransform(o); if(tr)e.style.transform=tr;
+    e.textContent=objectText(o);
+    e.onmousedown=ev=>{
+      if(ev.target.classList.contains('handle'))return;
+      ev.preventDefault(); ev.stopPropagation();
+      let pr=pitch.getBoundingClientRect(); selected=i;
+      drag={i,offsetX:ev.clientX-pr.left-(o.x||0),offsetY:ev.clientY-pr.top-(o.y||0)};
+      setSliders(); draw();
+    };
+    e.ondblclick=()=>{if(o.type==="player"||o.type==="txt")o.label=prompt("Label",o.label||"")||o.label;draw()};
+    pitch.appendChild(e);
+    if(selected===i){
+      let rw=o.w||defaultW(o.type), rh=o.h||defaultH(o.type);
+      let rot=document.createElement('div');rot.className='handle rotateHandle';rot.textContent='↻';
+      const originX=(o.type==="arrow"||o.type==="runline")?(o.x||0):(o.x||0)+rw/2;
+      const originY=(o.type==="arrow"||o.type==="runline")?(o.y||0)+rh/2:(o.y||0)+rh/2;
+      rot.style.left=(originX-12)+'px';rot.style.top=(originY-38)+'px';
+      rot.onmousedown=ev=>{ev.preventDefault();ev.stopPropagation();rotateDrag={i,cx:originX,cy:originY};};
+      pitch.appendChild(rot);
+      let res=document.createElement('div');res.className='handle resizeHandle';res.style.left=((o.x||0)+rw+6)+'px';res.style.top=((o.y||0)+rh+6)+'px';
+      res.onmousedown=ev=>{ev.preventDefault();ev.stopPropagation();resizeDrag={i,startX:ev.clientX,startY:ev.clientY,w:rw,h:rh};};
+      pitch.appendChild(res);
+    }
+  });
+}
+function setSliders(){if(selected==null)return;let o=diagram[selected];objW.value=o.w||defaultW(o.type);objH.value=o.h||defaultH(o.type);objR.value=o.rot||0;objH.disabled=(o.type==="arrow"||o.type==="runline");}
+function resizeSelected(){if(selected==null)return;let o=diagram[selected];o.w=+objW.value;if(o.type!=="arrow"&&o.type!=="runline")o.h=+objH.value;else o.h=4;o.rot=+objR.value;draw();setSliders()}
 function nudgeRotate(deg){if(selected==null)return alert("Click an object first.");let o=diagram[selected];o.rot=((o.rot||0)+deg);setSliders();draw()}
-function scaleSelected(f){if(selected==null)return alert("Click an object first.");let o=diagram[selected];o.w=Math.max(8,Math.round((o.w||defaultW(o.type))*f));o.h=Math.max(4,Math.round((o.h||defaultH(o.type))*f));setSliders();draw()}
+function scaleSelected(f){if(selected==null)return alert("Click an object first.");let o=diagram[selected];o.w=Math.max(8,Math.round((o.w||defaultW(o.type))*f));if(o.type!=="arrow"&&o.type!=="runline")o.h=Math.max(4,Math.round((o.h||defaultH(o.type))*f));else o.h=4;setSliders();draw()}
 function flipSelected(axis){if(selected==null)return alert("Click an object first.");let o=diagram[selected];if(axis==="x")o.flipX=!o.flipX;else o.flipY=!o.flipY;draw()}
-function addObj(type,color){let label=type=="player"?prompt("Label","6"):(type=="txt"?prompt("Text","Note"):"");diagram.push({type,color,label,x:100,y:100,w:defaultW(type),h:defaultH(type),rot:0});selected=diagram.length-1;draw();setSliders()}
+function addObj(type,color){let label=type==="player"?prompt("Label","6"):(type==="txt"?prompt("Text","Note"):"");diagram.push({type,color,label,x:100,y:100,w:defaultW(type),h:defaultH(type),rot:0});selected=diagram.length-1;draw();setSliders()}
 function setPitchMode(mode){pitchMode=mode;draw()}
 function duplicateSelectedObj(){if(selected==null)return alert("Click an object first.");let copy=JSON.parse(JSON.stringify(diagram[selected]));copy.x=(copy.x||0)+25;copy.y=(copy.y||0)+25;diagram.push(copy);selected=diagram.length-1;draw();setSliders()}
-function deleteSelectedObj(){if(selected==null)return alert("Click an object first.");diagram.splice(selected,1);selected=null;draw()}
-function clearPitch(){if(confirm("Clear pitch?")){diagram=[];selected=null;draw()}}
-document.onmousemove=e=>{let r=pitch.getBoundingClientRect();if(rotateDrag){let o=diagram[rotateDrag.i];let angle=Math.atan2(e.clientY-r.top-rotateDrag.cy,e.clientX-r.left-rotateDrag.cx)*180/Math.PI;o.rot=Math.round(angle);setSliders();draw();return;}if(resizeDrag){let o=diagram[resizeDrag.i];o.w=Math.max(8,resizeDrag.w+(e.clientX-resizeDrag.startX));o.h=Math.max(4,resizeDrag.h+(e.clientY-resizeDrag.startY));setSliders();draw();return;}if(drag===null)return;let o=diagram[drag.i];let w=o.w||defaultW(o.type),h=o.h||defaultH(o.type);o.x=Math.max(0,Math.min(drag.origX+(e.clientX-drag.startX),r.width-w));o.y=Math.max(0,Math.min(drag.origY+(e.clientY-drag.startY),r.height-h));draw()}
-document.onmousemove=e=>{let r=pitch.getBoundingClientRect();if(rotateDrag){let o=diagram[rotateDrag.i];let angle=Math.atan2(e.clientY-r.top-rotateDrag.cy,e.clientX-r.left-rotateDrag.cx)*180/Math.PI;o.rot=Math.round(angle);setSliders();draw();return;}if(resizeDrag){let o=diagram[resizeDrag.i];o.w=Math.max(8,resizeDrag.w+(e.clientX-resizeDrag.startX));o.h=Math.max(4,resizeDrag.h+(e.clientY-resizeDrag.startY));setSliders();draw();return;}if(drag===null)return;let o=diagram[drag.i];let w=o.w||defaultW(o.type),h=o.h||defaultH(o.type);o.x=Math.max(0,Math.min(e.clientX-r.left-drag.offsetX,r.width-w));o.y=Math.max(0,Math.min(e.clientY-r.top-drag.offsetY,r.height-h));draw()}
+function deleteSelectedObj(){if(selected==null)return alert("Click an object first.");diagram.splice(selected,1);selected=null;draw();objH.disabled=false}
+function clearPitch(){if(confirm("Clear pitch?")){diagram=[];selected=null;draw();objH.disabled=false}}
+let diagramClipboard=null;
+function copyCurrentDiagram(){diagramClipboard={diagram:JSON.parse(JSON.stringify(diagram||[])),pitchMode};alert("Diagram copied. Open another practice and press Paste Copied Diagram.")}
+function pasteCopiedDiagram(){if(!diagramClipboard)return alert("No diagram copied yet.");if(!confirm("Replace this practice diagram with the copied one? Written content will stay."))return;diagram=JSON.parse(JSON.stringify(diagramClipboard.diagram||[]));pitchMode=diagramClipboard.pitchMode||"full";selected=null;draw();}
+function populateDiagramSourceSelect(){let sel=document.getElementById('diagramSourceSelect');if(!sel)return;let cur=sel.value;sel.innerHTML='<option value="">Choose practice...</option>'+db.practices.map(p=>`<option value="${p.id}">${p.id} · ${p.name}</option>`).join('');sel.value=cur;}
+function loadDiagramFromPractice(){let sel=document.getElementById('diagramSourceSelect');if(!sel||!sel.value)return alert("Choose a practice first.");let p=db.practices.find(x=>x.id===sel.value);if(!p)return alert("Practice not found.");if(!confirm(`Load diagram from ${p.id} · ${p.name}? Written content will stay.`))return;diagram=JSON.parse(JSON.stringify(p.diagram||[]));pitchMode=p.pitchMode||"full";selected=null;draw();}
+document.onmousemove=e=>{let r=pitch.getBoundingClientRect();if(rotateDrag){let o=diagram[rotateDrag.i];let angle=Math.atan2(e.clientY-r.top-rotateDrag.cy,e.clientX-r.left-rotateDrag.cx)*180/Math.PI;o.rot=Math.round(angle);setSliders();draw();return;}if(resizeDrag){let o=diagram[resizeDrag.i];o.w=Math.max(8,resizeDrag.w+(e.clientX-resizeDrag.startX));if(o.type!=="arrow"&&o.type!=="runline")o.h=Math.max(4,resizeDrag.h+(e.clientY-resizeDrag.startY));else o.h=4;setSliders();draw();return;}if(drag===null)return;let o=diagram[drag.i];let w=o.w||defaultW(o.type),h=o.h||defaultH(o.type);o.x=Math.max(0,Math.min(e.clientX-r.left-drag.offsetX,r.width-w));o.y=Math.max(0,Math.min(e.clientY-r.top-drag.offsetY,r.height-h));draw()}
 document.onmouseup=()=>{drag=null;rotateDrag=null;resizeDrag=null};
-function drawMini(id,dia,mode="full"){let el=document.getElementById(id);if(!el)return;el.innerHTML='<div class="pitchMini"><div class="miniHalf"></div><div class="miniCirc"></div></div>'; if(mode==='quarters'){el.querySelector('.pitchMini').style.background='#064e3b';}let p=el.querySelector(".pitchMini");dia.forEach(o=>{let e=document.createElement("div");e.className=`obj ${o.type} ${o.color||""}`;e.style.left=((o.x||0)*320/900)+"px";e.style.top=((o.y||0)*180/520)+"px";e.style.width=((o.w||defaultW(o.type))*0.45)+"px";e.style.height=((o.h||defaultH(o.type))*0.45)+"px";let trans=[];if(o.rot)trans.push(`rotate(${o.rot}deg)`);if(o.flipX)trans.push('scaleX(-1)');if(o.flipY)trans.push('scaleY(-1)');if(trans.length)e.style.transform=trans.join(' ');e.style.fontSize="8px";e.textContent=o.label||"";p.appendChild(e)})}
-function drawMini(id,dia,mode="full"){let el=document.getElementById(id);if(!el)return;el.innerHTML='<div class="pitchMini"><div class="miniHalf"></div><div class="miniCirc"></div></div>'; if(mode==='quarters'){el.querySelector('.pitchMini').style.background='#064e3b';}let p=el.querySelector(".pitchMini");dia.forEach(o=>{let e=document.createElement("div");e.className=`obj ${o.type} ${o.color||""}`;e.style.left=((o.x||0)*320/900)+"px";e.style.top=((o.y||0)*180/520)+"px";e.style.width=((o.w||defaultW(o.type))*0.45)+"px";e.style.height=((o.h||defaultH(o.type))*0.45)+"px";let trans=[];if(o.rot)trans.push(`rotate(${o.rot}deg)`);if(o.flipX)trans.push('scaleX(-1)');if(o.flipY)trans.push('scaleY(-1)');if(trans.length)e.style.transform=trans.join(' ');e.style.fontSize="8px";e.textContent=(o.type==="arrow"||o.type==="runline")?"":(o.label||"");p.appendChild(e)})}
+function drawMini(id,dia,mode="full"){let el=document.getElementById(id);if(!el)return;el.innerHTML='<div class="pitchMini"><div class="miniHalf"></div><div class="miniCirc"></div><div class="fixedGoalMini"></div></div>';if(mode==='quarters'){el.querySelector('.pitchMini').style.background='#064e3b';}let p=el.querySelector(".pitchMini");(dia||[]).forEach(o=>{let e=document.createElement("div");e.className=`obj ${o.type} ${o.color||""}`;e.style.left=((o.x||0)*320/900)+"px";e.style.top=((o.y||0)*180/520)+"px";e.style.width=((o.w||defaultW(o.type))*0.45)+"px";e.style.height=((o.h||defaultH(o.type))*0.45)+"px";e.style.transformOrigin=(o.type==="arrow"||o.type==="runline")?"left center":"center center";let trans=objectTransform(o);if(trans)e.style.transform=trans;e.style.fontSize="8px";e.textContent=objectText(o);p.appendChild(e)})}
 function get(id){return db.practices.find(p=>p.id==id)}
 ["act","skill","tact","cond","objective","links","cues","reflect"].forEach(id=>document.getElementById(id).oninput=()=>{renderPreview();renderVisualPicker()})
 document.getElementById("sTheme").oninput=()=>{renderObjectiveChips();renderPreview();renderVisualPicker()}
