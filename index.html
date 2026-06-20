@@ -121,7 +121,7 @@ textarea{min-height:68px}.row{display:flex;gap:8px}.row>*{flex:1}
 <button class="toolBtn" title="Arrow" onclick="addObj('arrow')"><span class="toolIcon arrow"></span></button>
 <button class="toolBtn" title="Dotted Running Path" onclick="addObj('runline')"><span class="toolIcon runline"></span></button>
 <button class="toolBtn" title="Text" onclick="addObj('txt')"><span class="toolIcon textIcon">T</span></button>
-<button onclick="duplicateSelectedObj()">Duplicate</button><button onclick="deleteSelectedObj()">Delete</button><button onclick="selectAllObjects()">Select All</button><button onclick="clearSelection()">Deselect</button><button onclick="copySelectedToQuarter(1)">Selected → Q1</button><button onclick="copySelectedToQuarter(2)">Selected → Q2</button><button onclick="copySelectedToQuarter(3)">Selected → Q3</button><button onclick="copySelectedToQuarter(4)">Selected → Q4</button><select id="quarterCopyFrom" title="Source quarter" style="width:auto;min-width:90px"><option value="1">From Q1</option><option value="2">From Q2</option><option value="3">From Q3</option><option value="4">From Q4</option></select><select id="quarterCopyTo" title="Destination quarter" style="width:auto;min-width:80px"><option value="2">To Q2</option><option value="3">To Q3</option><option value="4">To Q4</option><option value="1">To Q1</option></select><button onclick="copyWholeQuarter()">Copy Whole Quarter</button><button onclick="setPitchMode('full')">Full Pitch</button><button onclick="setPitchMode('quarters')">4 Quarter Pitches</button><button onclick="clearPitch()">Clear</button>
+<button onclick="duplicateSelectedObj()">Duplicate</button><button onclick="deleteSelectedObj()">Delete</button><button onclick="selectAllObjects()">Select All</button><button onclick="clearSelection()">Deselect</button><button onclick="copySelectedToQuarter(1)">Selected → Q1</button><button onclick="copySelectedToQuarter(2)">Selected → Q2</button><button onclick="copySelectedToQuarter(3)">Selected → Q3</button><button onclick="copySelectedToQuarter(4)">Selected → Q4</button><select id="quarterCopyFrom" title="Source quarter" style="width:auto;min-width:90px"><option value="1">From Q1</option><option value="2">From Q2</option><option value="3">From Q3</option><option value="4">From Q4</option></select><select id="quarterCopyTo" title="Destination quarter" style="width:auto;min-width:80px"><option value="2">To Q2</option><option value="3">To Q3</option><option value="4">To Q4</option><option value="1">To Q1</option></select><button onclick="copyWholeQuarter()">Copy Whole Quarter</button><select id="quarterClearSelect" title="Clear quarter" style="width:auto;min-width:90px"><option value="1">Clear Q1</option><option value="2">Clear Q2</option><option value="3">Clear Q3</option><option value="4">Clear Q4</option></select><button class="danger" onclick="clearWholeQuarter()">Delete Quarter Content</button><button onclick="setPitchMode('full')">Full Pitch</button><button onclick="setPitchMode('quarters')">4 Quarter Pitches</button><button onclick="clearPitch()">Clear</button>
 </div>
 <div class="row noPrint"><div><label>Selected Width</label><input type="range" id="objW" min="10" max="400" oninput="resizeSelected()"></div><div><label>Selected Height</label><input type="range" id="objH" min="4" max="250" oninput="resizeSelected()"></div><div><label>Rotation</label><input type="range" id="objR" min="-180" max="180" oninput="resizeSelected()"></div></div>
 <div class="quickControls noPrint"><button onclick="nudgeRotate(-15)">↶ -15°</button><button onclick="nudgeRotate(15)">↷ +15°</button><button onclick="scaleSelected(0.9)">− Size</button><button onclick="scaleSelected(1.1)">+ Size</button><button onclick="flipSelected('x')">Flip ↔</button><button onclick="flipSelected('y')">Flip ↕</button><button class="wide" onclick="duplicateSelectedObj()">Duplicate</button><button class="wide" onclick="deleteSelectedObj()">Delete</button></div>
@@ -701,6 +701,22 @@ function copyWholeQuarter(){
   const to=document.getElementById('quarterCopyTo')?.value||2;
   copyQuarterToQuarter(from,to);
 }
+
+function clearQuarter(q){
+  q=Number(q);
+  if(pitchMode!=="quarters")pitchMode="quarters";
+  const items=objectsInQuarter(q);
+  if(!items.length)return alert(`Q${q} has no objects to delete.`);
+  if(!confirm(`Delete all ${items.length} object${items.length>1?'s':''} inside Q${q}?`))return;
+  const ids=items.map(item=>item.i).sort((a,b)=>b-a);
+  ids.forEach(i=>diagram.splice(i,1));
+  selected=null;selectedSet.clear();draw();objH.disabled=false;
+}
+function clearWholeQuarter(){
+  const q=document.getElementById('quarterClearSelect')?.value||1;
+  clearQuarter(q);
+}
+
 function clearPitch(){if(confirm("Clear pitch?")){diagram=[];selected=null;selectedSet.clear();draw();objH.disabled=false}}
 let diagramClipboard=null;
 function copyCurrentDiagram(){diagramClipboard={diagram:JSON.parse(JSON.stringify(diagram||[])),pitchMode};alert("Diagram copied. Open another practice and press Paste Copied Diagram.")}
