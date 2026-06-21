@@ -528,8 +528,27 @@ async function store(){
 }
 function fill(id,arr,all=false){let e=document.getElementById(id);if(!e)return;let prev=e.value;e.innerHTML=all?'<option value="">All</option>':'';arr.forEach(x=>{let o=document.createElement("option");o.value=x;o.textContent=x;e.appendChild(o)});if(prev!==undefined && [...e.options].some(o=>o.value===prev))e.value=prev;else if(all)e.value="";}
 function opts(stage){return '<option value="">Select...</option>'+db.practices.filter(p=>p.stage===stage).map(p=>`<option value="${p.id}">${p.id} · ${p.name}</option>`).join("")}
-function renderAll(){["theme","filterTheme","sTheme","objectiveThemeSelect","conditionedThemeSelect","templateThemeFilter"].forEach((id,i)=>fill(id,themes,i==1));["stage","filterStage"].forEach((id,i)=>fill(id,stages,i==1));act.innerHTML=opts("Activation");skill.innerHTML=opts("Skill Practice");tact.innerHTML=opts("Tactical Practice");cond.innerHTML=opts("Conditioned Game");renderList();renderSessionLibrary();renderArchive();renderPreview();renderBanks();renderVisualPicker();populateDiagramSourceSelect();draw()}
-document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active");document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));document.getElementById(b.dataset.tab).classList.remove("hidden")})
+function renderAll(){["theme","filterTheme","sTheme","objectiveThemeSelect","conditionedThemeSelect","templateThemeFilter"].forEach((id,i)=>fill(id,themes,i==1));["stage","filterStage"].forEach((id,i)=>fill(id,stages,i==1));act.innerHTML=opts("Activation");skill.innerHTML=opts("Skill Practice");tact.innerHTML=opts("Tactical Practice");cond.innerHTML=opts("Conditioned Game");restoreLibraryControlsOnly();renderList();renderSessionLibrary();renderArchive();renderPreview();renderBanks();renderVisualPicker();populateDiagramSourceSelect();draw()}
+let libraryState={search:"",filterTheme:"",filterStage:"",filterFav:false,scrollY:0};
+function saveLibraryState(){
+  let s=document.getElementById("search"),ft=document.getElementById("filterTheme"),fs=document.getElementById("filterStage"),ff=document.getElementById("filterFav");
+  libraryState={search:s?s.value:"",filterTheme:ft?ft.value:"",filterStage:fs?fs.value:"",filterFav:ff?ff.checked:false,scrollY:window.scrollY||0};
+  try{sessionStorage.setItem("nickPracticeLibraryState",JSON.stringify(libraryState))}catch(e){}
+}
+function restoreLibraryControlsOnly(){
+  try{libraryState={...libraryState,...JSON.parse(sessionStorage.getItem("nickPracticeLibraryState")||"{}")}}catch(e){}
+  let s=document.getElementById("search"),ft=document.getElementById("filterTheme"),fs=document.getElementById("filterStage"),ff=document.getElementById("filterFav");
+  if(s)s.value=libraryState.search||"";
+  if(ft)ft.value=libraryState.filterTheme||"";
+  if(fs)fs.value=libraryState.filterStage||"";
+  if(ff)ff.checked=!!libraryState.filterFav;
+}
+function restoreLibraryState(){
+  restoreLibraryControlsOnly();
+  renderList();
+  setTimeout(()=>window.scrollTo(0,Number(libraryState.scrollY||0)),60);
+}
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{let active=document.querySelector(".tab.active");if(active&&active.dataset.tab==="library")saveLibraryState();document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active");document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));document.getElementById(b.dataset.tab).classList.remove("hidden");if(b.dataset.tab==="library")restoreLibraryState()})
 function renderList(){
 let q=search.value.toLowerCase(),ft=filterTheme.value,fs=filterStage.value,ff=(document.getElementById("filterFav")||{}).checked;practiceList.innerHTML="";if(document.getElementById("favList"))favList.innerHTML="";
 let favs=db.practices.filter(p=>p.fav);
@@ -538,7 +557,8 @@ if(favList && !favs.length)favList.innerHTML='<p class="small">No favourites yet
 db.practices.filter(p=>(!ft||p.theme==ft)&&(!fs||p.stage==fs)&&(!ff||p.fav)&&JSON.stringify(p).toLowerCase().includes(q)).forEach(p=>{let d=document.createElement("div");d.className="item";d.onclick=()=>editPractice(p.id);d.innerHTML=`<div class="row" style="align-items:center"><div><strong>${p.id} · ${p.name}</strong><span class="pill">${p.theme}</span><span class="pill">${p.stage}</span><div class="small">${p.players||""} · ${p.time||""} · Used ${practiceUsageCount(p.id)} times</div></div><button class="starBtn ${p.fav?'starred':''}" onclick="toggleFav(event,'${p.id.replace(/'/g,"\\'")}')">${p.fav?'★':'☆'}</button></div><div class="hoverPreview"><b>${p.id} · ${p.name}</b><div id="mini-${safe(p.id)}"></div><p class="small">${p.desc||""}</p></div>`;practiceList.appendChild(d);setTimeout(()=>drawMini(`mini-${safe(p.id)}`,p.diagram||[],p.pitchMode||"full"),0)})}
 function toggleFav(ev,id){ev.stopPropagation();let p=db.practices.find(x=>x.id===id);if(!p)return;p.fav=!p.fav;store()}
 function safe(s){return String(s).replace(/[^a-zA-Z0-9]/g,'')}
-search.oninput=filterTheme.oninput=filterStage.oninput=renderList;
+search.oninput=filterTheme.oninput=filterStage.oninput=function(){renderList();saveLibraryState()};
+if(document.getElementById("filterFav"))document.getElementById("filterFav").oninput=function(){renderList();saveLibraryState()};
 theme.oninput=()=>{renderPracticeCpChips();renderConditionedGameChips();toggleConditionedRulesBlock()};
 stage.oninput=()=>{toggleConditionedRulesBlock();renderConditionedGameChips()};
 if(document.getElementById("theme")) theme.oninput=()=>{renderPracticeCpChips();};
@@ -574,9 +594,9 @@ renderChipBox("objChips",arr,"objective");
 function renderChipBox(id,arr,target){let box=document.getElementById(id);if(!box)return;box.innerHTML="";let ta=document.getElementById(target);let chosen=(ta&&ta.value?ta.value.split("\n").filter(Boolean):[]);arr.forEach(t=>{let c=document.createElement("span");c.className="chip"+(chosen.includes(t)?" on":"");c.textContent=t;c.onclick=()=>toggleText(target,t,c);box.appendChild(c)})}
 function toggleText(targetId,text,chip){let ta=document.getElementById(targetId);let lines=ta.value.split("\n").filter(Boolean);if(lines.includes(text)){lines=lines.filter(x=>x!==text);chip.classList.remove("on")}else{lines.push(text);chip.classList.add("on")}ta.value=lines.join("\n");renderPreview()}
 function saveBanks(){db.banks.cp=bankCP.value.split("\n").filter(Boolean);if(!db.banks.cpByTheme)db.banks.cpByTheme=defaultBanks.cpByTheme;if(!db.banks.condByTheme)db.banks.condByTheme=defaultBanks.condByTheme;db.banks.prog=bankProg.value.split("\n").filter(Boolean);db.banks.reg=bankReg.value.split("\n").filter(Boolean);db.banks.obj=bankObj.value.split("\n").filter(Boolean);db.banks.links=bankLinks.value.split("\n").filter(Boolean);db.banks.cues=bankCues.value.split("\n").filter(Boolean);db.banks.reflect=bankReflect.value.split("\n").filter(Boolean);store();alert("Word banks saved")}
-function newPractice(){clearForm();document.querySelector('[data-tab="editor"]').click()}
+function newPractice(){saveLibraryState();clearForm();document.querySelector('[data-tab="editor"]').click()}
 function clearForm(){["oldId","pid","pname","players","time","area","desc","prog","reg","cp","condRules"].forEach(id=>document.getElementById(id).value="");diagram=[];pitchMode="full";selected=null;selectedSet.clear();draw()}
-function editPractice(id){let p=db.practices.find(x=>x.id==id);document.querySelector('[data-tab="editor"]').click();oldId.value=p.id;pid.value=p.id;pname.value=p.name;theme.value=p.theme;stage.value=p.stage;players.value=p.players||"";time.value=p.time||"";area.value=p.area||"";desc.value=p.desc||"";prog.value=p.prog||"";reg.value=p.reg||"";cp.value=p.cp||"";condRules.value=p.condRules||"";diagram=JSON.parse(JSON.stringify(p.diagram||[]));pitchMode=p.pitchMode||"full";selected=null;selectedSet.clear();draw()}
+function editPractice(id){saveLibraryState();let p=db.practices.find(x=>x.id==id);document.querySelector('[data-tab="editor"]').click();oldId.value=p.id;pid.value=p.id;pname.value=p.name;theme.value=p.theme;stage.value=p.stage;players.value=p.players||"";time.value=p.time||"";area.value=p.area||"";desc.value=p.desc||"";prog.value=p.prog||"";reg.value=p.reg||"";cp.value=p.cp||"";condRules.value=p.condRules||"";diagram=JSON.parse(JSON.stringify(p.diagram||[]));pitchMode=p.pitchMode||"full";selected=null;selectedSet.clear();draw()}
 function savePractice(){let p={id:pid.value.trim(),name:pname.value.trim(),theme:theme.value,stage:stage.value,players:players.value,time:time.value,area:area.value,desc:desc.value,prog:prog.value,reg:reg.value,cp:cp.value,condRules:condRules.value,diagram,pitchMode};if(!p.id||!p.name)return alert("Add ID and name.");db.practices=db.practices.filter(x=>x.id!==oldId.value&&x.id!==p.id);db.practices.push(p);oldId.value=p.id;store();alert("Saved")}
 function duplicatePractice(){let baseId=pid.value.trim();if(!baseId)return alert("Save or open a practice first.");let keepTheme=theme.value, keepStage=stage.value;oldId.value="";pid.value=baseId+"-COPY";pname.value=pname.value+" Copy";theme.value=keepTheme;stage.value=keepStage;renderPracticeCpChips();renderConditionedGameChips();renderChipBox("progChips",db.banks.prog,"prog");renderChipBox("regChips",db.banks.reg,"reg");toggleConditionedRulesBlock();alert("Duplicated exactly. Change ID/name if needed, then press Save.")}
 function deletePractice(){
