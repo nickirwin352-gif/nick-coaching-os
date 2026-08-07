@@ -26,4 +26,5 @@ jobs:
       - run: node --check src/mobile-reliability.js
       - run: node --check src/display-calibration.js
       - run: node --check src/post-session-review.js
+      - run: node --check src/review-integrations.js
       - run: git diff --check
