@@ -6,6 +6,7 @@ on:
       - main
       - mobile-reliability-pass
       - preview-sideline-calibration
+      - post-session-review-dashboard-actions-v3
   pull_request:
     branches:
       - main
@@ -24,4 +25,5 @@ jobs:
       - run: npm test
       - run: node --check src/mobile-reliability.js
       - run: node --check src/display-calibration.js
+      - run: node --check src/post-session-review.js
       - run: git diff --check
