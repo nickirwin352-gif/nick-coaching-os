@@ -477,6 +477,7 @@ body.sessionDrawerOpen{overflow:hidden}
   #diagramStudioInlineHost .diagramStudioOverlay.streamlinedInline{height:68dvh;min-height:540px}
 }
 </style>
+<script type="module" src="./src/session-state.js"></script>
 </head>
 <body>
 <header>
@@ -708,222 +709,7 @@ body.sessionDrawerOpen{overflow:hidden}
 </div>
 <p class="small">Data now saves into separate Firestore collections: coachingOSPractices, coachingOSSessions, coachingOSSessionBlueprints, coachingOSWordbanks and coachingOSBackups. Tip: create a cloud backup before big editing sessions or before testing new features.</p>
 </div></section>
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-
-import {
-  getFirestore,
-  doc,
-  setDoc,
-  getDoc,
-  onSnapshot,
-  serverTimestamp,
-  collection,
-  addDoc,
-  getDocs,
-  query,
-  orderBy,
-  limit,
-  writeBatch
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyDbBy2QfJZ2y-Mq8cpeqLjDEBgrcIdclYI",
-  authDomain: "nick-coaching-os.firebaseapp.com",
-  projectId: "nick-coaching-os",
-  storageBucket: "nick-coaching-os.firebasestorage.app",
-  messagingSenderId: "250479748129",
-  appId: "1:250479748129:web:5b8bd15b91d6a14a7d2f60"
-};
-
-const app = initializeApp(firebaseConfig);
-const firestore = getFirestore(app);
-
-const COLLECTIONS = {
-  practices: "coachingOSPractices",
-  sessions: "coachingOSSessions",
-  templates: "coachingOSSessionBlueprints",
-  wordbanks: "coachingOSWordbanks",
-  meta: "coachingOSMeta",
-  backups: "coachingOSBackups",
-  legacy: "coachingOS"
-};
-
-function clean(data) {
-  return JSON.parse(JSON.stringify(data || {}));
-}
-
-function makeDocId(value, fallback) {
-  const raw = String(value || fallback || ("item-" + Date.now()));
-  return encodeURIComponent(raw).replace(/\./g, "%2E").slice(0, 140) || fallback;
-}
-
-function cloudDrillIds(item) {
-  const raw = Array.isArray(item && item.drills)
-    ? item.drills
-    : [item && item.act, item && item.skill, item && item.tact, item && item.cond];
-  return raw.map(d => typeof d === "string" ? d : (d && d.id)).filter(Boolean);
-}
-
-function normaliseCloudDb(data) {
-  const safe = clean(data);
-  safe.practices = Array.isArray(safe.practices) ? safe.practices : [];
-  safe.sessions = Array.isArray(safe.sessions) ? safe.sessions : [];
-  safe.sessionTemplates = Array.isArray(safe.sessionTemplates) ? safe.sessionTemplates : [];
-  safe.banks = safe.banks && typeof safe.banks === "object" ? safe.banks : {};
-
-  safe.practices = safe.practices.map((p, i) => {
-    const item = p || {};
-    const { fav, favorite, ...rest } = item;
-    return {
-      ...rest,
-      id: item.id || ("practice-" + (i + 1)),
-      isFavourite: !!(item.isFavourite ?? fav ?? favorite)
-    };
-  });
-
-  safe.sessions = safe.sessions.map((s, i) => ({
-    ...s,
-    id: s.id || makeDocId([s.date, s.team, s.theme, i].join("-"), "session-" + (i + 1)),
-    drills: cloudDrillIds(s)
-  }));
-
-  safe.sessionTemplates = safe.sessionTemplates.map((t, i) => {
-    const item = t || {};
-    const { fav, favorite, ...rest } = item;
-    return {
-      ...rest,
-      id: item.id || makeDocId([item.name, item.theme, i].join("-"), "blueprint-" + (i + 1)),
-      isFavourite: !!(item.isFavourite ?? fav ?? favorite),
-      useCount: Number(item.useCount || 0),
-      drills: cloudDrillIds(item)
-    };
-  });
-
-  return safe;
-}
-
-async function loadCollectionDocs(collectionName) {
-  const snap = await getDocs(collection(firestore, collectionName));
-  return snap.docs.map(d => ({ _docId: d.id, ...(d.data().data || d.data()) }));
-}
-
-async function saveCollection(collectionName, items, idGetter) {
-  const snap = await getDocs(collection(firestore, collectionName));
-  const existingIds = new Set(snap.docs.map(d => d.id));
-  const batch = writeBatch(firestore);
-  const wantedIds = new Set();
-
-  items.forEach((item, index) => {
-    const docId = makeDocId(idGetter(item, index), "item-" + index);
-    wantedIds.add(docId);
-    batch.set(doc(firestore, collectionName, docId), {
-      data: clean(item),
-      updatedAt: serverTimestamp()
-    });
-  });
-
-  existingIds.forEach(id => {
-    if (!wantedIds.has(id)) {
-      batch.delete(doc(firestore, collectionName, id));
-    }
-  });
-
-  await batch.commit();
-}
-
-async function loadStructuredDb() {
-  const [practiceDocs, sessionDocs, templateDocs, bankSnap] = await Promise.all([
-    loadCollectionDocs(COLLECTIONS.practices),
-    loadCollectionDocs(COLLECTIONS.sessions),
-    loadCollectionDocs(COLLECTIONS.templates),
-    getDoc(doc(firestore, COLLECTIONS.wordbanks, "master"))
-  ]);
-
-  const hasStructuredData = practiceDocs.length || sessionDocs.length || templateDocs.length || bankSnap.exists();
-
-  if (hasStructuredData) {
-    return normaliseCloudDb({
-      practices: practiceDocs.map(p => p.data || p),
-      sessions: sessionDocs.map(s => s.data || s),
-      sessionTemplates: templateDocs.map(t => t.data || t),
-      banks: bankSnap.exists() ? (bankSnap.data().data || bankSnap.data() || {}) : {}
-    });
-  }
-
-  // Migration fallback: if your old single-document database still exists,
-  // load it once so it can be saved into the new separate collections.
-  const legacySnap = await getDoc(doc(firestore, COLLECTIONS.legacy, "main"));
-  if (legacySnap.exists() && legacySnap.data().data) {
-    const legacyDb = normaliseCloudDb(legacySnap.data().data);
-    await window.nickCloud.save(legacyDb);
-    return legacyDb;
-  }
-
-  return null;
-}
-
-window.nickCloud = {
-  save: async function(data) {
-    const cleanData = normaliseCloudDb(data);
-
-    await Promise.all([
-      saveCollection(COLLECTIONS.practices, cleanData.practices, p => p.id),
-      saveCollection(COLLECTIONS.sessions, cleanData.sessions, s => s.id),
-      saveCollection(COLLECTIONS.templates, cleanData.sessionTemplates, t => t.id),
-      setDoc(doc(firestore, COLLECTIONS.wordbanks, "master"), {
-        data: cleanData.banks,
-        updatedAt: serverTimestamp()
-      })
-    ]);
-
-    await setDoc(doc(firestore, COLLECTIONS.meta, "main"), {
-      updatedAt: serverTimestamp(),
-      structure: "split-collections-v1",
-      practiceCount: cleanData.practices.length,
-      sessionCount: cleanData.sessions.length,
-      templateCount: cleanData.sessionTemplates.length
-    });
-  },
-
-  getCurrent: async function() {
-    return await loadStructuredDb();
-  },
-
-  listen: function(callback) {
-    return onSnapshot(
-      doc(firestore, COLLECTIONS.meta, "main"),
-      async function() {
-        const cloudDb = await loadStructuredDb();
-        callback(cloudDb ? { data: cloudDb } : null);
-      },
-      function(error) {
-        console.error("Firebase listener failed", error);
-      }
-    );
-  },
-
-  createBackup: async function(data) {
-    const cleanData = normaliseCloudDb(data);
-    await addDoc(collection(firestore, COLLECTIONS.backups), {
-      data: cleanData,
-      createdAt: serverTimestamp(),
-      label: new Date().toLocaleString("en-GB"),
-      structure: "split-collections-v1"
-    });
-  },
-
-  loadBackups: async function() {
-    const q = query(
-      collection(firestore, COLLECTIONS.backups),
-      orderBy("createdAt", "desc"),
-      limit(25)
-    );
-    const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  }
-};
-</script>
+<script type="module" src="./src/firebase-cloud.js"></script>
 <script>
 const themes=["Core Passing Activations", "Build Up", "Midfield Progression", "Chance Creation", "Wide Overloads", "Finishing", "High Press", "Mid Block", "Counter Press", "Attacking Transition", "Defensive Transition", "1v1 & Duel Play", "Set Plays", "Conditioned Games", "Fitness"];const stages=["Activation","Skill Practice","Tactical Practice","Conditioned Game"];
 const defaultBanks={
@@ -1120,6 +906,7 @@ function renderList(){
 }
 function toggleFav(ev,id){ev.stopPropagation();let p=db.practices.find(x=>x.id===id);if(!p)return;p.isFavourite=!p.isFavourite;store()}
 function safe(s){return String(s).replace(/[^a-zA-Z0-9]/g,'')}
+function escapeHtml(value){return String(value==null?'':value).replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]))}
 function togglePracticePreview(ev,id){
   if(ev)ev.stopPropagation();
   const card=[...document.querySelectorAll('.item')].find(el=>el.dataset.practiceId===id);if(!card)return;
@@ -1129,7 +916,7 @@ function togglePracticePreview(ev,id){
   if(opening){const p=get(id);setTimeout(()=>drawMini(`mini-${safe(id)}`,(p&&p.diagram)||[],(p&&p.pitchMode)||'full'),0)}
 }
 
-function addPracticeFromLibrary(ev,id){if(ev)ev.stopPropagation();if(!plannerDrills.includes(id))plannerDrills.push(id);showBuildRoute('advanced');document.querySelector('[data-tab="planner"]').click();showBuildRoute('advanced');renderSessionDrillList();renderPreview();renderVisualPicker()}
+function addPracticeFromLibrary(ev,id){if(ev)ev.stopPropagation();if(!plannerDrills.includes(id))addPracticeToSession(id);showBuildRoute('advanced');document.querySelector('[data-tab="planner"]').click();showBuildRoute('advanced');renderSessionDrillList();renderPreview();renderVisualPicker()}
 search.oninput=filterTheme.oninput=filterStage.oninput=function(){renderList();saveLibraryState()};
 if(document.getElementById("filterFav"))document.getElementById("filterFav").oninput=function(){renderList();saveLibraryState()};
 if(document.getElementById("theme"))theme.oninput=()=>{renderPracticeCpChips();renderConditionedGameChips();toggleConditionedRulesBlock()};
@@ -1339,7 +1126,12 @@ document.getElementById("sTheme").oninput=()=>{pickerThemeFilter=sTheme.value||"
 ;["team","sDate"].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener("input",renderCurrentSessionDock)})
 {const plannerStageEl=document.getElementById("plannerStage");if(plannerStageEl)plannerStageEl.oninput=()=>{pickStage=plannerStageEl.value||"Activation";renderPlannerPracticeOptions();renderVisualPicker()}}
 function mini(id){return practiceDetail(id,true)}
-function practiceDetail(id,compact=false){let p=get(id);if(!p)return"";let mid=`sessionmini-${safe(id)}-${Math.random().toString(36).slice(2,7)}`;setTimeout(()=>drawMini(mid,p.diagram||[],p.pitchMode||"full"),0);return `<div class="practiceDetail"><div id="${mid}"></div><div><h3>${p.stage}: ${p.id} · ${p.name}</h3><span class="pill">${p.theme}</span><span class="pill">${p.players||""}</span><span class="pill">${p.time||""}</span><p>${nl(p.desc||"")}</p><div class="practiceCols"><div class="infoBox"><b>Coaching Points</b><br>${nl(p.cp||"—")}</div><div class="infoBox"><b>Progressions</b><br>${nl(p.prog||"—")}</div><div class="infoBox"><b>Regressions</b><br>${nl(p.reg||"—")}</div>${p.condRules?`<div class="infoBox"><b>Conditioned Game Rules</b><br>${nl(p.condRules)}</div>`:""}</div></div></div>`}
+function practiceDetail(id,compact=false){
+  let p=get(id);if(!p)return"";
+  let mid=`sessionmini-${safe(id)}-${Math.random().toString(36).slice(2,7)}`;
+  setTimeout(()=>drawMini(mid,p.diagram||[],p.pitchMode||"full"),0);
+  return `<div class="practiceDetail"><div id="${mid}"></div><div><h3>${escapeHtml(p.stage||'Practice')}: ${escapeHtml(p.id||'')} · ${escapeHtml(p.name||'')}</h3><span class="pill">${escapeHtml(p.theme||'')}</span><span class="pill">${escapeHtml(p.players||'')}</span><span class="pill">${escapeHtml(p.time||'')}</span><p>${nl(p.desc||"")}</p><div class="practiceCols"><div class="infoBox"><b>Coaching Points</b><br>${nl(p.cp||"—")}</div><div class="infoBox"><b>Progressions</b><br>${nl(p.prog||"—")}</div><div class="infoBox"><b>Regressions</b><br>${nl(p.reg||"—")}</div>${p.condRules?`<div class="infoBox"><b>Conditioned Game Rules</b><br>${nl(p.condRules)}</div>`:""}</div></div></div>`
+}
 function renderPlannerPracticeOptions(){
   const stageSel=document.getElementById("plannerStage"),practiceSel=document.getElementById("plannerPractice");if(!stageSel||!practiceSel)return;
   const previous=practiceSel.value,stage=stageSel.value||pickStage||"Activation",themeValue=(document.getElementById("sTheme")||{}).value||"";
@@ -1363,15 +1155,16 @@ function renderCurrentSessionDock(){
 function openCurrentSessionDrawer(){renderSessionDrillList();const overlay=document.getElementById("currentSessionDrawerOverlay");if(overlay){overlay.classList.remove("hidden");document.body.classList.add("sessionDrawerOpen")}}
 function closeCurrentSessionDrawer(){const overlay=document.getElementById("currentSessionDrawerOverlay");if(overlay)overlay.classList.add("hidden");document.body.classList.remove("sessionDrawerOpen")}
 function handleCurrentSessionDrawerBackdrop(event){if(event.target&&event.target.id==="currentSessionDrawerOverlay")closeCurrentSessionDrawer()}
-function addPracticeToSession(id){if(!id)return;plannerDrills.push(id);renderSessionDrillList();renderPreview();renderVisualPicker()}
+function addPracticeToSession(id){if(!id)return;applyPlannerSessionState(window.CoachingOSSessionState.addPractice(plannerDrills,plannerDiagramOverrides,id));renderSessionDrillList();renderPreview();renderVisualPicker()}
 function addSelectedPracticeToSession(){const sel=document.getElementById("plannerPractice");if(!sel||!sel.value)return alert("Choose a practice first.");addPracticeToSession(sel.value)}
-function removeSessionDrill(index){plannerDrills.splice(index,1);renderSessionDrillList();renderPreview();renderVisualPicker()}
-function removeAllInstancesFromSession(id){plannerDrills=plannerDrills.filter(x=>x!==id);renderSessionDrillList();renderPreview();renderVisualPicker()}
+function removeSessionDrill(index){applyPlannerSessionState(window.CoachingOSSessionState.removePracticeAt(plannerDrills,plannerDiagramOverrides,index));renderSessionDrillList();renderPreview();renderVisualPicker()}
+function removeAllInstancesFromSession(id){applyPlannerSessionState(window.CoachingOSSessionState.removeAllPractices(plannerDrills,plannerDiagramOverrides,id));renderSessionDrillList();renderPreview();renderVisualPicker()}
+function duplicateSessionDrill(index){applyPlannerSessionState(window.CoachingOSSessionState.duplicatePracticeAt(plannerDrills,plannerDiagramOverrides,index));renderSessionDrillList();renderPreview();renderVisualPicker()}
 function duplicateSession(i){loadSessionToPlanner(i,"copy")}
-function moveSessionDrill(index,delta){const target=index+delta;if(target<0||target>=plannerDrills.length)return;[plannerDrills[index],plannerDrills[target]]=[plannerDrills[target],plannerDrills[index]];renderSessionDrillList();renderPreview()}
-function clearSessionDrills(){if(!plannerDrills.length)return;if(confirm("Remove all practices from this session?")){plannerDrills=[];renderSessionDrillList();renderPreview();renderVisualPicker()}}
-function renderPreview(){preview.innerHTML=`<h2>Session Preview</h2><p><b>Theme:</b> ${sTheme.value||""}</p><p><b>Objective:</b><br>${nl(objective.value)}</p><p><b>Links:</b><br>${nl(links.value)}</p><p><b>Cues:</b><br>${nl(cues.value)}</p>${plannerDrills.map(id=>practiceDetail(id)).join("")}`}
-function nl(x){return (x||"").replace(/\n/g,"<br>")}
+function moveSessionDrill(index,delta){applyPlannerSessionState(window.CoachingOSSessionState.movePractice(plannerDrills,plannerDiagramOverrides,index,delta));renderSessionDrillList();renderPreview();renderVisualPicker()}
+function clearSessionDrills(){if(!plannerDrills.length)return;if(confirm("Remove all practices from this session?")){plannerDrills=[];plannerDiagramOverrides=[];renderSessionDrillList();renderPreview();renderVisualPicker()}}
+function renderPreview(){preview.innerHTML=`<h2>Session Preview</h2><p><b>Theme:</b> ${escapeHtml(sTheme.value||"")}</p><p><b>Objective:</b><br>${nl(objective.value)}</p><p><b>Links:</b><br>${nl(links.value)}</p><p><b>Cues:</b><br>${nl(cues.value)}</p>${plannerDrills.map(id=>practiceDetail(id)).join("")}`}
+function nl(x){return escapeHtml(x||"").replace(/\n/g,"<br>")}
 function setPickStage(s){pickStage=s;let stageSel=document.getElementById("plannerStage");if(stageSel)stageSel.value=s;populatePlannerThemeFilter();renderPlannerPracticeOptions();renderVisualPicker()}
 function renderVisualPicker(){
   ["pickActivation","pickSkill","pickTactical","pickConditioned"].forEach(id=>document.getElementById(id).classList.remove("activeStage"));
@@ -1391,7 +1184,7 @@ function renderVisualPicker(){
     let card=document.createElement("div");
     card.className="pitchCard "+(inSession?"selectedCard":"");
     card.onclick=()=>togglePracticeInSession(p.id);
-    card.innerHTML=`<div class="pickBadge">${inSession?"✓":"+"}</div><div id="vmini-${safe(p.id)}"></div><div><h3 style="margin:0">${p.id} · ${p.name}</h3><span class="pill">${p.theme}</span><span class="pill">${p.stage}</span><span class="pill">${p.players||""}</span><p>${p.desc||""}</p><p class="small"><b>Progressions:</b><br>${nl(p.prog||"")}</p><p class="small">${inSession?"<b>✓ In session — click to remove</b>":"Click to add to session"}</p></div>`;
+    card.innerHTML=`<div class="pickBadge">${inSession?"✓":"+"}</div><div id="vmini-${safe(p.id)}"></div><div><h3 style="margin:0">${p.id} · ${p.name}</h3><span class="pill">${p.theme}</span><span class="pill">${p.stage}</span><span class="pill">${p.players||""}</span><p>${nl(p.desc||"")}</p><p class="small"><b>Progressions:</b><br>${nl(p.prog||"")}</p><p class="small">${inSession?"<b>✓ In session — click to remove</b>":"Click to add to session"}</p></div>`;
     visualPicker.appendChild(card);
     setTimeout(()=>drawMini(`vmini-${safe(p.id)}`,p.diagram||[],p.pitchMode||"full"),0);
   }
@@ -1460,7 +1253,7 @@ function suggestedPracticeIds(themeName,totalMinutes,playerCount){
 }
 function applyDraftDetails(teamName,themeName,drills){
   editingSessionId=null;updatePlannerSaveControls();
-  sDate.value=new Date().toISOString().slice(0,10);team.value=teamName||"";sTheme.value=themeName||"";pickerThemeFilter=themeName||"";plannerDrills=[...drills];
+  sDate.value=new Date().toISOString().slice(0,10);team.value=teamName||"";sTheme.value=themeName||"";pickerThemeFilter=themeName||"";plannerDrills=[...drills];plannerDiagramOverrides=plannerDrills.map(()=>null);
   const objectives=(db.banks.objByTheme&&db.banks.objByTheme[themeName])||db.banks.obj||[];objective.value=objectives[0]||"";links.value="";cues.value="";reflect.value="";sessionRating.value="";
   populatePlannerThemeFilter();renderObjectiveChips();renderPlannerPracticeOptions();renderSessionDrillList();renderPreview();renderVisualPicker();showBuildRoute("advanced");
 }
@@ -1493,7 +1286,7 @@ function renderRecentSessions(){
 function renderScratchSuggestions(){
   const box=document.getElementById("scratchSuggestions");if(!box)return;
   const themeName=(document.getElementById("quickTheme")||{}).value||themes[0],total=Number((document.getElementById("quickDuration")||{}).value||75),playersCount=Number((document.getElementById("quickPlayers")||{}).value||14),ids=suggestedPracticeIds(themeName,total,playersCount);
-  box.innerHTML=`<div class="card"><h2>Suggested Starting Four</h2><p class="small">Selected for ${playersCount} players, ${total} minutes and the ${themeName} theme.</p><div class="scratchSuggestionGrid">${ids.map((id,index)=>{const p=get(id);return p?`<div class="scratchSuggestion"><h3>${index+1}. ${p.name}</h3><span class="pill">${p.stage}</span><span class="pill">${p.time||'Flexible time'}</span><span class="pill">${p.players||'Flexible numbers'}</span><p class="small">${p.desc||''}</p></div>`:''}).join('')}</div></div>`;
+  box.innerHTML=`<div class="card"><h2>Suggested Starting Four</h2><p class="small">Selected for ${playersCount} players, ${total} minutes and the ${themeName} theme.</p><div class="scratchSuggestionGrid">${ids.map((id,index)=>{const p=get(id);return p?`<div class="scratchSuggestion"><h3>${index+1}. ${p.name}</h3><span class="pill">${p.stage}</span><span class="pill">${p.time||'Flexible time'}</span><span class="pill">${p.players||'Flexible numbers'}</span><p class="small">${nl(p.desc||'')}</p></div>`:''}).join('')}</div></div>`;
 }
 function createSuggestedSession(){
   const teamName=(document.getElementById("quickTeam")||{}).value||"",themeName=(document.getElementById("quickTheme")||{}).value||themes[0],total=Number((document.getElementById("quickDuration")||{}).value||75),playersCount=Number((document.getElementById("quickPlayers")||{}).value||14),ids=suggestedPracticeIds(themeName,total,playersCount);
@@ -1511,11 +1304,11 @@ function resetSessionPlanner(){
   if(document.getElementById("sTheme"))sTheme.value="";
   pickerThemeFilter="";populatePlannerThemeFilter();
   ["objective","links","cues","reflect","sessionRating"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
-  plannerDrills=[];pickStage="Activation";editingSessionId=null;let stageSel=document.getElementById("plannerStage");if(stageSel)stageSel.value=pickStage;
+  plannerDrills=[];plannerDiagramOverrides=[];pickStage="Activation";editingSessionId=null;let stageSel=document.getElementById("plannerStage");if(stageSel)stageSel.value=pickStage;
   updatePlannerSaveControls();renderObjectiveChips();renderPlannerPracticeOptions();renderSessionDrillList();renderPreview();renderVisualPicker();
 }
 function saveSession(mode="new"){
-  const base={date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,drills:[...plannerDrills],reflect:reflect.value,rating:sessionRating.value};
+  const base={date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,drills:[...plannerDrills],diagramOverrides:copyPlannerDiagramOverrides(),reflect:reflect.value,rating:sessionRating.value};
   if(!base.drills.length)return alert("Add at least one practice before saving the session.");
   if(mode==="update"&&editingSessionId){
     const index=db.sessions.findIndex(s=>s.id===editingSessionId);if(index<0)return alert("The original session could not be found.");
@@ -1552,7 +1345,7 @@ function renderArchiveDay(){
 }
 function buildSessionCard(s,i){
   let ids=sessionDrillIds(s),d=document.createElement('div');d.className='session';
-  const minis=ids.map((id,index)=>{let p=get(id);let mid='arch-'+safe(id)+'-'+index+'-'+Math.random().toString(36).slice(2,6);setTimeout(()=>drawMini(mid,(p&&p.diagram)||[],(p&&p.pitchMode)||'full'),0);return `<div><b class="small">${index+1}. ${p?p.stage:id}</b><div id="${mid}"></div></div>`}).join('');
+  const minis=ids.map((id,index)=>{let p=(typeof dsEffectiveSessionPractice==='function'?dsEffectiveSessionPractice(s,index):null)||get(id);let mid='arch-'+safe(id)+'-'+index+'-'+Math.random().toString(36).slice(2,6);setTimeout(()=>drawMini(mid,(p&&p.diagram)||[],(p&&p.pitchMode)||'full'),0);return `<div><b class="small">${index+1}. ${p?p.stage:id}</b><div id="${mid}"></div></div>`}).join('');
   d.innerHTML=`<div class="archiveSessionHead"><div class="archiveSessionIdentity"><div class="archiveSessionDate">${s.date||"No date"}${s.team?` · ${s.team}`:""}</div><h3 class="archiveSessionTheme">${s.theme||"Session"}</h3><div class="archiveTopMeta"><span class="pill">${ids.length} ${ids.length===1?"practice":"practices"}</span>${s.rating?`<span class="pill">${stars(s.rating)}</span>`:""}</div></div><button class="primary archiveSidelineLaunch noPrint" onclick="openGrassView(${i})">▶ Start Sideline Mode</button></div><p><b>Objective:</b><br>${nl(s.objective||"")}</p><p><b>Cues:</b><br>${nl(s.cues||"")}</p><div class="favGrid">${minis}</div>${ids.map(id=>practiceDetail(id)).join('')}<p><b>Rating:</b> <span class="ratingStars">${stars(s.rating)}</span></p><p><b>Reflection:</b><br>${nl(s.reflect||"")}</p><div class="sessionActions noPrint"><select onchange="rateSession(${i},this.value)"><option value="">Rate...</option><option value="1" ${String(s.rating)==="1"?"selected":""}>★☆☆☆☆</option><option value="2" ${String(s.rating)==="2"?"selected":""}>★★☆☆☆</option><option value="3" ${String(s.rating)==="3"?"selected":""}>★★★☆☆</option><option value="4" ${String(s.rating)==="4"?"selected":""}>★★★★☆</option><option value="5" ${String(s.rating)==="5"?"selected":""}>★★★★★</option></select><button onclick="duplicateSession(${i})">Use as New Session</button><button onclick="loadSessionToPlanner(${i})">Edit Existing</button><button class="danger" onclick="deleteSession(${i})">Delete Session</button></div>`;
   return d;
 }
@@ -1608,7 +1401,7 @@ function openSidelineSession(session,dbIndex){
   const overlay=document.getElementById("grassOverlay");overlay.classList.add("open");renderSidelinePractice();
   sidelineState.timerId=setInterval(tickSidelineTimers,250);requestScreenWake();updateSidelineConnectionStatus();
 }
-function currentSidelinePractice(){if(!sidelineState)return null;return get(sidelineState.ids[sidelineState.practiceIndex])}
+function currentSidelinePractice(){if(!sidelineState)return null;const i=sidelineState.practiceIndex;return (typeof dsEffectiveSessionPractice==="function"?dsEffectiveSessionPractice(sidelineState.session,i):null)||get(sidelineState.ids[i])}
 function renderSidelinePractice(){
   if(!sidelineState)return;const p=currentSidelinePractice(),s=sidelineState.session,content=document.getElementById("grassContent");
   if(!p){content.innerHTML='<div class="sidelineEmpty">This practice is missing from the library.<br><button onclick="changeSidelinePractice(1)">Next Practice</button></div>';return}
@@ -1667,19 +1460,43 @@ function updateSidelineConnectionStatus(){const el=document.getElementById("side
 
 function loadSessionToPlanner(i,mode="edit"){
   let s=db.sessions[i];if(!s)return;
-  editingSessionId=mode==="edit"?s.id:null;sDate.value=mode==="edit"?(s.date||new Date().toISOString().slice(0,10)):new Date().toISOString().slice(0,10);team.value=s.team||'';sTheme.value=s.theme||'';pickerThemeFilter=s.theme||'';populatePlannerThemeFilter();objective.value=s.objective||'';links.value=s.links||'';cues.value=s.cues||'';plannerDrills=sessionDrillIds(s);reflect.value=s.reflect||'';if(document.getElementById("sessionRating"))sessionRating.value=mode==="edit"?(s.rating||''):'';
+  editingSessionId=mode==="edit"?s.id:null;sDate.value=mode==="edit"?(s.date||new Date().toISOString().slice(0,10)):new Date().toISOString().slice(0,10);team.value=s.team||'';sTheme.value=s.theme||'';pickerThemeFilter=s.theme||'';populatePlannerThemeFilter();objective.value=s.objective||'';links.value=s.links||'';cues.value=s.cues||'';plannerDrills=sessionDrillIds(s);plannerDiagramOverrides=Array.isArray(s.diagramOverrides)?s.diagramOverrides.map(item=>item==null?null:JSON.parse(JSON.stringify(item))):plannerDrills.map(()=>null);reflect.value=s.reflect||'';if(document.getElementById("sessionRating"))sessionRating.value=mode==="edit"?(s.rating||''):'';
   document.querySelector('[data-tab="planner"]').click();showBuildRoute("advanced");updatePlannerSaveControls();renderObjectiveChips();renderPlannerPracticeOptions();renderSessionDrillList();renderPreview();renderVisualPicker();window.scrollTo(0,0)
 }
-function duplicateSession(i){loadSessionToPlanner(i);alert("Duplicated into Session Planner. Make your changes, then press Save Session.")}
+function duplicateSession(i){loadSessionToPlanner(i,"copy")}
 function practiceUsageCount(id){if(!id)return 0;return db.sessions.filter(s=>sessionDrillIds(s).includes(id)).length;}
 function sessionSignature(s){return [s.theme||'',s.objective||'',s.links||'',s.cues||'',sessionDrillIds(s).join('>')].join('|');}
-function currentPlannerSession(){return {date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,drills:[...plannerDrills],reflect:reflect.value,rating:sessionRating.value};}
+function copyPlannerDiagramOverrides(){
+  if(typeof plannerDiagramOverrides==='undefined'||!Array.isArray(plannerDiagramOverrides))return [];
+  return plannerDiagramOverrides.map(item=>item==null?null:JSON.parse(JSON.stringify(item)));
+}
+function applyPlannerSessionState(next){plannerDrills=next.drills;plannerDiagramOverrides=next.overrides;}
+function currentPlannerSession(){return {date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,drills:[...plannerDrills],diagramOverrides:copyPlannerDiagramOverrides(),reflect:reflect.value,rating:sessionRating.value};}
 function deleteSession(i){if(!db.sessions[i])return;if(confirm('Delete this session from the archive?')){db.sessions.splice(i,1);store();}}
 
 
 function stars(v){v=Number(v||0);return v?('★★★★★'.slice(0,v)+'☆☆☆☆☆'.slice(0,5-v)):'Not rated';}
 function rateSession(i,val){if(!db.sessions[i])return;db.sessions[i].rating=val;store();}
-function renderDashboard(){let box=document.getElementById('dashboardContent');if(!box)return;let weeks=Number((document.getElementById('dashRange')||{}).value||8);let teamQ=((document.getElementById('dashTeam')||{}).value||'').toLowerCase();let cutoff=weeks>=9999?null:new Date(Date.now()-weeks*7*24*60*60*1000);let sessions=(db.sessions||[]).filter(s=>(!teamQ||(s.team||'').toLowerCase().includes(teamQ))&&(!cutoff||new Date(s.date||'1970-01-01')>=cutoff));let counts={};themes.forEach(t=>counts[t]=0);sessions.forEach(s=>{if(counts[s.theme]!==undefined)counts[s.theme]++;});let max=Math.max(1,...Object.values(counts));let rated=sessions.filter(s=>Number(s.rating));let avg=rated.length?(rated.reduce((a,s)=>a+Number(s.rating),0)/rated.length).toFixed(1):'—';let most=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];let least=Object.entries(counts).sort((a,b)=>a[1]-b[1])[0];box.innerHTML=`<div class="dashStats"><div class="statBox"><div class="small">Sessions</div><b>${sessions.length}</b></div><div class="statBox"><div class="small">Average rating</div><b>${avg}</b></div><div class="statBox"><div class="small">Most coached</div><b>${most?most[0]:'—'}</b></div><div class="statBox"><div class="small">Least coached</div><b>${least?least[0]:'—'}</b></div></div>`+Object.entries(counts).map(([theme,count])=>`<div class="dashBarRow"><div><b>${theme}</b></div><div class="dashBarTrack"><div class="dashBarFill" style="width:${Math.round(count/max*100)}%"></div></div><div class="small" style="text-align:right">${count} sessions</div></div>`).join('');}
+function coachingInsightsMarkup(sessions,counts){
+  if(!sessions.length)return '<div class="notice" style="margin-top:16px"><b>Coaching insights</b><div class="small" style="margin-top:6px">Save a few sessions and this area will start surfacing coverage gaps, repeated practices and reflection carry-overs.</div></div>';
+  const themeRows=Object.entries(counts).sort((a,b)=>a[1]-b[1]||a[0].localeCompare(b[0]));
+  const gap=themeRows[0];
+  const practiceCounts={};
+  sessions.forEach(s=>sessionDrillIds(s).forEach(id=>practiceCounts[id]=(practiceCounts[id]||0)+1));
+  const topPractice=Object.entries(practiceCounts).sort((a,b)=>b[1]-a[1])[0];
+  const recent=[...sessions].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).find(s=>(s.reflect||'').trim()||(s.objective||'').trim());
+  const ratedByTheme={};
+  sessions.filter(s=>Number(s.rating)).forEach(s=>{const key=s.theme||'Unassigned';(ratedByTheme[key]=ratedByTheme[key]||[]).push(Number(s.rating))});
+  const bestTheme=Object.entries(ratedByTheme).map(([theme,ratings])=>[theme,ratings.reduce((a,b)=>a+b,0)/ratings.length,ratings.length]).sort((a,b)=>b[1]-a[1]||b[2]-a[2])[0];
+  const insights=[];
+  if(gap)insights.push(`<li><b>Coverage gap:</b> ${escapeHtml(gap[0])} has ${gap[1]} session${gap[1]===1?'':'s'} in this range.</li>`);
+  if(topPractice&&topPractice[1]>1){const p=get(topPractice[0]);insights.push(`<li><b>Most reused practice:</b> ${escapeHtml(p?p.name:topPractice[0])} appears ${topPractice[1]} times. Consider whether repetition is deliberate or whether a fresh constraint would help.</li>`)}
+  if(bestTheme)insights.push(`<li><b>Strongest rated theme:</b> ${escapeHtml(bestTheme[0])} averages ${bestTheme[1].toFixed(1)}/5 across ${bestTheme[2]} rated session${bestTheme[2]===1?'':'s'}.</li>`);
+  if(recent&&recent.reflect)insights.push(`<li><b>Carry forward:</b> From ${escapeHtml(recent.date||'your latest session')}: ${nl(recent.reflect)}</li>`);
+  else if(recent&&recent.objective)insights.push(`<li><b>Carry forward:</b> Revisit the latest objective: ${nl(recent.objective)}</li>`);
+  return `<div class="notice" style="margin-top:16px"><b>Coaching insights</b><ul style="margin:8px 0 0;padding-left:20px;line-height:1.6">${insights.join('')}</ul></div>`;
+}
+function renderDashboard(){let box=document.getElementById('dashboardContent');if(!box)return;let weeks=Number((document.getElementById('dashRange')||{}).value||8);let teamQ=((document.getElementById('dashTeam')||{}).value||'').toLowerCase();let cutoff=weeks>=9999?null:new Date(Date.now()-weeks*7*24*60*60*1000);let sessions=(db.sessions||[]).filter(s=>(!teamQ||(s.team||'').toLowerCase().includes(teamQ))&&(!cutoff||new Date(s.date||'1970-01-01')>=cutoff));let counts={};themes.forEach(t=>counts[t]=0);sessions.forEach(s=>{if(counts[s.theme]!==undefined)counts[s.theme]++;});let max=Math.max(1,...Object.values(counts));let rated=sessions.filter(s=>Number(s.rating));let avg=rated.length?(rated.reduce((a,s)=>a+Number(s.rating),0)/rated.length).toFixed(1):'—';let most=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];let least=Object.entries(counts).sort((a,b)=>a[1]-b[1])[0];box.innerHTML=`<div class="dashStats"><div class="statBox"><div class="small">Sessions</div><b>${sessions.length}</b></div><div class="statBox"><div class="small">Average rating</div><b>${avg}</b></div><div class="statBox"><div class="small">Most coached</div><b>${most?most[0]:'—'}</b></div><div class="statBox"><div class="small">Least coached</div><b>${least?least[0]:'—'}</b></div></div>`+Object.entries(counts).map(([theme,count])=>`<div class="dashBarRow"><div><b>${theme}</b></div><div class="dashBarTrack"><div class="dashBarFill" style="width:${Math.round(count/max*100)}%"></div></div><div class="small" style="text-align:right">${count} sessions</div></div>`).join('');box.insertAdjacentHTML('beforeend',coachingInsightsMarkup(sessions,counts));}
 
 function updateCloudStatus(status, when){
   const cs=document.getElementById("cloudStatus");
