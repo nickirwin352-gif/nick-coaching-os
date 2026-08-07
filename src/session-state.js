@@ -69,3 +69,7 @@ const api = {
 };
 
 if (typeof window !== 'undefined') window.CoachingOSSessionState = api;
+
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  import('./mobile-reliability.js').catch(error => console.warn('Mobile reliability patch failed to load', error));
+}
