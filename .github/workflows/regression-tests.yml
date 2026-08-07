@@ -7,6 +7,7 @@ on:
       - mobile-reliability-pass
       - preview-sideline-calibration
       - post-session-review-dashboard-actions-v3
+      - sideline-glance-layout-v7
   pull_request:
     branches:
       - main
@@ -27,4 +28,5 @@ jobs:
       - run: node --check src/display-calibration.js
       - run: node --check src/post-session-review.js
       - run: node --check src/review-integrations.js
+      - run: node --check src/sideline-glance-layout.js
       - run: git diff --check
