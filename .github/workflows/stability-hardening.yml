@@ -16,10 +16,22 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: stability-hardening-pass
-      - name: Apply stability patch
-        run: python tools/apply-stability-hardening.py
-      - name: Apply render hardening
-        run: python tools/apply-render-hardening.py
+      - name: Apply stability patch if needed
+        shell: bash
+        run: |
+          if grep -q 'src="./src/firebase-cloud.js"' index.html && grep -q 'diagramOverrides:copyPlannerDiagramOverrides()' index.html; then
+            echo "Core stability hardening is already applied."
+          else
+            python tools/apply-stability-hardening.py
+          fi
+      - name: Apply render hardening if needed
+        shell: bash
+        run: |
+          if grep -q 'function escapeJsSingleQuoted(value)' index.html && grep -q 'removeAllPractices(sessionDrillIds(s),s.diagramOverrides' index.html; then
+            echo "Render hardening is already applied."
+          else
+            python tools/apply-render-hardening.py
+          fi
       - name: Check extracted Firebase syntax
         run: node --check src/firebase-cloud.js
       - name: Run regression tests
