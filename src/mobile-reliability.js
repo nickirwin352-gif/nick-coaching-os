@@ -197,8 +197,17 @@ function installBrowserReliabilityFixes() {
   }
   if ('ResizeObserver' in window) {
     const observer = new ResizeObserver(scheduleFit);
-    const viewport = document.getElementById('dsViewport');
-    if (viewport) observer.observe(viewport);
+    let observedViewport = null;
+    const observeViewport = () => {
+      const viewport = document.getElementById('dsViewport');
+      if (!viewport || viewport === observedViewport) return;
+      if (observedViewport) observer.unobserve(observedViewport);
+      observer.observe(viewport);
+      observedViewport = viewport;
+    };
+    observeViewport();
+    setTimeout(observeViewport, 80);
+    setTimeout(observeViewport, 250);
   }
 
   const refreshDashboard = () => {
