@@ -12,6 +12,7 @@ on:
       - session-usability-refresh-editor-pass
       - builder-session-visuals
       - sticky-session-diagrams
+      - sticky-session-diagrams-fix
   pull_request:
     branches:
       - main
@@ -38,4 +39,5 @@ jobs:
       - run: node --check src/session-usability-pass.js
       - run: node --check src/practice-editor-unified.js
       - run: node --check src/builder-session-visuals.js
+      - run: node --check src/sticky-session-diagrams-fix.js
       - run: git diff --check
