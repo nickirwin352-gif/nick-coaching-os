@@ -219,7 +219,7 @@ function observeReview() {
     if (overlay.classList.contains('open')) requestAnimationFrame(enhanceReview);
     else currentReviewSession = null;
   });
-  reviewObserver.observe(overlay, { attributes:true, attributeFilter:['class'], childList:true, subtree:true });
+  reviewObserver.observe(overlay, { attributes:true, attributeFilter:['class'] });
 }
 
 function observeDashboard() {
