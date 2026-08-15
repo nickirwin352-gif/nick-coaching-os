@@ -34,4 +34,5 @@ jobs:
       - run: node --check src/session-library-speed-v2.js
       - run: node --check src/startup-performance.js
       - run: node --check src/session-usability-pass.js
+      - run: node --check src/practice-editor-unified.js
       - run: git diff --check
