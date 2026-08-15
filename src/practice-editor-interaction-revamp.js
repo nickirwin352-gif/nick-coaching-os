@@ -33,13 +33,13 @@ function addStyles() {
     #diagramStudioInlineHost .streamlinedInline .dsStepBar{min-height:48px!important;padding:5px 7px!important}
     #diagramStudioInlineHost .streamlinedInline .dsViewport{min-height:0!important}
 
-    /* Smaller, cleaner legacy arrow tips too. */
+    /* Medium arrow tips: visible at coaching distance without overpowering the line. */
     #editor .arrow:after{
-      right:-6px!important;
-      top:-4px!important;
-      border-left-width:8px!important;
-      border-top-width:6px!important;
-      border-bottom-width:6px!important;
+      right:-7px!important;
+      top:-5px!important;
+      border-left-width:10px!important;
+      border-top-width:7px!important;
+      border-bottom-width:7px!important;
     }
 
     @media(max-width:850px){
@@ -76,19 +76,19 @@ function setSmoothDragDefaults() {
   } catch (_) {}
 }
 
-function shrinkArrowheads() {
+function resizeArrowheads() {
   const pitch = document.getElementById('dsPitch');
   if (!pitch) return;
   ['dsArrowHead', 'dsPressHead'].forEach(id => {
     const marker = pitch.querySelector(`#${id}`);
     if (!marker) return;
-    marker.setAttribute('markerWidth', '7');
-    marker.setAttribute('markerHeight', '7');
-    marker.setAttribute('refX', '6.4');
-    marker.setAttribute('refY', '3.5');
+    marker.setAttribute('markerWidth', '9');
+    marker.setAttribute('markerHeight', '9');
+    marker.setAttribute('refX', '8.2');
+    marker.setAttribute('refY', '4.5');
     marker.setAttribute('markerUnits', 'userSpaceOnUse');
     const path = marker.querySelector('path');
-    if (path) path.setAttribute('d', 'M0,0 L0,7 L7,3.5 z');
+    if (path) path.setAttribute('d', 'M0,0 L0,9 L9,4.5 z');
   });
 }
 
@@ -96,9 +96,9 @@ function installPitchObserver() {
   const pitch = document.getElementById('dsPitch');
   if (!pitch) return;
   if (pitchObserver) pitchObserver.disconnect();
-  pitchObserver = new MutationObserver(() => shrinkArrowheads());
+  pitchObserver = new MutationObserver(() => resizeArrowheads());
   pitchObserver.observe(pitch, { childList: true, subtree: true });
-  shrinkArrowheads();
+  resizeArrowheads();
 }
 
 function fitPitchLarge() {
@@ -175,7 +175,6 @@ function disableWheelZoom() {
   document.__practiceEditorWheelZoomDisabled = true;
   document.addEventListener('wheel', event => {
     if (!event.target?.closest?.('#dsViewport')) return;
-    /* Stop Diagram Studio's wheel listener, but leave the browser default alone so normal page scrolling still works. */
     event.stopImmediatePropagation();
   }, { capture: true, passive: true });
 }
