@@ -1,0 +1,1 @@
+On screens under 850px, the unified practice editor stacks the text card above Diagram Studio while keeping both in the same Add/Edit Practice view. The desktop layout keeps the text card sticky beside the diagram workspace.
