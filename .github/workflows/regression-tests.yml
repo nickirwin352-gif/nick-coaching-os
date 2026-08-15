@@ -17,6 +17,7 @@ on:
       - session-editor-focus-fix
       - editor-clean-drag-pitch-revamp
       - diagram-selection-copy-tools
+      - diagram-studio-v2-overhaul
   pull_request:
     branches:
       - main
@@ -47,4 +48,5 @@ jobs:
       - run: node --check src/sticky-editor-return.js
       - run: node --check src/practice-editor-interaction-revamp.js
       - run: node --check src/diagram-group-copy-tools.js
+      - run: node --check src/practice-editor-studio-v2.js
       - run: git diff --check
