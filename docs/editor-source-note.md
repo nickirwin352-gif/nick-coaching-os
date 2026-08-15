@@ -1,0 +1,1 @@
+The Add/Edit Practice workspace behavior in `src/practice-editor-unified.js` was reconstructed from the coach-provided reference HTML. The implementation intentionally keeps only the editor/workspace behavior and styling needed for the current app, rather than copying the entire historical single-file application.
