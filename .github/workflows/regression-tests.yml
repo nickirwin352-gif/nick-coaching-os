@@ -21,6 +21,7 @@ on:
       - bulletproof-diagram-editor
       - diagram-editor-selection-line-pass
       - diagram-editor-hold-pickup-pitch-size
+      - editor-pitch-review-cleanup
   pull_request:
     branches:
       - main
@@ -55,4 +56,6 @@ jobs:
       - run: node --check src/diagram-editor-coach-workflow.js
       - run: node --check src/diagram-editor-pickup-line-pass.js
       - run: node --check src/diagram-editor-hold-pickup-pitch-size.js
+      - run: node --check src/editor-pitch-builder-cleanup.js
+      - run: node --check src/review-diagram-ten-scale.js
       - run: git diff --check
