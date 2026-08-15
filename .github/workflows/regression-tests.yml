@@ -22,6 +22,7 @@ on:
       - diagram-editor-selection-line-pass
       - diagram-editor-hold-pickup-pitch-size
       - editor-pitch-review-cleanup
+      - session-intelligence-visual-calibration
   pull_request:
     branches:
       - main
@@ -58,4 +59,6 @@ jobs:
       - run: node --check src/diagram-editor-hold-pickup-pitch-size.js
       - run: node --check src/editor-pitch-builder-cleanup.js
       - run: node --check src/review-diagram-ten-scale.js
+      - run: node --check src/diagram-preview-calibration-v2.js
+      - run: node --check src/session-intelligence-ux.js
       - run: git diff --check
