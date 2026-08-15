@@ -92,6 +92,8 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./editor-pitch-builder-cleanup.js'))
     .then(() => import('./review-diagram-ten-scale.js'))
     .then(() => import('./diagram-preview-calibration-v2.js'))
+    .then(() => import('./session-intelligence-observer-guard.js'))
     .then(() => import('./session-intelligence-v2.js'))
+    .then(() => import('./session-library-intelligence-hook.js'))
     .catch(error => console.warn('Coaching OS enhancement patch failed to load', error));
 }
