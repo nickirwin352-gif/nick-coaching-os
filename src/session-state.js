@@ -80,5 +80,6 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./startup-performance.js'))
     .then(() => import('./session-usability-pass.js'))
     .then(() => import('./practice-editor-unified.js'))
+    .then(() => import('./builder-session-visuals.js'))
     .catch(error => console.warn('Coaching OS enhancement patch failed to load', error));
 }
