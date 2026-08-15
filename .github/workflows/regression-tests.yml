@@ -14,6 +14,7 @@ on:
       - sticky-session-diagrams
       - sticky-session-diagrams-fix
       - sticky-diagram-viewer-fix
+      - session-editor-focus-fix
   pull_request:
     branches:
       - main
