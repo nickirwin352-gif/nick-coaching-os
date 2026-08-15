@@ -23,6 +23,7 @@ on:
       - diagram-editor-hold-pickup-pitch-size
       - editor-pitch-review-cleanup
       - session-intelligence-visual-calibration
+      - review-freeze-practice-id-cleanup
   pull_request:
     branches:
       - main
@@ -63,4 +64,5 @@ jobs:
       - run: node --check src/session-intelligence-observer-guard.js
       - run: node --check src/session-intelligence-v2.js
       - run: node --check src/session-library-intelligence-hook.js
+      - run: node --check src/practice-id-system.js
       - run: git diff --check
