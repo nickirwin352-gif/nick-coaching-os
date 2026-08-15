@@ -18,6 +18,7 @@ on:
       - editor-clean-drag-pitch-revamp
       - diagram-selection-copy-tools
       - diagram-studio-v2-overhaul
+      - bulletproof-diagram-editor
   pull_request:
     branches:
       - main
@@ -49,4 +50,5 @@ jobs:
       - run: node --check src/practice-editor-interaction-revamp.js
       - run: node --check src/diagram-group-copy-tools.js
       - run: node --check src/practice-editor-studio-v2.js
+      - run: node --check src/diagram-editor-coach-workflow.js
       - run: git diff --check
