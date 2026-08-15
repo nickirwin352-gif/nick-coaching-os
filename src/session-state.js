@@ -76,6 +76,6 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   import('./sideline-glance-layout.js').catch(error => console.warn('Sideline glance layout patch failed to load', error));
   import('./post-session-review.js')
     .then(() => import('./review-integrations.js'))
-    .then(() => import('./session-library-speed.js'))
+    .then(() => import('./session-library-speed-v2.js'))
     .catch(error => console.warn('Post-session review/session library patch failed to load', error));
 }
