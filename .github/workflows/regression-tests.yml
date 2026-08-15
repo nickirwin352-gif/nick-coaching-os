@@ -19,6 +19,7 @@ on:
       - diagram-selection-copy-tools
       - diagram-studio-v2-overhaul
       - bulletproof-diagram-editor
+      - diagram-editor-selection-line-pass
   pull_request:
     branches:
       - main
@@ -51,4 +52,5 @@ jobs:
       - run: node --check src/diagram-group-copy-tools.js
       - run: node --check src/practice-editor-studio-v2.js
       - run: node --check src/diagram-editor-coach-workflow.js
+      - run: node --check src/diagram-editor-pickup-line-pass.js
       - run: git diff --check
