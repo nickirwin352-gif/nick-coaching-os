@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { filterSessions, sessionDiagramItems } from '../src/session-library-speed.js';
+import { filterSessions, sessionDiagramItems } from '../src/session-library-speed-v2.js';
 
 const practices = {
   p1: { id: 'p1', name: 'Wide press', stage: 'Main', theme: 'Defending', diagram: [{ type: 'player', x: 10, y: 10 }], pitchMode: 'full' },
