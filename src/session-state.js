@@ -87,5 +87,6 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./diagram-group-copy-tools.js'))
     .then(() => import('./practice-editor-studio-v2.js'))
     .then(() => import('./diagram-editor-coach-workflow.js'))
+    .then(() => import('./diagram-editor-pickup-line-pass.js'))
     .catch(error => console.warn('Coaching OS enhancement patch failed to load', error));
 }
