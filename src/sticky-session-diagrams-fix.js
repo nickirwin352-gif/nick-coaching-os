@@ -180,8 +180,12 @@ function openViewer(index) {
   edit.onclick = () => {
     closeViewer();
     try {
+      if (typeof window.enterStickyDiagramEdit === 'function') window.enterStickyDiagramEdit();
       if (typeof openSessionDiagramStudio === 'function') openSessionDiagramStudio(index);
-    } catch (_) {}
+      else document.body.classList.remove('stickyDiagramEditing');
+    } catch (_) {
+      document.body.classList.remove('stickyDiagramEditing');
+    }
   };
   requestAnimationFrame(() => {
     try {
