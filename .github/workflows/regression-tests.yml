@@ -41,4 +41,5 @@ jobs:
       - run: node --check src/practice-editor-unified.js
       - run: node --check src/builder-session-visuals.js
       - run: node --check src/sticky-session-diagrams-fix.js
+      - run: node --check src/sticky-editor-return.js
       - run: git diff --check
