@@ -10,6 +10,14 @@ test('advanced builder renders diagrams above selected practices', () => {
   assert.match(source, /drawMini/);
 });
 
+test('advanced builder sticky bar renders session diagram thumbnails', () => {
+  assert.match(source, /currentSessionDiagramStrip/);
+  assert.match(source, /currentSessionDiagramThumb/);
+  assert.match(source, /renderStickySessionDiagrams/);
+  assert.match(source, /renderCurrentSessionDock/);
+  assert.match(source, /openSessionDiagramStudio/);
+});
+
 test('copy previous session can reveal practices and all diagrams', () => {
   assert.match(source, /View Practices/);
   assert.match(source, /recentSessionPracticePanel/);
