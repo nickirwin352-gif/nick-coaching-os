@@ -10,6 +10,7 @@ on:
       - sideline-glance-layout-v7
       - fast-save-session-library
       - session-usability-refresh-editor-pass
+      - builder-session-visuals
   pull_request:
     branches:
       - main
@@ -35,4 +36,5 @@ jobs:
       - run: node --check src/startup-performance.js
       - run: node --check src/session-usability-pass.js
       - run: node --check src/practice-editor-unified.js
+      - run: node --check src/builder-session-visuals.js
       - run: git diff --check
