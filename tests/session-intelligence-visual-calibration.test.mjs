@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { previewDataForPractice } from '../src/diagram-preview-calibration-v2.js';
-import { scoreOutOfTen, trafficHue, latestPracticeReview } from '../src/session-intelligence-ux.js';
+import { scoreOutOfTen, trafficHue, latestPracticeReview } from '../src/session-intelligence-v2.js';
 
 const diagramSource = await readFile(new URL('../src/diagram-preview-calibration-v2.js', import.meta.url), 'utf8');
-const intelligenceSource = await readFile(new URL('../src/session-intelligence-ux.js', import.meta.url), 'utf8');
+const intelligenceSource = await readFile(new URL('../src/session-intelligence-v2.js', import.meta.url), 'utf8');
 
 test('diagram previews use the saved first visual step consistently', () => {
   const practice = {
@@ -45,9 +45,9 @@ test('latest practice review preserves reasoning for reuse decisions', () => {
 });
 
 test('review saving is local first and cloud sync is backgrounded', () => {
-  assert.match(intelligenceSource, /saveLocalSnapshot\(data\)/);
-  assert.match(intelligenceSource, /queueReviewCloud\(data\)/);
-  assert.match(intelligenceSource, /closeReviewImmediately\(\)/);
+  assert.match(intelligenceSource, /saveLocal\(data\)/);
+  assert.match(intelligenceSource, /queueCloud\(data\)/);
+  assert.match(intelligenceSource, /closeReviewNow\(\)/);
   assert.match(intelligenceSource, /Review saved · syncing in background/);
 });
 
@@ -58,4 +58,12 @@ test('review reasoning, session subtitles and calendar scores are surfaced', () 
   assert.match(intelligenceSource, /sessionReviewMemory/);
   assert.match(intelligenceSource, /calSessionScore/);
   assert.match(intelligenceSource, /sessionQualityDot/);
+});
+
+test('known diagram contexts are redrawn from effective practice data', () => {
+  assert.match(intelligenceSource, /function rerenderKnownDiagrams/);
+  assert.match(intelligenceSource, /dsEffectiveSessionPractice/);
+  assert.match(intelligenceSource, /dsCurrentPlannerPractice/);
+  assert.match(intelligenceSource, /review-practice-diagram-/);
+  assert.match(intelligenceSource, /currentSessionDockDiagramStrip/);
 });
