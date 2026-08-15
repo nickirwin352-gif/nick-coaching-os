@@ -60,5 +60,5 @@ jobs:
       - run: node --check src/editor-pitch-builder-cleanup.js
       - run: node --check src/review-diagram-ten-scale.js
       - run: node --check src/diagram-preview-calibration-v2.js
-      - run: node --check src/session-intelligence-ux.js
+      - run: node --check src/session-intelligence-v2.js
       - run: git diff --check
