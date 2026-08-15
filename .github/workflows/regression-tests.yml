@@ -11,6 +11,7 @@ on:
       - fast-save-session-library
       - session-usability-refresh-editor-pass
       - builder-session-visuals
+      - sticky-session-diagrams
   pull_request:
     branches:
       - main
