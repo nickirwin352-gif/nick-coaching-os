@@ -83,5 +83,6 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./builder-session-visuals.js'))
     .then(() => import('./sticky-session-diagrams-fix.js'))
     .then(() => import('./sticky-editor-return.js'))
+    .then(() => import('./practice-editor-interaction-revamp.js'))
     .catch(error => console.warn('Coaching OS enhancement patch failed to load', error));
 }
