@@ -24,6 +24,7 @@ on:
       - editor-pitch-review-cleanup
       - session-intelligence-visual-calibration
       - review-freeze-practice-id-cleanup
+      - calendar-session-navigation-ratings
   pull_request:
     branches:
       - main
@@ -65,4 +66,5 @@ jobs:
       - run: node --check src/session-intelligence-v2.js
       - run: node --check src/session-library-intelligence-hook.js
       - run: node --check src/practice-id-system.js
+      - run: node --check src/session-calendar-navigation-rating.js
       - run: git diff --check
