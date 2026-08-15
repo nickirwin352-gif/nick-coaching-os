@@ -25,6 +25,7 @@ on:
       - session-intelligence-visual-calibration
       - review-freeze-practice-id-cleanup
       - calendar-session-navigation-ratings
+      - coaching-personalisation-automation
   pull_request:
     branches:
       - main
@@ -67,4 +68,5 @@ jobs:
       - run: node --check src/session-library-intelligence-hook.js
       - run: node --check src/practice-id-system.js
       - run: node --check src/session-calendar-navigation-rating.js
+      - run: node --check src/coaching-personalisation-automation.js
       - run: git diff --check
