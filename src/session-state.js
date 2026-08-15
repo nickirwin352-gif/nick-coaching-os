@@ -97,5 +97,6 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./session-library-intelligence-hook.js'))
     .then(() => import('./practice-id-system.js'))
     .then(() => import('./session-calendar-navigation-rating.js'))
+    .then(() => import('./coaching-personalisation-automation.js'))
     .catch(error => console.warn('Coaching OS enhancement patch failed to load', error));
 }
