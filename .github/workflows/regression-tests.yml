@@ -16,6 +16,7 @@ on:
       - sticky-diagram-viewer-fix
       - session-editor-focus-fix
       - editor-clean-drag-pitch-revamp
+      - diagram-selection-copy-tools
   pull_request:
     branches:
       - main
@@ -45,4 +46,5 @@ jobs:
       - run: node --check src/sticky-session-diagrams-fix.js
       - run: node --check src/sticky-editor-return.js
       - run: node --check src/practice-editor-interaction-revamp.js
+      - run: node --check src/diagram-group-copy-tools.js
       - run: git diff --check
