@@ -18,7 +18,19 @@ function addStyles() {
     .recentSessionPracticeItemHead b{font-size:13px}
     .recentSessionPracticeDiagram .pitchMini{width:100%!important;max-width:none!important;height:170px!important;margin:0!important}
     .recentSessionPracticeActions{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
-    @media(max-width:720px){#sessionDrillList .advancedBuilderDiagram .pitchMini{height:185px!important}.recentSessionPracticeDiagram .pitchMini{height:155px!important}}
+    #currentSessionDockPills.currentSessionDiagramStrip{display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;padding:5px 1px 2px;scrollbar-width:thin;max-width:min(760px,68vw)}
+    .currentSessionDiagramThumb{flex:0 0 132px;min-width:132px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface-3);cursor:pointer;transition:border-color .15s,transform .08s}
+    .currentSessionDiagramThumb:hover{border-color:var(--turf)}
+    .currentSessionDiagramThumb:active{transform:scale(.98)}
+    .currentSessionDiagramThumb .pitchMini{width:100%!important;max-width:none!important;height:76px!important;margin:0!important;border:0!important;border-radius:0!important}
+    .currentSessionDiagramThumbLabel{padding:5px 7px;font-size:10.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+    .currentSessionDiagramThumbMeta{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:0 7px 5px;font-size:9px;color:var(--text-dim)}
+    .currentSessionDiagramMore{flex:0 0 auto;display:flex;align-items:center;justify-content:center;min-width:70px;padding:0 8px;border:1px dashed var(--border);border-radius:10px;color:var(--text-dim);font-size:11px;font-weight:800}
+    @media(max-width:720px){
+      #sessionDrillList .advancedBuilderDiagram .pitchMini{height:185px!important}.recentSessionPracticeDiagram .pitchMini{height:155px!important}
+      #currentSessionDockPills.currentSessionDiagramStrip{display:flex!important;max-width:100%;width:100%;padding-top:4px}
+      .currentSessionDiagramThumb{flex-basis:112px;min-width:112px}.currentSessionDiagramThumb .pitchMini{height:64px!important}
+    }
   `;
   document.head.appendChild(style);
 }
@@ -82,6 +94,49 @@ function installAdvancedBuilderDiagrams() {
   };
   wrapped.__builderDiagrams = true;
   window.renderSessionDrillList = wrapped;
+}
+
+function renderStickySessionDiagrams() {
+  const strip = document.getElementById('currentSessionDockPills');
+  if (!strip) return;
+  let drills = [];
+  try { drills = Array.isArray(plannerDrills) ? plannerDrills : []; } catch (_) {}
+  strip.classList.add('currentSessionDiagramStrip');
+  if (!drills.length) {
+    strip.innerHTML = '<span class="currentSessionDockEmpty">Your current session diagrams will appear here.</span>';
+    return;
+  }
+  strip.innerHTML = '';
+  drills.forEach((id, index) => {
+    const practice = plannerPracticeAt(index);
+    if (!practice) return;
+    const thumb = document.createElement('button');
+    thumb.type = 'button';
+    thumb.className = 'currentSessionDiagramThumb';
+    thumb.title = `Practice ${index + 1}: ${practice.name || id}`;
+    const diagramId = `sticky-session-diagram-${index}-${Date.now().toString(36)}`;
+    thumb.innerHTML = `<div id="${diagramId}"></div><div class="currentSessionDiagramThumbLabel">${index + 1}. ${escapeText(practice.name || id)}</div><div class="currentSessionDiagramThumbMeta"><span>${escapeText(practice.stage || '')}</span>${practice.sessionDiagramOverride ? '<span>Edited</span>' : ''}</div>`;
+    thumb.addEventListener('click', () => {
+      try {
+        if (typeof openSessionDiagramStudio === 'function') openSessionDiagramStudio(index);
+        else if (typeof openCurrentSessionDrawer === 'function') openCurrentSessionDrawer();
+      } catch (_) {}
+    });
+    strip.appendChild(thumb);
+    drawWhenReady(diagramId, practice);
+  });
+}
+
+function installStickySessionDiagrams() {
+  const original = window.renderCurrentSessionDock;
+  if (typeof original !== 'function' || original.__stickySessionDiagrams) return;
+  const wrapped = function(...args) {
+    const result = original.apply(this, args);
+    renderStickySessionDiagrams();
+    return result;
+  };
+  wrapped.__stickySessionDiagrams = true;
+  window.renderCurrentSessionDock = wrapped;
 }
 
 function renderRecentSessionPracticePanel(card, session, sessionIndex) {
@@ -153,8 +208,10 @@ function installRecentSessionPracticeViews() {
 function install() {
   addStyles();
   installAdvancedBuilderDiagrams();
+  installStickySessionDiagrams();
   installRecentSessionPracticeViews();
   enrichAdvancedBuilderRows();
+  renderStickySessionDiagrams();
   enrichRecentSessions();
 }
 
