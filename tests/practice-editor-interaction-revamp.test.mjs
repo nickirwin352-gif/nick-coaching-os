@@ -19,8 +19,8 @@ test('practice editor defaults to smooth free dragging', () => {
   assert.match(source, /touch-action:none/);
 });
 
-test('practice editor uses smaller arrowheads', () => {
-  assert.match(source, /markerWidth', '7'/);
+test('practice editor uses medium visible arrowheads', () => {
+  assert.match(source, /markerWidth', '9'/);
   assert.match(source, /markerUnits', 'userSpaceOnUse'/);
-  assert.match(source, /M0,0 L0,7 L7,3\.5 z/);
+  assert.match(source, /M0,0 L0,9 L9,4\.5 z/);
 });
