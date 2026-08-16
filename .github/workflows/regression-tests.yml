@@ -27,6 +27,7 @@ on:
       - calendar-session-navigation-ratings
       - coaching-personalisation-automation
       - calendar-sessions-hard-fix-v2
+      - ios-diagram-preset-manager
   pull_request:
     branches:
       - main
@@ -71,4 +72,6 @@ jobs:
       - run: node --check src/session-calendar-navigation-rating.js
       - run: node --check src/coaching-personalisation-automation.js
       - run: node --check src/calendar-sessions-hard-fix-v2.js
+      - run: node --check src/ios-diagram-calibration-v3.js
+      - run: node --check src/diagram-preset-manager.js
       - run: git diff --check
