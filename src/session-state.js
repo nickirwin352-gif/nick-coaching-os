@@ -99,5 +99,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./session-calendar-navigation-rating.js'))
     .then(() => import('./coaching-personalisation-automation.js'))
     .then(() => import('./calendar-sessions-hard-fix-v2.js'))
+    .then(() => import('./ios-diagram-calibration-v3.js'))
+    .then(() => import('./diagram-preset-manager.js'))
     .catch(error => console.warn('Coaching OS enhancement patch failed to load', error));
 }
