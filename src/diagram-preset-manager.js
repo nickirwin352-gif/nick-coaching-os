@@ -5,6 +5,7 @@ const SETTINGS_KEY = 'diagramPresetSettings';
 let cloudTimer = 0;
 let studioObserver = null;
 let toolPanelWrapped = false;
+let refreshFrame = 0;
 
 const DEFAULT_PRESETS = Object.freeze([
   { id:'coach:possession', label:'4v2 Possession Box', selector:'[data-coach-preset="possession"]' },
@@ -74,10 +75,7 @@ function persistPresets() {
 export function clonePresetObjects(source = [], idFactory = prefix => `${prefix}-${Math.random().toString(36).slice(2,8)}`) {
   const list = Array.isArray(source) ? source : [];
   const idMap = new Map();
-  list.forEach(object => {
-    const oldId = object?.id;
-    if (oldId) idMap.set(oldId, idFactory(object.type || 'obj'));
-  });
+  list.forEach(object => { if (object?.id) idMap.set(object.id, idFactory(object.type || 'obj')); });
   return list.map(object => {
     const next = JSON.parse(JSON.stringify(object || {}));
     next.id = idMap.get(object?.id) || idFactory(object?.type || 'obj');
@@ -97,25 +95,17 @@ function currentSnapshot() {
   if (!step) return null;
   let diagram = [];
   try { diagram = Array.isArray(step.diagram) ? step.diagram : (typeof dsObjects === 'function' ? dsObjects() : []); } catch (_) {}
-  return {
-    pitchMode: step.pitchMode || 'full',
-    diagram: clone(diagram || []),
-    itemCount: Array.isArray(diagram) ? diagram.length : 0
-  };
+  return { pitchMode:step.pitchMode || 'full', diagram:clone(diagram || []), itemCount:Array.isArray(diagram) ? diagram.length : 0 };
 }
 
 function presetId() { return `preset-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`; }
 
 export function makePresetRecord(name, snapshot, now = new Date().toISOString()) {
   return {
-    id:presetId(),
-    name:String(name || '').trim(),
-    pitchMode:snapshot?.pitchMode || 'full',
+    id:presetId(), name:String(name || '').trim(), pitchMode:snapshot?.pitchMode || 'full',
     diagram:JSON.parse(JSON.stringify(snapshot?.diagram || [])),
     itemCount:Array.isArray(snapshot?.diagram) ? snapshot.diagram.length : 0,
-    createdAt:now,
-    updatedAt:now,
-    useCount:0
+    createdAt:now, updatedAt:now, useCount:0
   };
 }
 
@@ -126,7 +116,7 @@ function createPreset(name) {
   if (!snapshot) return false;
   const { presets } = ensureStore();
   if (presets.some(item => String(item.name || '').toLowerCase() === clean.toLowerCase())) {
-    toast('That preset name already exists — rename it or update the existing preset');
+    toast('That preset name already exists — update or rename the existing preset');
     return false;
   }
   presets.unshift(makePresetRecord(clean, snapshot));
@@ -139,16 +129,12 @@ function createPreset(name) {
 function replaceStepWithPreset(preset) {
   const step = currentStep();
   if (!step || !preset) return false;
-  const current = Array.isArray(step.diagram) ? step.diagram : [];
-  if (current.length && !confirm(`Replace this diagram with “${preset.name}”? You can Undo afterwards.`)) return false;
+  if ((step.diagram || []).length && !confirm(`Replace this diagram with “${preset.name}”? You can Undo afterwards.`)) return false;
   try { if (typeof dsPushHistory === 'function') dsPushHistory(); } catch (_) {}
   step.pitchMode = preset.pitchMode || 'full';
   step.diagram = clonePresetObjects(preset.diagram || [], prefix => uid(prefix));
   try {
-    if (typeof dsState !== 'undefined' && dsState) {
-      dsState.selectedIds = new Set();
-      dsState.primaryId = null;
-    }
+    if (typeof dsState !== 'undefined' && dsState) { dsState.selectedIds = new Set(); dsState.primaryId = null; }
   } catch (_) {}
   preset.useCount = Number(preset.useCount || 0) + 1;
   preset.lastUsedAt = new Date().toISOString();
@@ -164,8 +150,7 @@ function replaceStepWithPreset(preset) {
 
 function updatePreset(id) {
   const snapshot = currentSnapshot();
-  const { presets } = ensureStore();
-  const preset = presets.find(item => item.id === id);
+  const preset = ensureStore().presets.find(item => item.id === id);
   if (!preset || !snapshot) return;
   if (!confirm(`Replace “${preset.name}” with the setup currently on the pitch?`)) return;
   preset.pitchMode = snapshot.pitchMode;
@@ -173,8 +158,8 @@ function updatePreset(id) {
   preset.itemCount = snapshot.itemCount;
   preset.updatedAt = new Date().toISOString();
   persistPresets();
-  renderManager();
   refreshPresetUi(true);
+  renderManager();
   toast(`Updated preset · ${preset.name}`);
 }
 
@@ -182,27 +167,26 @@ function renamePreset(id) {
   const { presets } = ensureStore();
   const preset = presets.find(item => item.id === id);
   if (!preset) return;
-  const name = prompt('Preset name', preset.name || '');
-  if (name == null) return;
-  const clean = name.trim();
+  const value = prompt('Preset name', preset.name || '');
+  if (value == null) return;
+  const clean = value.trim();
   if (!clean) return;
   if (presets.some(item => item.id !== id && String(item.name || '').toLowerCase() === clean.toLowerCase())) return toast('That preset name already exists');
   preset.name = clean;
   preset.updatedAt = new Date().toISOString();
   persistPresets();
-  renderManager();
   refreshPresetUi(true);
+  renderManager();
 }
 
 function deletePreset(id) {
   const { presets } = ensureStore();
   const index = presets.findIndex(item => item.id === id);
-  if (index < 0) return;
-  if (!confirm(`Delete preset “${presets[index].name}”?`)) return;
+  if (index < 0 || !confirm(`Delete preset “${presets[index].name}”?`)) return;
   presets.splice(index, 1);
   persistPresets();
-  renderManager();
   refreshPresetUi(true);
+  renderManager();
   toast('Preset deleted');
 }
 
@@ -212,14 +196,12 @@ function basePresetButton(label) {
 
 function defaultButton(item) {
   if (item.selector) return document.querySelector(`#diagramCoachPresetShelf ${item.selector}`);
-  if (item.text) return basePresetButton(item.text);
-  return null;
+  return item.text ? basePresetButton(item.text) : null;
 }
 
 function useDefault(id) {
   const item = DEFAULT_PRESETS.find(preset => preset.id === id);
-  if (!item) return;
-  const button = defaultButton(item);
+  const button = item && defaultButton(item);
   if (!button) return toast('That default preset is not available in this editor view');
   button.click();
   closeManager();
@@ -236,13 +218,14 @@ function setDefaultHidden(id, hidden) {
 }
 
 function applyHiddenDefaults() {
-  const { settings } = ensureStore();
-  const hidden = new Set(settings.hiddenDefaults || []);
+  const hidden = new Set(ensureStore().settings.hiddenDefaults || []);
   DEFAULT_PRESETS.forEach(item => {
     const button = defaultButton(item);
     if (!button) return;
-    button.hidden = hidden.has(item.id);
-    button.style.display = hidden.has(item.id) ? 'none' : '';
+    const shouldHide = hidden.has(item.id);
+    if (button.hidden !== shouldHide) button.hidden = shouldHide;
+    const display = shouldHide ? 'none' : '';
+    if (button.style.display !== display) button.style.display = display;
   });
 }
 
@@ -252,39 +235,24 @@ function addStyles() {
   style.id = STYLE_ID;
   style.textContent = `
     #diagramCoachPresetShelf .coachPresetHead{align-items:center!important;flex-wrap:wrap}
-    .userPresetHeadActions{display:flex;gap:5px;margin-left:auto;flex-wrap:wrap}
-    .userPresetHeadActions button{padding:6px 8px!important;font-size:9.5px!important}
-    .userPresetQuick{border-color:rgba(56,189,248,.45)!important;background:rgba(56,189,248,.10)!important;color:#d7f2ff!important}
-    .userPresetQuick:before{content:'★ ';color:var(--gold)}
+    .userPresetHeadActions{display:flex;gap:5px;margin-left:auto;flex-wrap:wrap}.userPresetHeadActions button{padding:6px 8px!important;font-size:9.5px!important}
+    .userPresetQuick{border-color:rgba(56,189,248,.45)!important;background:rgba(56,189,248,.10)!important;color:#d7f2ff!important}.userPresetQuick:before{content:'★ ';color:var(--gold)}
     #${OVERLAY_ID}{position:fixed;inset:0;z-index:60000;background:rgba(3,7,18,.88);display:flex;align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(8px)}
     #${OVERLAY_ID} .presetManagerShell{width:min(900px,100%);max-height:min(820px,92dvh);overflow:auto;border:1px solid var(--border);border-radius:18px;background:var(--surface);box-shadow:0 30px 90px rgba(0,0,0,.6)}
     #${OVERLAY_ID} .presetManagerHead{position:sticky;top:0;z-index:2;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:15px 16px;background:rgba(13,21,36,.96);border-bottom:1px solid var(--border);backdrop-filter:blur(8px)}
-    #${OVERLAY_ID} .presetManagerHead h2{margin:0 0 3px;font-size:18px}
-    #${OVERLAY_ID} .presetManagerBody{padding:15px}
+    #${OVERLAY_ID} .presetManagerHead h2{margin:0 0 3px;font-size:18px}#${OVERLAY_ID} .presetManagerBody{padding:15px}
     #${OVERLAY_ID} .presetCreateRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:11px;border:1px solid rgba(52,211,153,.3);border-radius:12px;background:rgba(52,211,153,.06);margin-bottom:15px}
-    #${OVERLAY_ID} .presetCreateRow input{margin:0}
-    #${OVERLAY_ID} .presetSectionTitle{display:flex;align-items:end;justify-content:space-between;gap:8px;margin:15px 0 8px}
-    #${OVERLAY_ID} .presetSectionTitle h3{margin:0;font-size:14px}
-    #${OVERLAY_ID} .presetList{display:grid;gap:7px}
-    #${OVERLAY_ID} .presetManagerItem{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px 11px;border:1px solid var(--border-soft);border-radius:11px;background:var(--surface-2)}
-    #${OVERLAY_ID} .presetManagerItem strong{display:block;font-size:13px}
-    #${OVERLAY_ID} .presetManagerItem .small{font-size:10.5px;margin-top:2px}
-    #${OVERLAY_ID} .presetItemActions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
-    #${OVERLAY_ID} .presetItemActions button{padding:6px 8px;font-size:10px}
-    #${OVERLAY_ID} .presetEmpty{padding:14px;border:1px dashed var(--border);border-radius:10px;color:var(--text-dim);font-size:12px}
-    #${OVERLAY_ID} .presetDefaultsTools{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
-    @media(max-width:650px){
-      #${OVERLAY_ID}{padding:7px;align-items:flex-end}
-      #${OVERLAY_ID} .presetManagerShell{max-height:94dvh;border-radius:16px 16px 8px 8px}
-      #${OVERLAY_ID} .presetManagerBody{padding:10px}
-      #${OVERLAY_ID} .presetCreateRow{grid-template-columns:1fr}
-      #${OVERLAY_ID} .presetManagerItem{grid-template-columns:1fr}
-      #${OVERLAY_ID} .presetItemActions{justify-content:flex-start}
-      #${OVERLAY_ID} .presetItemActions button{flex:1 1 auto;min-height:38px}
-      .userPresetHeadActions{width:100%;margin-left:0}.userPresetHeadActions button{flex:1}
-    }
+    #${OVERLAY_ID} .presetCreateRow input{margin:0}#${OVERLAY_ID} .presetSectionTitle{display:flex;align-items:end;justify-content:space-between;gap:8px;margin:15px 0 8px}#${OVERLAY_ID} .presetSectionTitle h3{margin:0;font-size:14px}
+    #${OVERLAY_ID} .presetList{display:grid;gap:7px}#${OVERLAY_ID} .presetManagerItem{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px 11px;border:1px solid var(--border-soft);border-radius:11px;background:var(--surface-2)}
+    #${OVERLAY_ID} .presetManagerItem strong{display:block;font-size:13px}#${OVERLAY_ID} .presetManagerItem .small{font-size:10.5px;margin-top:2px}#${OVERLAY_ID} .presetItemActions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}#${OVERLAY_ID} .presetItemActions button{padding:6px 8px;font-size:10px}
+    #${OVERLAY_ID} .presetEmpty{padding:14px;border:1px dashed var(--border);border-radius:10px;color:var(--text-dim);font-size:12px}#${OVERLAY_ID} .presetDefaultsTools{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+    @media(max-width:650px){#${OVERLAY_ID}{padding:7px;align-items:flex-end}#${OVERLAY_ID} .presetManagerShell{max-height:94dvh;border-radius:16px 16px 8px 8px}#${OVERLAY_ID} .presetManagerBody{padding:10px}#${OVERLAY_ID} .presetCreateRow,#${OVERLAY_ID} .presetManagerItem{grid-template-columns:1fr}#${OVERLAY_ID} .presetItemActions{justify-content:flex-start}#${OVERLAY_ID} .presetItemActions button{flex:1 1 auto;min-height:38px}.userPresetHeadActions{width:100%;margin-left:0}.userPresetHeadActions button{flex:1}}
   `;
   document.head.appendChild(style);
+}
+
+function setTextIfChanged(element, value) {
+  if (element && element.textContent !== value) element.textContent = value;
 }
 
 function renderQuickShelf(force = false) {
@@ -298,11 +266,8 @@ function renderQuickShelf(force = false) {
     row.querySelectorAll('.userPresetQuick').forEach(button => button.remove());
     [...presets].reverse().forEach(preset => {
       const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'userPresetQuick';
-      button.dataset.userPresetId = preset.id;
-      button.textContent = preset.name;
-      button.title = `Use your preset · ${preset.name}`;
+      button.type = 'button'; button.className = 'userPresetQuick'; button.dataset.userPresetId = preset.id;
+      button.textContent = preset.name; button.title = `Use your preset · ${preset.name}`;
       button.addEventListener('click', () => replaceStepWithPreset(preset));
       row.prepend(button);
     });
@@ -310,17 +275,14 @@ function renderQuickShelf(force = false) {
   }
   let actions = head.querySelector('.userPresetHeadActions');
   if (!actions) {
-    actions = document.createElement('div');
-    actions.className = 'userPresetHeadActions';
+    actions = document.createElement('div'); actions.className = 'userPresetHeadActions';
     actions.innerHTML = '<button type="button" data-create-preset>＋ Create Preset</button><button type="button" data-manage-presets>Manage Presets</button>';
     actions.querySelector('[data-create-preset]').addEventListener('click', () => openManager(true));
     actions.querySelector('[data-manage-presets]').addEventListener('click', () => openManager(false));
     head.appendChild(actions);
   }
-  const heading = head.querySelector('b');
-  if (heading) heading.textContent = presets.length ? `★ My Presets · ${presets.length}` : '⚽ Coaching Presets';
-  const note = head.querySelector('span:not(.userPresetHeadActions span)');
-  if (note) note.textContent = presets.length ? 'Your saved setups first · defaults can be hidden below' : 'Build your setup once, then save it exactly how you want it';
+  setTextIfChanged(head.querySelector('b'), presets.length ? `★ My Presets · ${presets.length}` : '⚽ Coaching Presets');
+  setTextIfChanged(head.querySelector('span'), presets.length ? 'Your saved setups first · defaults can be hidden below' : 'Build your setup once, then save it exactly how you want it');
 }
 
 function refreshPresetUi(force = false) {
@@ -335,63 +297,41 @@ function managerCustomMarkup() {
 }
 
 function managerDefaultsMarkup() {
-  const { settings } = ensureStore();
-  const hidden = new Set(settings.hiddenDefaults || []);
+  const hidden = new Set(ensureStore().settings.hiddenDefaults || []);
   return `<div class="presetList">${DEFAULT_PRESETS.map(item => `<div class="presetManagerItem" data-default-preset="${escapeText(item.id)}"><div><strong>${escapeText(item.label)}</strong><div class="small">Built-in preset · ${hidden.has(item.id) ? 'hidden from editor' : 'shown in editor'}</div></div><div class="presetItemActions"><button type="button" data-default-action="use">Use</button><button type="button" data-default-action="toggle">${hidden.has(item.id) ? 'Show' : 'Hide'}</button></div></div>`).join('')}</div><div class="presetDefaultsTools"><button type="button" data-hide-defaults>Hide All Defaults</button><button type="button" data-show-defaults>Show All Defaults</button></div>`;
 }
 
 function renderManager() {
-  const overlay = document.getElementById(OVERLAY_ID);
-  if (!overlay) return;
-  const body = overlay.querySelector('.presetManagerBody');
+  const body = document.querySelector(`#${OVERLAY_ID} .presetManagerBody`);
   if (!body) return;
-  body.innerHTML = `<div class="presetCreateRow"><input id="newDiagramPresetName" type="text" maxlength="60" placeholder="Preset name · e.g. My 6v4 Build Out"><button type="button" class="primary" data-save-current-preset>Save Current Setup</button></div><div class="presetSectionTitle"><h3>My Presets</h3><span class="small">These save the pitch type and every object exactly where you placed it.</span></div>${managerCustomMarkup()}<div class="presetSectionTitle"><h3>Built-in Presets</h3><span class="small">Hide any of these you do not want cluttering the editor.</span></div>${managerDefaultsMarkup()}`;
-  body.querySelector('[data-save-current-preset]')?.addEventListener('click', () => {
-    const input = document.getElementById('newDiagramPresetName');
-    if (createPreset(input?.value || '')) {
-      renderManager();
-      setTimeout(() => document.getElementById('newDiagramPresetName')?.focus(), 0);
-    } else input?.focus();
-  });
-  body.querySelector('#newDiagramPresetName')?.addEventListener('keydown', event => {
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
-    body.querySelector('[data-save-current-preset]')?.click();
-  });
+  body.innerHTML = `<div class="presetCreateRow"><input id="newDiagramPresetName" type="text" maxlength="60" placeholder="Preset name · e.g. My 6v4 Build Out"><button type="button" class="primary" data-save-current-preset>Save Current Setup</button></div><div class="presetSectionTitle"><h3>My Presets</h3><span class="small">Pitch type and every object are saved exactly where you put them.</span></div>${managerCustomMarkup()}<div class="presetSectionTitle"><h3>Built-in Presets</h3><span class="small">Hide anything you do not use.</span></div>${managerDefaultsMarkup()}`;
+  const input = body.querySelector('#newDiagramPresetName');
+  const save = body.querySelector('[data-save-current-preset]');
+  save?.addEventListener('click', () => { if (createPreset(input?.value || '')) { renderManager(); setTimeout(() => document.getElementById('newDiagramPresetName')?.focus(), 0); } else input?.focus(); });
+  input?.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); save?.click(); } });
   body.querySelectorAll('[data-manager-preset]').forEach(row => row.addEventListener('click', event => {
-    const button = event.target.closest('[data-preset-action]');
-    if (!button) return;
-    const id = row.dataset.managerPreset;
-    const preset = ensureStore().presets.find(item => item.id === id);
-    if (button.dataset.presetAction === 'use') { if (preset && replaceStepWithPreset(preset)) closeManager(); }
+    const button = event.target.closest('[data-preset-action]'); if (!button) return;
+    const id = row.dataset.managerPreset, preset = ensureStore().presets.find(item => item.id === id);
+    if (button.dataset.presetAction === 'use' && preset && replaceStepWithPreset(preset)) closeManager();
     if (button.dataset.presetAction === 'update') updatePreset(id);
     if (button.dataset.presetAction === 'rename') renamePreset(id);
     if (button.dataset.presetAction === 'delete') deletePreset(id);
   }));
   body.querySelectorAll('[data-default-preset]').forEach(row => row.addEventListener('click', event => {
-    const button = event.target.closest('[data-default-action]');
-    if (!button) return;
+    const button = event.target.closest('[data-default-action]'); if (!button) return;
     const id = row.dataset.defaultPreset;
     if (button.dataset.defaultAction === 'use') useDefault(id);
-    if (button.dataset.defaultAction === 'toggle') {
-      const hidden = new Set(ensureStore().settings.hiddenDefaults || []);
-      setDefaultHidden(id, !hidden.has(id));
-    }
+    if (button.dataset.defaultAction === 'toggle') setDefaultHidden(id, !new Set(ensureStore().settings.hiddenDefaults || []).has(id));
   }));
-  body.querySelector('[data-hide-defaults]')?.addEventListener('click', () => {
-    ensureStore().settings.hiddenDefaults = DEFAULT_PRESETS.map(item => item.id); persistPresets(); applyHiddenDefaults(); renderManager();
-  });
-  body.querySelector('[data-show-defaults]')?.addEventListener('click', () => {
-    ensureStore().settings.hiddenDefaults = []; persistPresets(); applyHiddenDefaults(); renderManager();
-  });
+  body.querySelector('[data-hide-defaults]')?.addEventListener('click', () => { ensureStore().settings.hiddenDefaults = DEFAULT_PRESETS.map(item => item.id); persistPresets(); applyHiddenDefaults(); renderManager(); });
+  body.querySelector('[data-show-defaults]')?.addEventListener('click', () => { ensureStore().settings.hiddenDefaults = []; persistPresets(); applyHiddenDefaults(); renderManager(); });
 }
 
 function openManager(focusCreate = false) {
   let overlay = document.getElementById(OVERLAY_ID);
   if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = OVERLAY_ID;
-    overlay.innerHTML = `<div class="presetManagerShell" role="dialog" aria-modal="true" aria-label="Diagram Preset Manager"><div class="presetManagerHead"><div><h2>Diagram Presets</h2><div class="small">You control this library. Save your own setups and remove the defaults you do not use.</div></div><button type="button" data-close-preset-manager>Close</button></div><div class="presetManagerBody"></div></div>`;
+    overlay = document.createElement('div'); overlay.id = OVERLAY_ID;
+    overlay.innerHTML = `<div class="presetManagerShell" role="dialog" aria-modal="true" aria-label="Diagram Preset Manager"><div class="presetManagerHead"><div><h2>Diagram Presets</h2><div class="small">You control this library. Save your own setups and hide or remove anything you do not want.</div></div><button type="button" data-close-preset-manager>Close</button></div><div class="presetManagerBody"></div></div>`;
     document.body.appendChild(overlay);
     overlay.addEventListener('click', event => { if (event.target === overlay) closeManager(); });
     overlay.querySelector('[data-close-preset-manager]')?.addEventListener('click', closeManager);
@@ -402,15 +342,16 @@ function openManager(focusCreate = false) {
 
 function closeManager() { document.getElementById(OVERLAY_ID)?.remove(); }
 
+function queueRefresh(force = false) {
+  cancelAnimationFrame(refreshFrame);
+  refreshFrame = requestAnimationFrame(() => { refreshFrame = 0; refreshPresetUi(force); });
+}
+
 function wrapToolPanel() {
   if (toolPanelWrapped) return;
   const base = window.dsRenderToolPanel;
   if (typeof base !== 'function' || base.__presetManagerWrapped) return;
-  const wrapped = function(...args) {
-    const result = base.apply(this, args);
-    requestAnimationFrame(refreshPresetUi);
-    return result;
-  };
+  const wrapped = function(...args) { const result = base.apply(this, args); queueRefresh(); return result; };
   wrapped.__presetManagerWrapped = true;
   try { dsRenderToolPanel = wrapped; } catch (_) {}
   window.dsRenderToolPanel = wrapped;
@@ -420,27 +361,17 @@ function wrapToolPanel() {
 function observeStudio() {
   const studio = document.getElementById('diagramStudioOverlay');
   if (!studio || studioObserver) return;
-  let frame = 0;
   studioObserver = new MutationObserver(records => {
-    const shouldRefresh = records.some(record => record.type === 'childList' || (record.type === 'attributes' && record.target === studio));
-    if (!shouldRefresh) return;
-    cancelAnimationFrame(frame);
-    frame = requestAnimationFrame(() => refreshPresetUi());
+    if (records.some(record => record.type === 'childList' || (record.type === 'attributes' && record.target === studio))) queueRefresh();
   });
   studioObserver.observe(studio, { childList:true, subtree:true, attributes:true, attributeFilter:['class'] });
 }
 
 function install() {
-  addStyles();
-  ensureStore();
-  wrapToolPanel();
-  observeStudio();
-  refreshPresetUi(true);
-  setTimeout(() => { wrapToolPanel(); observeStudio(); refreshPresetUi(true); }, 250);
-  setTimeout(() => { wrapToolPanel(); observeStudio(); refreshPresetUi(true); }, 900);
-  document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && document.getElementById(OVERLAY_ID)) closeManager();
-  });
+  addStyles(); ensureStore(); wrapToolPanel(); observeStudio(); refreshPresetUi(true);
+  setTimeout(() => { wrapToolPanel(); observeStudio(); refreshPresetUi(); }, 250);
+  setTimeout(() => { wrapToolPanel(); observeStudio(); refreshPresetUi(); }, 900);
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && document.getElementById(OVERLAY_ID)) closeManager(); });
 }
 
 if (typeof window !== 'undefined') {
