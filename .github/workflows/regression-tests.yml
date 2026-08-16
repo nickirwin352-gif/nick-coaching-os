@@ -28,6 +28,7 @@ on:
       - coaching-personalisation-automation
       - calendar-sessions-hard-fix-v2
       - ios-diagram-preset-manager
+      - session-return-sideline-setup
   pull_request:
     branches:
       - main
@@ -74,4 +75,5 @@ jobs:
       - run: node --check src/calendar-sessions-hard-fix-v2.js
       - run: node --check src/ios-diagram-calibration-v3.js
       - run: node --check src/diagram-preset-manager.js
+      - run: node --check src/session-return-sideline-setup.js
       - run: git diff --check
