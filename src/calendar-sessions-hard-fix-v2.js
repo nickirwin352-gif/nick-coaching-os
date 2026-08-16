@@ -162,20 +162,31 @@ function decorateCalendar() {
     const dots = [...cell.querySelectorAll('.calSessionDot')];
     dots.forEach((dot, dotIndex) => {
       const item = items[dotIndex];
-      dot.querySelector('.calMiniScore')?.remove();
-      dot.classList.remove('hardRatedDot');
-      dot.style.removeProperty('--session-quality-hue');
+      const badge = dot.querySelector('.calMiniScore');
       if (!item) {
+        if (badge) badge.remove();
+        dot.classList.remove('hardRatedDot');
+        dot.style.removeProperty('--session-quality-hue');
         delete dot.dataset.sessionIndex;
         return;
       }
       dot.dataset.sessionIndex = String(item.index);
       const score = sessionScoreOutOfTen(item.session);
-      if (score) {
-        const hue = trafficHue(score);
-        dot.classList.add('hardRatedDot');
-        dot.style.setProperty('--session-quality-hue', String(hue));
+      if (!score) {
+        if (badge) badge.remove();
+        dot.classList.remove('hardRatedDot');
+        dot.style.removeProperty('--session-quality-hue');
+        return;
+      }
+      const hue = trafficHue(score);
+      dot.classList.add('hardRatedDot');
+      dot.style.setProperty('--session-quality-hue', String(hue));
+      if (!badge) {
         dot.insertAdjacentHTML('beforeend', `<span class="calMiniScore" style="--session-quality-hue:${hue}">${score}/10</span>`);
+      } else {
+        const text = `${score}/10`;
+        if (badge.textContent !== text) badge.textContent = text;
+        badge.style.setProperty('--session-quality-hue', String(hue));
       }
     });
   });
@@ -204,6 +215,7 @@ function replaceArchiveRatingUi(card, session, index) {
       badge.classList.toggle('unrated', !score);
       badge.textContent = score ? `${score}/10` : 'Not reviewed';
       if (score) badge.style.setProperty('--session-quality-hue', String(trafficHue(score)));
+      else badge.style.removeProperty('--session-quality-hue');
     }
   }
 
