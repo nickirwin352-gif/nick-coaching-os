@@ -62,16 +62,50 @@ function objectArea(object) {
   return Math.max(1, Number(object.w || 28) * Number(object.h || 28));
 }
 
+function directObject(event) {
+  const id = event.target?.closest?.('.dsObject,.dsMovementHit')?.dataset?.id;
+  return id ? objects().find(object => object.id === id) || null : null;
+}
+
 function objectAt(clientX, clientY) {
   const pitch = document.getElementById('dsPitch');
   const d = dims();
   const point = canvasPoint(clientX, clientY);
   if (!pitch || !d || !point) return null;
   const rect = pitch.getBoundingClientRect();
-  const tolerance = Math.max(5, 13 * Math.max(d.w / rect.width, d.h / rect.height));
+  const scale = Math.max(d.w / rect.width, d.h / rect.height);
+  const movementTolerance = Math.max(7, 15 * scale);
+  const objectTolerance = Math.max(1.5, 4.5 * scale);
   return objects()
-    .filter(object => pointInObject(object, point, object.type === 'zone' ? 0 : tolerance))
+    .filter(object => pointInObject(object, point, object.type === 'movement' ? movementTolerance : object.type === 'zone' ? 0 : objectTolerance))
     .sort((a, b) => objectPriority(b) - objectPriority(a) || objectArea(a) - objectArea(b))[0] || null;
+}
+
+function activePointerLock() {
+  try { return window.__coachDiagramPointerLock || null; }
+  catch (_) { return null; }
+}
+
+function lockPickupPointer(event, objectId, pitch) {
+  if (!pitch) return;
+  window.__coachDiagramPointerLock = {
+    pointerId:event.pointerId,
+    objectId,
+    startedAt:typeof performance !== 'undefined' ? performance.now() : Date.now()
+  };
+  pitch.classList.add('coachPickupLocked');
+  try { pitch.setPointerCapture?.(event.pointerId); } catch (_) {}
+}
+
+function releasePickupPointer(pointerId = null) {
+  const lock = activePointerLock();
+  if (!lock || (pointerId !== null && lock.pointerId !== pointerId)) return;
+  const pitch = document.getElementById('dsPitch');
+  try {
+    if (pitch?.hasPointerCapture?.(lock.pointerId)) pitch.releasePointerCapture(lock.pointerId);
+  } catch (_) {}
+  pitch?.classList.remove('coachPickupLocked');
+  window.__coachDiagramPointerLock = null;
 }
 
 function addStyles() {
@@ -101,10 +135,37 @@ function addStyles() {
     #dsPitch.coachLineArmed,#dsPitch.coachLineArmed *{cursor:crosshair!important}
     #dsPitch.coachPasteArmed,#dsPitch.coachPasteArmed *{cursor:copy!important}
 
+    /* The resize control is deliberately tiny and circular so it cannot cover small cones/markers. */
+    #diagramStudioInlineHost #dsPitch .dsResizeHandle,
+    #dsSessionDiagramHost #dsPitch .dsResizeHandle{
+      width:9px!important;height:9px!important;min-width:9px!important;min-height:9px!important;
+      border-radius:50%!important;border-width:1.5px!important;
+      transform:translate(4.5px,4.5px)!important;
+      box-shadow:0 2px 5px rgba(0,0,0,.42)!important;
+    }
+
+    /* While a pointer is held, make the locked selection visually definite. */
+    #dsPitch.coachPickupLocked{cursor:grabbing!important}
+    #dsPitch.coachPickupLocked .dsObject.selected,
+    #dsPitch.coachPickupLocked .dsObject.multiSelected{
+      outline-width:3px!important;outline-color:#7dd3fc!important;
+      box-shadow:0 0 0 2px rgba(56,189,248,.28),0 5px 14px rgba(0,0,0,.32)!important;
+    }
+    #dsPitch.coachPickupLocked .dsMovementVisible.dsMovementSelected{
+      filter:drop-shadow(0 0 6px rgba(56,189,248,.95))!important;
+    }
+
     /* The old Line control is removed from the workflow strip; it now lives with Objects. */
     #diagramCoachWorkflowBar [data-coach-basic-line]{display:none!important}
     #${OBJECT_LINE_ID}{display:flex;align-items:center;justify-content:center;gap:4px;min-width:54px}
 
+    @media(pointer:coarse){
+      #diagramStudioInlineHost #dsPitch .dsResizeHandle,
+      #dsSessionDiagramHost #dsPitch .dsResizeHandle{
+        width:10px!important;height:10px!important;min-width:10px!important;min-height:10px!important;
+        transform:translate(4px,4px)!important;
+      }
+    }
     @media(max-width:1000px){
       #editor .grid.two{grid-template-columns:minmax(270px,310px) minmax(0,1fr)!important}
       #diagramStudioInlineHost .diagramStudioOverlay.streamlinedInline{height:calc(100dvh - 78px)!important;min-height:740px!important}
@@ -132,7 +193,15 @@ function forceObjectPickup(event) {
   if (pitch.classList.contains('coachPasteArmed') || pitch.classList.contains('coachLineArmed')) return;
   if (event.target?.closest?.('.dsPointHandle,.dsResizeHandle,.dsRotateHandle')) return;
 
-  const object = objectAt(event.clientX, event.clientY);
+  const activeLock = activePointerLock();
+  if (activeLock && activeLock.pointerId !== event.pointerId) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    return;
+  }
+
+  /* Prefer the object the pointer is genuinely over. Hit-testing is only a fallback. */
+  const object = directObject(event) || objectAt(event.clientX, event.clientY);
   if (!object || typeof dsObjectPointerDown !== 'function') return;
 
   /* Pressing/holding over any object always begins pickup; box-select is reserved for true empty pitch. */
@@ -140,6 +209,42 @@ function forceObjectPickup(event) {
   event.stopImmediatePropagation();
   pitch.classList.remove('coachGroupSelecting');
   dsObjectPointerDown(event, object.id);
+  if (s.drag?.kind === 'move' && s.drag.pointerId === event.pointerId) lockPickupPointer(event, object.id, pitch);
+}
+
+function guardLockedPointerMove(event) {
+  const lock = activePointerLock();
+  if (!lock || lock.pointerId === event.pointerId) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+}
+
+function guardLockedPointerUp(event) {
+  const lock = activePointerLock();
+  if (!lock) return;
+  if (lock.pointerId !== event.pointerId) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    return;
+  }
+  requestAnimationFrame(() => releasePickupPointer(event.pointerId));
+}
+
+function guardLockedPointerCancel(event) {
+  const lock = activePointerLock();
+  if (!lock) return;
+  if (lock.pointerId !== event.pointerId) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    return;
+  }
+  const s = state();
+  if (s?.drag?.pointerId === event.pointerId) {
+    s.drag = null;
+    s.guides = [];
+    try { if (typeof dsRenderCanvas === 'function') dsRenderCanvas(); } catch (_) {}
+  }
+  releasePickupPointer(event.pointerId);
 }
 
 function keepGroupCursorHonest() {
@@ -190,7 +295,10 @@ function observePalette() {
 
 function ensureUi() {
   const studio = document.getElementById('diagramStudioOverlay');
-  if (!studio?.classList.contains('open')) return;
+  if (!studio?.classList.contains('open')) {
+    releasePickupPointer();
+    return;
+  }
   observePalette();
   ensureObjectLineButton();
   keepGroupCursorHonest();
@@ -201,7 +309,10 @@ function observeStudio() {
   const studio = document.getElementById('diagramStudioOverlay');
   if (!studio || studioObserver) return;
   studioObserver = new MutationObserver(() => {
-    if (!studio.classList.contains('open')) return;
+    if (!studio.classList.contains('open')) {
+      releasePickupPointer();
+      return;
+    }
     setTimeout(ensureUi, 0);
     setTimeout(ensureUi, 100);
   });
@@ -212,6 +323,10 @@ function install() {
   addStyles();
   /* Window capture beats the older document-level group-selection handler. */
   window.addEventListener('pointerdown', forceObjectPickup, true);
+  window.addEventListener('pointermove', guardLockedPointerMove, true);
+  window.addEventListener('pointerup', guardLockedPointerUp, true);
+  window.addEventListener('pointercancel', guardLockedPointerCancel, true);
+  window.addEventListener('blur', () => releasePickupPointer(), { passive:true });
   document.addEventListener('pointermove', () => requestAnimationFrame(keepGroupCursorHonest), true);
   document.addEventListener('pointerup', () => requestAnimationFrame(keepGroupCursorHonest), true);
   document.addEventListener('pointercancel', () => requestAnimationFrame(keepGroupCursorHonest), true);
