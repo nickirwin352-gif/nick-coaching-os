@@ -29,6 +29,7 @@ on:
       - calendar-sessions-hard-fix-v2
       - ios-diagram-preset-manager
       - session-return-sideline-setup
+      - diagram-precision-pointer-lock
   pull_request:
     branches:
       - main
