@@ -87,6 +87,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./diagram-group-copy-tools.js'))
     .then(() => import('./practice-editor-studio-v2.js'))
     .then(() => import('./diagram-editor-coach-workflow.js'))
+    .then(() => import('./diagram-editor-precision-v2.js'))
     .then(() => import('./diagram-editor-pickup-line-pass.js'))
     .then(() => import('./diagram-editor-hold-pickup-pitch-size.js'))
     .then(() => import('./editor-pitch-builder-cleanup.js'))
@@ -102,5 +103,6 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./ios-diagram-calibration-v3.js'))
     .then(() => import('./diagram-preset-manager.js'))
     .then(() => import('./session-return-sideline-setup.js'))
+    .then(() => import('./diagram-cone-colours.js'))
     .catch(error => console.warn('Coaching OS enhancement patch failed to load', error));
 }
