@@ -30,6 +30,7 @@ on:
       - ios-diagram-preset-manager
       - session-return-sideline-setup
       - diagram-precision-pointer-lock
+      - diagram-lock-cone-colours
   pull_request:
     branches:
       - main
@@ -62,6 +63,7 @@ jobs:
       - run: node --check src/diagram-group-copy-tools.js
       - run: node --check src/practice-editor-studio-v2.js
       - run: node --check src/diagram-editor-coach-workflow.js
+      - run: node --check src/diagram-editor-precision-v2.js
       - run: node --check src/diagram-editor-pickup-line-pass.js
       - run: node --check src/diagram-editor-hold-pickup-pitch-size.js
       - run: node --check src/editor-pitch-builder-cleanup.js
@@ -77,4 +79,5 @@ jobs:
       - run: node --check src/ios-diagram-calibration-v3.js
       - run: node --check src/diagram-preset-manager.js
       - run: node --check src/session-return-sideline-setup.js
+      - run: node --check src/diagram-cone-colours.js
       - run: git diff --check
