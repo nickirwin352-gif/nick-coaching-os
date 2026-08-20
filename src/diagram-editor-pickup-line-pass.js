@@ -27,6 +27,22 @@ function toast(message) {
   try { if (typeof dsToast === 'function') dsToast(message); } catch (_) {}
 }
 
+function activePointerLock() {
+  try { return window.__coachDiagramPointerLock || null; }
+  catch (_) { return null; }
+}
+
+function lockPickupPointer(event, objectId, pitch) {
+  if (!pitch) return;
+  window.__coachDiagramPointerLock = {
+    pointerId:event.pointerId,
+    objectId,
+    startedAt:typeof performance !== 'undefined' ? performance.now() : Date.now()
+  };
+  pitch.classList.add('coachPickupLocked');
+  try { pitch.setPointerCapture?.(event.pointerId); } catch (_) {}
+}
+
 function addStyles() {
   if (document.getElementById(STYLE_ID)) return;
   const style = document.createElement('style');
@@ -135,10 +151,12 @@ function candidatesAt(clientX, clientY) {
   const d = dims();
   if (!point || !pitch || !d) return [];
   const rect = pitch.getBoundingClientRect();
-  const tolerance = Math.max(10, 22 * Math.max(d.w / rect.width, d.h / rect.height));
+  const scale = Math.max(d.w / rect.width, d.h / rect.height);
+  const movementTolerance = Math.max(7, 15 * scale);
+  const objectPadding = Math.max(1.5, 4.5 * scale);
   return objects().filter(object => {
-    if (object.type === 'movement') return movementNear(object, point, tolerance);
-    return pointInside(point, objectBounds(object), object.type === 'zone' ? 0 : tolerance * .22);
+    if (object.type === 'movement') return movementNear(object, point, movementTolerance);
+    return pointInside(point, objectBounds(object), object.type === 'zone' ? 0 : objectPadding);
   }).sort((a, b) => priority(b) - priority(a) || areaOf(a) - areaOf(b));
 }
 
@@ -161,24 +179,38 @@ function smartPickup(event) {
   if (pitch.classList.contains('coachPasteArmed')) return;
   if (event.target?.closest?.('.dsPointHandle,.dsResizeHandle,.dsRotateHandle')) return;
 
+  const activeLock = activePointerLock();
+  if (activeLock && activeLock.pointerId !== event.pointerId) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    return;
+  }
+
   const candidates = candidatesAt(event.clientX, event.clientY);
   if (candidates.length < 2) return;
   const signature = candidates.map(item => item.id).join('|');
+  const currentTargetId = targetId(event);
+  const cycled = samePickSpot(event, candidates);
   let index = 0;
-  if (samePickSpot(event, candidates)) index = (lastPick.index + 1) % candidates.length;
+  if (cycled) {
+    index = (lastPick.index + 1) % candidates.length;
+  } else if (currentTargetId) {
+    const directIndex = candidates.findIndex(item => item.id === currentTargetId);
+    if (directIndex >= 0) index = directIndex;
+  }
   const chosen = candidates[index];
   lastPick = { x:event.clientX, y:event.clientY, time:performance.now(), signature, index };
 
-  const currentTargetId = targetId(event);
-  if (index === 0 && currentTargetId === chosen.id) return;
+  if (!cycled && currentTargetId === chosen.id) return;
   if (typeof dsObjectPointerDown !== 'function') return;
 
   event.preventDefault();
   event.stopImmediatePropagation();
   dsObjectPointerDown(event, chosen.id);
-  if (index > 0 || chosen.type === 'zone') {
+  if (s.drag?.kind === 'move' && s.drag.pointerId === event.pointerId) lockPickupPointer(event, chosen.id, pitch);
+  if (cycled || chosen.type === 'zone') {
     const label = chosen.type === 'movement' ? (chosen.movementType === 'line' ? 'line' : 'arrow') : chosen.type;
-    toast(`Picked ${label} · click the same spot again to cycle stacked items`);
+    toast(`Picked ${label}${cycled ? ' · click the same spot again to cycle stacked items' : ''}`);
   }
 }
 
