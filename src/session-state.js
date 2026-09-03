@@ -104,5 +104,6 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./diagram-preset-manager.js'))
     .then(() => import('./session-return-sideline-setup.js'))
     .then(() => import('./diagram-cone-colours.js'))
+    .then(() => import('./game-model-clarity-framework.js'))
     .catch(error => console.warn('Coaching OS enhancement patch failed to load', error));
 }
