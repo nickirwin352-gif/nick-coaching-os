@@ -31,6 +31,7 @@ on:
       - session-return-sideline-setup
       - diagram-precision-pointer-lock
       - diagram-lock-cone-colours
+      - game-model-clarity-framework
   pull_request:
     branches:
       - main
@@ -80,4 +81,5 @@ jobs:
       - run: node --check src/diagram-preset-manager.js
       - run: node --check src/session-return-sideline-setup.js
       - run: node --check src/diagram-cone-colours.js
+      - run: node --check src/game-model-clarity-framework.js
       - run: git diff --check
