@@ -6,10 +6,9 @@ import { COLLAPSIBLE_WORD_BANKS, COLLAPSIBLE_WORD_BANKS_VERSION } from '../src/p
 const source = await readFile(new URL('../src/practice-editor-collapsible-word-banks-v1.js', import.meta.url),'utf8');
 const sessionState = await readFile(new URL('../src/session-state.js', import.meta.url),'utf8');
 
-test('only progression and regression banks are collapsed', () => {
-  assert.equal(COLLAPSIBLE_WORD_BANKS_VERSION,1);
-  assert.deepEqual(COLLAPSIBLE_WORD_BANKS.map(item=>item.chipsId),['progChips','regChips']);
-  assert.ok(!COLLAPSIBLE_WORD_BANKS.some(item=>item.chipsId==='cpChips'));
+test('coaching points, progression and regression banks are collapsed', () => {
+  assert.equal(COLLAPSIBLE_WORD_BANKS_VERSION,2);
+  assert.deepEqual(COLLAPSIBLE_WORD_BANKS.map(item=>item.chipsId),['cpChips','progChips','regChips']);
 });
 
 test('word banks use closed details controls with explicit open and close affordance', () => {
@@ -26,8 +25,8 @@ test('editing or creating a practice resets the banks closed', () => {
   assert.match(source,/collapsePracticeWordBanks/);
 });
 
-test('compact bank patch loads after practice tag save reliability', () => {
-  const saveFix = sessionState.indexOf("import('./practice-tag-save-reliability-v5.js')");
+test('compact bank patch loads after no-principle decision support', () => {
+  const noPrinciple = sessionState.indexOf("import('./practice-no-principle-decision-v1.js')");
   const banks = sessionState.indexOf("import('./practice-editor-collapsible-word-banks-v1.js')");
-  assert.ok(saveFix >= 0 && banks > saveFix);
+  assert.ok(noPrinciple >= 0 && banks > noPrinciple);
 });
