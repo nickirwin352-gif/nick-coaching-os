@@ -71,6 +71,8 @@ const api = {
 if (typeof window !== 'undefined') window.CoachingOSSessionState = api;
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  const practiceTagPersistenceReady = import('./practice-tag-persistence-v6.js')
+    .catch(error => { console.warn('Practice tag persistence patch failed to load', error); return null; });
   import('./mobile-reliability.js').catch(error => console.warn('Mobile reliability patch failed to load', error));
   import('./display-calibration.js').catch(error => console.warn('Display calibration patch failed to load', error));
   import('./sideline-glance-layout.js').catch(error => console.warn('Sideline glance layout patch failed to load', error));
@@ -109,6 +111,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./game-model-visual-playbook.js'))
     .then(() => import('./game-model-practice-architecture-v2.js'))
     .then(() => import('./game-context-practice-system-v3.js'))
+    .then(() => practiceTagPersistenceReady)
     .then(() => import('./practice-library-auto-organiser-v4.js'))
     .then(() => import('./practice-tag-save-reliability-v5.js'))
     .then(() => import('./practice-no-principle-decision-v1.js'))
