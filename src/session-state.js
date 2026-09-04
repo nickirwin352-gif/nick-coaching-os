@@ -106,5 +106,6 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./diagram-cone-colours.js'))
     .then(() => import('./game-model-clarity-framework.js'))
     .then(() => import('./game-model-operating-system.js'))
+    .then(() => import('./game-model-visual-playbook.js'))
     .catch(error => console.warn('Coaching OS enhancement patch failed to load', error));
 }
