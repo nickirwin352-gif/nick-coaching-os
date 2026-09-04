@@ -28,6 +28,7 @@ export function applyManualPracticeTags(practice={}, draft={}) {
   if (next.practiceFormat) practice.practiceFormat = next.practiceFormat;
   practice.primaryGameModelPrinciple = next.primaryPrincipleId;
   practice.gameModelPrinciples = [...new Set([next.primaryPrincipleId,...next.supportingPrincipleIds].filter(Boolean))];
+  practice.noGameModelPrinciple = practice.gameModelPrinciples.length === 0;
   practice.suggestedGameModelPrinciples = [];
   practice.organisationNeedsReview = false;
   practice.organisationConfidence = 'manual';
@@ -102,8 +103,12 @@ async function finalisePractice(practiceId,draft,{quiet=false}={}) {
   if (!practice) return false;
   applyManualPracticeTags(practice,draft);
   const result = await persistReliable();
-  if (!quiet) toast(result.ok ? 'Practice tags saved ✓' : 'Tags kept locally · cloud save needs retry',result.ok?'ok':'warn');
-  setTimeout(()=>window.NickPracticeAutoOrganiser?.organise?.(),40);
+  if (!quiet) toast(result.ok ? (practice.noGameModelPrinciple ? 'Practice saved · No principle ✓' : 'Practice tags saved ✓') : 'Tags kept locally · cloud save needs retry',result.ok?'ok':'warn');
+  if (practice.noGameModelPrinciple) {
+    setTimeout(()=>window.NickPracticeNoPrincipleDecision?.reassert?.({persist:true}),40);
+  } else {
+    setTimeout(()=>window.NickPracticeAutoOrganiser?.organise?.(),40);
+  }
   return result.ok;
 }
 
@@ -160,7 +165,7 @@ function addEditorSaveHint() {
   const hint = document.createElement('div');
   hint.id = 'practiceTagSaveHintV5';
   hint.style.cssText = 'margin-top:7px;padding:7px 8px;border:1px solid rgba(52,211,153,.2);border-radius:9px;background:rgba(52,211,153,.045);font-size:9px;color:#a7f3d0;line-height:1.4';
-  hint.textContent = 'Manual tags are authoritative. Saving this practice clears “Needs review” and keeps your Context, Purpose, Format and Principle choices.';
+  hint.textContent = 'Manual tags are authoritative. Saving clears “Needs review”. Leaving Principle blank deliberately saves this practice as No principle.';
   panel.appendChild(hint);
 }
 
