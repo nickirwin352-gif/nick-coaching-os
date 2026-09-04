@@ -1,7 +1,7 @@
-import { GAME_MODEL_PRINCIPLES, principleById } from './game-model-core.js';
+import { principleById } from './game-model-core.js';
 import { GAME_CONTEXTS, PRACTICE_PURPOSES_V3, PRACTICE_FORMATS } from './game-context-practice-system-v3.js';
 
-export const PRACTICE_TAG_SAVE_VERSION = 5;
+export const PRACTICE_TAG_SAVE_VERSION = 6;
 
 function appDb() {
   try { return typeof db !== 'undefined' ? db : window.db; }
@@ -65,21 +65,17 @@ function saveLocalImmediately() {
 
 async function persistReliable() {
   const localSaved = saveLocalImmediately();
+  let cloudSaved = false;
   try {
-    if (typeof store === 'function') { await store(); return { localSaved, cloudAttempted:true, ok:true }; }
-    if (typeof window.store === 'function') { await window.store(); return { localSaved, cloudAttempted:true, ok:true }; }
+    cloudSaved = !!(await window.NickPracticeTagPersistence?.flush?.());
   } catch (error) {
-    console.warn('Practice tag save through store failed; local copy retained',error);
-    try {
-      if (window.nickCloud?.save && appDb()) {
-        await window.nickCloud.save(appDb());
-        return { localSaved, cloudAttempted:true, ok:true };
-      }
-    } catch (cloudError) {
-      console.warn('Practice tag cloud fallback failed',cloudError);
-    }
+    console.warn('Practice tag cloud flush deferred; durable local decision retained',error);
   }
-  return { localSaved, cloudAttempted:false, ok:localSaved };
+  if (!cloudSaved) {
+    setTimeout(()=>window.NickPracticeTagPersistence?.flush?.(),450);
+    setTimeout(()=>window.NickPracticeTagPersistence?.flush?.(),1600);
+  }
+  return { localSaved, cloudAttempted:cloudSaved, ok:localSaved };
 }
 
 function toast(message,kind='ok') {
@@ -102,20 +98,22 @@ async function finalisePractice(practiceId,draft,{quiet=false}={}) {
   const practice = findPracticeById(practiceId);
   if (!practice) return false;
   applyManualPracticeTags(practice,draft);
+  window.NickPracticeTagPersistence?.remember?.(practiceId,draft);
   const result = await persistReliable();
-  if (!quiet) toast(result.ok ? (practice.noGameModelPrinciple ? 'Practice saved · No principle ✓' : 'Practice tags saved ✓') : 'Tags kept locally · cloud save needs retry',result.ok?'ok':'warn');
+  if (!quiet) toast(result.ok ? (practice.noGameModelPrinciple ? 'Practice saved · No principle ✓' : 'Practice tags saved ✓') : 'Tags could not be stored locally',result.ok?'ok':'warn');
   if (practice.noGameModelPrinciple) {
-    setTimeout(()=>window.NickPracticeNoPrincipleDecision?.reassert?.({persist:true}),40);
+    setTimeout(()=>window.NickPracticeNoPrincipleDecision?.reassert?.({persist:false}),40);
   } else {
     setTimeout(()=>window.NickPracticeAutoOrganiser?.organise?.(),40);
   }
+  setTimeout(()=>window.NickPracticeTagPersistence?.apply?.(),120);
   return result.ok;
 }
 
 function wrapSavePractice() {
   let original;
   try { original = savePractice; } catch (_) { original = window.savePractice; }
-  if (typeof original !== 'function' || original.__practiceTagSaveReliabilityV5) return;
+  if (typeof original !== 'function' || original.__practiceTagSaveReliabilityV6) return;
   const wrapped = function(...args) {
     const draft = captureEditorDraft();
     const targetId = field('pid')?.value?.trim() || field('oldId')?.value?.trim() || '';
@@ -123,11 +121,11 @@ function wrapSavePractice() {
     const result = original.apply(this,args);
     if (hasRequiredFields) {
       setTimeout(()=>finalisePractice(targetId,draft),25);
-      setTimeout(()=>finalisePractice(targetId,draft,{quiet:true}),260);
+      setTimeout(()=>finalisePractice(targetId,draft,{quiet:true}),280);
     }
     return result;
   };
-  wrapped.__practiceTagSaveReliabilityV5 = true;
+  wrapped.__practiceTagSaveReliabilityV6 = true;
   try { savePractice = wrapped; } catch (_) {}
   window.savePractice = wrapped;
 }
@@ -165,7 +163,7 @@ function addEditorSaveHint() {
   const hint = document.createElement('div');
   hint.id = 'practiceTagSaveHintV5';
   hint.style.cssText = 'margin-top:7px;padding:7px 8px;border:1px solid rgba(52,211,153,.2);border-radius:9px;background:rgba(52,211,153,.045);font-size:9px;color:#a7f3d0;line-height:1.4';
-  hint.textContent = 'Manual tags are authoritative. Saving clears “Needs review”. Leaving Principle blank deliberately saves this practice as No principle.';
+  hint.textContent = 'Manual tags are authoritative and survive refresh/cloud loading. Saving clears “Needs review”. Leaving Principle blank deliberately saves No principle.';
   panel.appendChild(hint);
 }
 
