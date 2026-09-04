@@ -44,6 +44,7 @@ test('manual save makes the coach choices authoritative and clears needs review'
   assert.equal(practice.practiceFormat,'possession-box');
   assert.equal(practice.primaryGameModelPrinciple,'move-free');
   assert.deepEqual(practice.gameModelPrinciples,['move-free','break-open']);
+  assert.equal(practice.noGameModelPrinciple,false);
   assert.deepEqual(practice.suggestedGameModelPrinciples,[]);
   assert.equal(practice.organisationNeedsReview,false);
   assert.equal(practice.organisationConfidence,'manual');
@@ -62,7 +63,11 @@ test('manual save can deliberately leave a practice with no principle', () => {
   });
   assert.equal(practice.primaryGameModelPrinciple,'');
   assert.deepEqual(practice.gameModelPrinciples,[]);
+  assert.equal(practice.noGameModelPrinciple,true);
+  assert.deepEqual(practice.suggestedGameModelPrinciples,[]);
   assert.equal(practice.organisationNeedsReview,false);
+  assert.equal(practice.organisationConfidence,'manual');
+  assert.equal(practice.organisationSource,'manual');
 });
 
 test('reliability patch captures editor tags before base save can replace the practice object', () => {
@@ -77,8 +82,9 @@ test('suggestion buttons are reinforced through the same reliable persistence pa
   assert.match(source,/finalisePractice\(practiceId,draft\)/);
 });
 
-test('tag save reliability loads after the v4 auto organiser', () => {
+test('tag save reliability loads after the v4 auto organiser and before no-principle support', () => {
   const auto = sessionState.indexOf("import('./practice-library-auto-organiser-v4.js')");
   const fix = sessionState.indexOf("import('./practice-tag-save-reliability-v5.js')");
-  assert.ok(auto >= 0 && fix > auto);
+  const noPrinciple = sessionState.indexOf("import('./practice-no-principle-decision-v1.js')");
+  assert.ok(auto >= 0 && fix > auto && noPrinciple > fix);
 });
