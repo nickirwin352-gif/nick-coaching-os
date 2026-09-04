@@ -1,6 +1,7 @@
-export const COLLAPSIBLE_WORD_BANKS_VERSION = 1;
+export const COLLAPSIBLE_WORD_BANKS_VERSION = 2;
 
 export const COLLAPSIBLE_WORD_BANKS = Object.freeze([
+  Object.freeze({ chipsId:'cpChips', label:'Coaching Points Word Bank', summary:'Coaching points word bank' }),
   Object.freeze({ chipsId:'progChips', label:'Progressions Word Bank', summary:'Progressions word bank' }),
   Object.freeze({ chipsId:'regChips', label:'Regressions Word Bank', summary:'Regressions word bank' })
 ]);
