@@ -109,5 +109,6 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./game-model-visual-playbook.js'))
     .then(() => import('./game-model-practice-architecture-v2.js'))
     .then(() => import('./game-context-practice-system-v3.js'))
+    .then(() => import('./practice-library-auto-organiser-v4.js'))
     .catch(error => console.warn('Coaching OS enhancement patch failed to load', error));
 }
