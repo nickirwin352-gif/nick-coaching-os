@@ -66,7 +66,10 @@ test('workbench and finder are built from the same strict filter engine', () => 
 
 test('finder session defaults are only seeded on reset or session change, not every render', () => {
   assert.match(source, /function resetFinderToSession\(\)/);
-  assert.doesNotMatch(source, /function renderResults\(group,filters\)[\s\S]*resetFinderToSession\(\)/);
+  const renderStart = source.indexOf('function renderResults(group,filters)');
+  const renderEnd = source.indexOf('function resetFinderToSession()');
+  assert.ok(renderStart >= 0 && renderEnd > renderStart);
+  assert.doesNotMatch(source.slice(renderStart,renderEnd), /resetFinderToSession\(\)/);
 });
 
 test('strict filter module loads after the existing organiser and builder visual pass', () => {
