@@ -71,6 +71,8 @@ const api = {
 if (typeof window !== 'undefined') window.CoachingOSSessionState = api;
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  const startupPolishReady = import('./app-startup-save-status-v1.js')
+    .catch(error => { console.warn('Startup/save status patch failed to load', error); return null; });
   const practiceTagPersistenceReady = import('./practice-tag-persistence-v6.js')
     .catch(error => { console.warn('Practice tag persistence patch failed to load', error); return null; });
   import('./mobile-reliability.js').catch(error => console.warn('Mobile reliability patch failed to load', error));
@@ -116,5 +118,11 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./practice-tag-save-reliability-v5.js'))
     .then(() => import('./practice-no-principle-decision-v1.js'))
     .then(() => import('./practice-editor-collapsible-word-banks-v1.js'))
-    .catch(error => console.warn('Coaching OS enhancement patch failed to load', error));
+    .then(() => import('./advanced-builder-visual-focus-v1.js'))
+    .then(() => startupPolishReady)
+    .then(() => { window.NickStartupPolish?.markEnhancementsReady?.(); })
+    .catch(error => {
+      console.warn('Coaching OS enhancement patch failed to load', error);
+      window.NickStartupPolish?.markEnhancementsReady?.({degraded:true});
+    });
 }
