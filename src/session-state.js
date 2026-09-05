@@ -119,6 +119,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./practice-no-principle-decision-v1.js'))
     .then(() => import('./practice-editor-collapsible-word-banks-v1.js'))
     .then(() => import('./advanced-builder-visual-focus-v1.js'))
+    .then(() => import('./practice-filter-workbench-v5.js'))
     .then(() => startupPolishReady)
     .then(() => { window.NickStartupPolish?.markEnhancementsReady?.(); })
     .catch(error => {
