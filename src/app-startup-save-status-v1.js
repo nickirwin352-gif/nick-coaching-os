@@ -1,4 +1,4 @@
-export const APP_STARTUP_SAVE_STATUS_VERSION = 1;
+export const APP_STARTUP_SAVE_STATUS_VERSION = 2;
 
 const STYLE_ID = 'nickAppStartupSaveStatusV1Styles';
 const OVERLAY_ID = 'nickAppStartupOverlayV1';
@@ -81,7 +81,8 @@ function cloudIsHealthy(text=cloudText()) { return /connected|saved/i.test(text)
 
 function refreshSaveStatusFromCloud() {
   const text = cloudText();
-  if (/fail/i.test(text)) setSaveStatus('Saved locally ✓ · Cloud retry','bad');
+  if (!navigator.onLine) setSaveStatus('Saved locally ✓ · Offline','warn');
+  else if (/fail/i.test(text)) setSaveStatus('Saved locally ✓ · Cloud retry','bad');
   else if (/not available/i.test(text)) setSaveStatus('Saved locally ✓ · Local only','warn');
   else if (cloudIsHealthy(text)) setSaveStatus('Saved locally ✓ · Cloud synced ✓','ok');
   else setSaveStatus('Local ready · Cloud connecting…','saving');
@@ -175,12 +176,20 @@ function wrapCloudSave() {
   const original = cloud?.save;
   if (typeof original !== 'function' || original.__saveStatusV1) return false;
   const wrapped = async function(...args) {
-    setSaveStatus('Syncing…','saving');
+    setSaveStatus(navigator.onLine ? 'Syncing…' : 'Saved locally ✓ · Offline',navigator.onLine?'saving':'warn');
+    let settled = false;
+    const slowTimer = setTimeout(()=>{
+      if (!settled) setSaveStatus(navigator.onLine ? 'Saved locally ✓ · Cloud still working…' : 'Saved locally ✓ · Offline','warn');
+    },6500);
     try {
       const result = await original.apply(this,args);
+      settled = true;
+      clearTimeout(slowTimer);
       setSaveStatus('Saved locally ✓ · Cloud synced ✓','ok');
       return result;
     } catch (error) {
+      settled = true;
+      clearTimeout(slowTimer);
       setSaveStatus('Saved locally ✓ · Cloud retry','bad');
       throw error;
     }
@@ -198,6 +207,11 @@ function install() {
   wrapStore();
   [80,250,600,1200,2200,3800].forEach(delay=>setTimeout(()=>{ wrapStore(); wrapCloudSave(); },delay));
   setInterval(()=>{ wrapStore(); wrapCloudSave(); },1800);
+  window.addEventListener('offline',()=>setSaveStatus('Saved locally ✓ · Offline','warn'));
+  window.addEventListener('online',()=>{
+    setSaveStatus('Cloud reconnecting…','saving');
+    setTimeout(refreshSaveStatusFromCloud,350);
+  });
   releaseTimer = setTimeout(()=>{
     if (!cloudResolved) {
       cloudResolved = true;
