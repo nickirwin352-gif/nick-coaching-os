@@ -126,8 +126,17 @@ function mergeProtectedSessions(data) {
   const safe = normaliseCloudDb(data || {});
   const byId = new Map(safe.sessions.map(session=>[String(session.id || ''),session]));
   protectedSessions.forEach((session,id)=>{
-    if (session === null) byId.delete(id);
-    else byId.set(id,clean(session));
+    const remote = byId.get(id);
+    if (session === null) {
+      if (!remote) protectedSessions.delete(id);
+      else byId.delete(id);
+      return;
+    }
+    if (remote && stableStringify(remote) === stableStringify(session)) {
+      protectedSessions.delete(id);
+      return;
+    }
+    byId.set(id,clean(session));
   });
   safe.sessions = [...byId.values()];
   return safe;
@@ -315,7 +324,6 @@ window.nickCloud = {
         const meta = metaSnap.exists() ? metaSnap.data() : null;
         if (meta && meta.clientId === CLIENT_ID && meta.writeToken === lastLocalWriteToken && lastSavedDb) {
           callback({ data:clean(lastSavedDb), source:'local-delta-save' });
-          protectedSessions.clear();
           return;
         }
         const cloudDb = await loadStructuredDb();
