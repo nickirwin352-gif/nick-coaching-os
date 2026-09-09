@@ -47,7 +47,9 @@ const syncState = {
   banksSignature:'',
   primed:false
 };
+const protectedSessions = new Map();
 let lastSavedDb = null;
+let localBootDb = null;
 let lastLocalWriteToken = '';
 let saveSequence = 0;
 let saveChain = Promise.resolve();
@@ -119,6 +121,18 @@ function collectionState(items, idGetter) {
   return buildCollectionState(items,idGetter,(value,index)=>makeDocId(value,`item-${index}`));
 }
 
+function mergeProtectedSessions(data) {
+  if (!protectedSessions.size) return data;
+  const safe = normaliseCloudDb(data || {});
+  const byId = new Map(safe.sessions.map(session=>[String(session.id || ''),session]));
+  protectedSessions.forEach((session,id)=>{
+    if (session === null) byId.delete(id);
+    else byId.set(id,clean(session));
+  });
+  safe.sessions = [...byId.values()];
+  return safe;
+}
+
 function primeSyncState(data) {
   const safe = normaliseCloudDb(data || {});
   syncState.practices = collectionState(safe.practices,p=>p.id);
@@ -130,6 +144,15 @@ function primeSyncState(data) {
   return safe;
 }
 
+function primeFromLocalCache() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('nickCoachOSv3') || 'null');
+    if (!raw) return null;
+    localBootDb = primeSyncState(raw);
+    return localBootDb;
+  } catch (_) { return null; }
+}
+
 async function loadCollectionDocs(collectionName) {
   const snap = await getDocs(collection(firestore, collectionName));
   return snap.docs.map(d => stripCloudOnlyFields(d.data().data || d.data()));
@@ -138,7 +161,12 @@ async function loadCollectionDocs(collectionName) {
 async function saveCollectionDelta(collectionName, items, idGetter, stateKey) {
   const previous = syncState[stateKey] || new Map();
   const delta = diffCollection(items,idGetter,previous,(value,index)=>makeDocId(value,`item-${index}`));
-  if (!delta.changed) return { changed:0, upserts:0, deletes:0 };
+  if (!delta.changed) return { changed:0, upserts:0, deletes:0, upsertIds:[], deleteIds:[] };
+
+  if (stateKey === 'sessions') {
+    delta.upserts.forEach(({id,item})=>protectedSessions.set(id,clean(item)));
+    delta.deletes.forEach(id=>protectedSessions.set(id,null));
+  }
 
   const batch = writeBatch(firestore);
   delta.upserts.forEach(({id,item}) => {
@@ -150,7 +178,13 @@ async function saveCollectionDelta(collectionName, items, idGetter, stateKey) {
   delta.deletes.forEach(id => batch.delete(doc(firestore, collectionName, id)));
   await batch.commit();
   syncState[stateKey] = delta.nextState;
-  return { changed:delta.changed, upserts:delta.upserts.length, deletes:delta.deletes.length };
+  return {
+    changed:delta.changed,
+    upserts:delta.upserts.length,
+    deletes:delta.deletes.length,
+    upsertIds:delta.upserts.map(item=>item.id),
+    deleteIds:[...delta.deletes]
+  };
 }
 
 async function writeMeta(cleanData, changeKind='full') {
@@ -176,12 +210,13 @@ async function loadStructuredDb() {
     getDoc(doc(firestore, COLLECTIONS.wordbanks, "master"))
   ]);
 
-  const structured = normaliseCloudDb({
+  let structured = normaliseCloudDb({
     practices: practiceDocs,
     sessions: sessionDocs,
     sessionTemplates: templateDocs,
     banks: bankSnap.exists() ? (bankSnap.data().data || bankSnap.data() || {}) : {}
   });
+  structured = mergeProtectedSessions(structured);
   primeSyncState(structured);
 
   const hasStructuredData = practiceDocs.length || sessionDocs.length || templateDocs.length || bankSnap.exists();
@@ -253,6 +288,8 @@ function queueSave(work) {
   return saveChain;
 }
 
+primeFromLocalCache();
+
 window.nickCloud = {
   save: function(data) {
     const snapshot = clean(data);
@@ -269,12 +306,16 @@ window.nickCloud = {
   },
 
   listen: function(callback) {
+    if (localBootDb) {
+      queueMicrotask(()=>callback({ data:clean(localBootDb), source:'local-cache-fast-start', pendingRemote:true }));
+    }
     return onSnapshot(
       doc(firestore, COLLECTIONS.meta, "main"),
       async function(metaSnap) {
         const meta = metaSnap.exists() ? metaSnap.data() : null;
         if (meta && meta.clientId === CLIENT_ID && meta.writeToken === lastLocalWriteToken && lastSavedDb) {
           callback({ data:clean(lastSavedDb), source:'local-delta-save' });
+          protectedSessions.clear();
           return;
         }
         const cloudDb = await loadStructuredDb();
