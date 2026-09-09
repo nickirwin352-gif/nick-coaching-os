@@ -15,6 +15,7 @@ import {
   limit,
   writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { buildCollectionState, diffCollection, stableStringify } from "./cloud-sync-delta-v1.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDbBy2QfJZ2y-Mq8cpeqLjDEBgrcIdclYI",
@@ -37,6 +38,19 @@ const COLLECTIONS = {
   backups: "coachingOSBackups",
   legacy: "coachingOS"
 };
+
+const CLIENT_ID = `web-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
+const syncState = {
+  practices:new Map(),
+  sessions:new Map(),
+  templates:new Map(),
+  banksSignature:'',
+  primed:false
+};
+let lastSavedDb = null;
+let lastLocalWriteToken = '';
+let saveSequence = 0;
+let saveChain = Promise.resolve();
 
 function clean(data) {
   return JSON.parse(JSON.stringify(data || {}));
@@ -92,33 +106,42 @@ function normaliseCloudDb(data) {
   return safe;
 }
 
+function collectionState(items, idGetter) {
+  return buildCollectionState(items,idGetter,(value,index)=>makeDocId(value,`item-${index}`));
+}
+
+function primeSyncState(data) {
+  const safe = normaliseCloudDb(data || {});
+  syncState.practices = collectionState(safe.practices,p=>p.id);
+  syncState.sessions = collectionState(safe.sessions,s=>s.id);
+  syncState.templates = collectionState(safe.sessionTemplates,t=>t.id);
+  syncState.banksSignature = stableStringify(safe.banks || {});
+  syncState.primed = true;
+  lastSavedDb = clean(safe);
+  return safe;
+}
+
 async function loadCollectionDocs(collectionName) {
   const snap = await getDocs(collection(firestore, collectionName));
   return snap.docs.map(d => ({ _docId: d.id, ...(d.data().data || d.data()) }));
 }
 
-async function saveCollection(collectionName, items, idGetter) {
-  const snap = await getDocs(collection(firestore, collectionName));
-  const existingIds = new Set(snap.docs.map(d => d.id));
-  const batch = writeBatch(firestore);
-  const wantedIds = new Set();
+async function saveCollectionDelta(collectionName, items, idGetter, stateKey) {
+  const previous = syncState[stateKey] || new Map();
+  const delta = diffCollection(items,idGetter,previous,(value,index)=>makeDocId(value,`item-${index}`));
+  if (!delta.changed) return { changed:0, upserts:0, deletes:0 };
 
-  items.forEach((item, index) => {
-    const docId = makeDocId(idGetter(item, index), "item-" + index);
-    wantedIds.add(docId);
-    batch.set(doc(firestore, collectionName, docId), {
+  const batch = writeBatch(firestore);
+  delta.upserts.forEach(({id,item}) => {
+    batch.set(doc(firestore, collectionName, id), {
       data: clean(item),
       updatedAt: serverTimestamp()
     });
   });
-
-  existingIds.forEach(id => {
-    if (!wantedIds.has(id)) {
-      batch.delete(doc(firestore, collectionName, id));
-    }
-  });
-
+  delta.deletes.forEach(id => batch.delete(doc(firestore, collectionName, id)));
   await batch.commit();
+  syncState[stateKey] = delta.nextState;
+  return { changed:delta.changed, upserts:delta.upserts.length, deletes:delta.deletes.length };
 }
 
 async function loadStructuredDb() {
@@ -129,16 +152,16 @@ async function loadStructuredDb() {
     getDoc(doc(firestore, COLLECTIONS.wordbanks, "master"))
   ]);
 
-  const hasStructuredData = practiceDocs.length || sessionDocs.length || templateDocs.length || bankSnap.exists();
+  const structured = normaliseCloudDb({
+    practices: practiceDocs.map(p => p.data || p),
+    sessions: sessionDocs.map(s => s.data || s),
+    sessionTemplates: templateDocs.map(t => t.data || t),
+    banks: bankSnap.exists() ? (bankSnap.data().data || bankSnap.data() || {}) : {}
+  });
+  primeSyncState(structured);
 
-  if (hasStructuredData) {
-    return normaliseCloudDb({
-      practices: practiceDocs.map(p => p.data || p),
-      sessions: sessionDocs.map(s => s.data || s),
-      sessionTemplates: templateDocs.map(t => t.data || t),
-      banks: bankSnap.exists() ? (bankSnap.data().data || bankSnap.data() || {}) : {}
-    });
-  }
+  const hasStructuredData = practiceDocs.length || sessionDocs.length || templateDocs.length || bankSnap.exists();
+  if (hasStructuredData) return structured;
 
   // Migration fallback: if your old single-document database still exists,
   // load it once so it can be saved into the new separate collections.
@@ -152,27 +175,58 @@ async function loadStructuredDb() {
   return null;
 }
 
-window.nickCloud = {
-  save: async function(data) {
-    const cleanData = normaliseCloudDb(data);
+async function saveIncremental(data) {
+  const cleanData = normaliseCloudDb(data);
+  if (!syncState.primed) primeSyncState({ practices:[], sessions:[], sessionTemplates:[], banks:{} });
 
-    await Promise.all([
-      saveCollection(COLLECTIONS.practices, cleanData.practices, p => p.id),
-      saveCollection(COLLECTIONS.sessions, cleanData.sessions, s => s.id),
-      saveCollection(COLLECTIONS.templates, cleanData.sessionTemplates, t => t.id),
-      setDoc(doc(firestore, COLLECTIONS.wordbanks, "master"), {
-        data: cleanData.banks,
-        updatedAt: serverTimestamp()
-      })
-    ]);
+  const [practiceResult, sessionResult, templateResult] = await Promise.all([
+    saveCollectionDelta(COLLECTIONS.practices, cleanData.practices, p => p.id, 'practices'),
+    saveCollectionDelta(COLLECTIONS.sessions, cleanData.sessions, s => s.id, 'sessions'),
+    saveCollectionDelta(COLLECTIONS.templates, cleanData.sessionTemplates, t => t.id, 'templates')
+  ]);
 
-    await setDoc(doc(firestore, COLLECTIONS.meta, "main"), {
-      updatedAt: serverTimestamp(),
-      structure: "split-collections-v1",
-      practiceCount: cleanData.practices.length,
-      sessionCount: cleanData.sessions.length,
-      templateCount: cleanData.sessionTemplates.length
+  let bankChanged = 0;
+  const nextBankSignature = stableStringify(cleanData.banks || {});
+  if (nextBankSignature !== syncState.banksSignature) {
+    await setDoc(doc(firestore, COLLECTIONS.wordbanks, "master"), {
+      data: cleanData.banks,
+      updatedAt: serverTimestamp()
     });
+    syncState.banksSignature = nextBankSignature;
+    bankChanged = 1;
+  }
+
+  const totalChanged = practiceResult.changed + sessionResult.changed + templateResult.changed + bankChanged;
+  lastSavedDb = clean(cleanData);
+  if (!totalChanged) return { changed:0, practices:practiceResult, sessions:sessionResult, templates:templateResult, banks:0 };
+
+  const writeToken = `${CLIENT_ID}-${Date.now().toString(36)}-${(++saveSequence).toString(36)}`;
+  lastLocalWriteToken = writeToken;
+  await setDoc(doc(firestore, COLLECTIONS.meta, "main"), {
+    updatedAt: serverTimestamp(),
+    structure: "split-collections-v2-delta",
+    practiceCount: cleanData.practices.length,
+    sessionCount: cleanData.sessions.length,
+    templateCount: cleanData.sessionTemplates.length,
+    clientId: CLIENT_ID,
+    writeToken
+  });
+
+  return {
+    changed:totalChanged,
+    practices:practiceResult,
+    sessions:sessionResult,
+    templates:templateResult,
+    banks:bankChanged
+  };
+}
+
+window.nickCloud = {
+  save: function(data) {
+    const snapshot = clean(data);
+    const run = () => saveIncremental(snapshot);
+    saveChain = saveChain.then(run,run);
+    return saveChain;
   },
 
   getCurrent: async function() {
@@ -182,9 +236,14 @@ window.nickCloud = {
   listen: function(callback) {
     return onSnapshot(
       doc(firestore, COLLECTIONS.meta, "main"),
-      async function() {
+      async function(metaSnap) {
+        const meta = metaSnap.exists() ? metaSnap.data() : null;
+        if (meta && meta.clientId === CLIENT_ID && meta.writeToken === lastLocalWriteToken && lastSavedDb) {
+          callback({ data:clean(lastSavedDb), source:'local-delta-save' });
+          return;
+        }
         const cloudDb = await loadStructuredDb();
-        callback(cloudDb ? { data: cloudDb } : null);
+        callback(cloudDb ? { data:cloudDb, source:'remote' } : null);
       },
       function(error) {
         console.error("Firebase listener failed", error);
@@ -198,7 +257,7 @@ window.nickCloud = {
       data: cleanData,
       createdAt: serverTimestamp(),
       label: new Date().toLocaleString("en-GB"),
-      structure: "split-collections-v1"
+      structure: "split-collections-v2-delta"
     });
   },
 
