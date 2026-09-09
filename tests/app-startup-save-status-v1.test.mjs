@@ -7,7 +7,7 @@ const source = await readFile(new URL('../src/app-startup-save-status-v1.js', im
 const sessionState = await readFile(new URL('../src/session-state.js', import.meta.url),'utf8');
 
 test('startup polish exposes a versioned clean loading shell', () => {
-  assert.equal(APP_STARTUP_SAVE_STATUS_VERSION,1);
+  assert.equal(APP_STARTUP_SAVE_STATUS_VERSION,2);
   assert.match(source,/nickAppStartupOverlayV1/);
   assert.match(source,/Loading your coaching workspace/);
   assert.match(source,/enhancementsReady && cloudResolved/);
@@ -18,6 +18,8 @@ test('global save status shows local and cloud state clearly', () => {
   assert.match(source,/Saved locally ✓ · Cloud synced ✓/);
   assert.match(source,/Saved locally ✓ · Cloud waiting/);
   assert.match(source,/Saved locally ✓ · Local only/);
+  assert.match(source,/Saved locally ✓ · Offline/);
+  assert.match(source,/Cloud still working/);
   assert.match(source,/Saving…/);
   assert.match(source,/Syncing…/);
 });
