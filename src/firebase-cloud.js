@@ -56,6 +56,12 @@ function clean(data) {
   return JSON.parse(JSON.stringify(data || {}));
 }
 
+function stripCloudOnlyFields(item) {
+  if (!item || typeof item !== 'object') return item;
+  const { _docId, ...rest } = item;
+  return rest;
+}
+
 function makeDocId(value, fallback) {
   const raw = String(value || fallback || ("item-" + Date.now()));
   return encodeURIComponent(raw).replace(/\./g, "%2E").slice(0, 140) || fallback;
@@ -76,7 +82,7 @@ function normaliseCloudDb(data) {
   safe.banks = safe.banks && typeof safe.banks === "object" ? safe.banks : {};
 
   safe.practices = safe.practices.map((p, i) => {
-    const item = p || {};
+    const item = stripCloudOnlyFields(p || {});
     const { fav, favorite, ...rest } = item;
     return {
       ...rest,
@@ -85,14 +91,17 @@ function normaliseCloudDb(data) {
     };
   });
 
-  safe.sessions = safe.sessions.map((s, i) => ({
-    ...s,
-    id: s.id || makeDocId([s.date, s.team, s.theme, i].join("-"), "session-" + (i + 1)),
-    drills: cloudDrillIds(s)
-  }));
+  safe.sessions = safe.sessions.map((s, i) => {
+    const item = stripCloudOnlyFields(s || {});
+    return {
+      ...item,
+      id: item.id || makeDocId([item.date, item.team, item.theme, i].join("-"), "session-" + (i + 1)),
+      drills: cloudDrillIds(item)
+    };
+  });
 
   safe.sessionTemplates = safe.sessionTemplates.map((t, i) => {
-    const item = t || {};
+    const item = stripCloudOnlyFields(t || {});
     const { fav, favorite, ...rest } = item;
     return {
       ...rest,
@@ -123,7 +132,7 @@ function primeSyncState(data) {
 
 async function loadCollectionDocs(collectionName) {
   const snap = await getDocs(collection(firestore, collectionName));
-  return snap.docs.map(d => ({ _docId: d.id, ...(d.data().data || d.data()) }));
+  return snap.docs.map(d => stripCloudOnlyFields(d.data().data || d.data()));
 }
 
 async function saveCollectionDelta(collectionName, items, idGetter, stateKey) {
@@ -144,6 +153,21 @@ async function saveCollectionDelta(collectionName, items, idGetter, stateKey) {
   return { changed:delta.changed, upserts:delta.upserts.length, deletes:delta.deletes.length };
 }
 
+async function writeMeta(cleanData, changeKind='full') {
+  const writeToken = `${CLIENT_ID}-${Date.now().toString(36)}-${(++saveSequence).toString(36)}`;
+  lastLocalWriteToken = writeToken;
+  await setDoc(doc(firestore, COLLECTIONS.meta, "main"), {
+    updatedAt: serverTimestamp(),
+    structure: "split-collections-v2-delta",
+    practiceCount: cleanData.practices.length,
+    sessionCount: cleanData.sessions.length,
+    templateCount: cleanData.sessionTemplates.length,
+    changeKind,
+    clientId: CLIENT_ID,
+    writeToken
+  });
+}
+
 async function loadStructuredDb() {
   const [practiceDocs, sessionDocs, templateDocs, bankSnap] = await Promise.all([
     loadCollectionDocs(COLLECTIONS.practices),
@@ -153,9 +177,9 @@ async function loadStructuredDb() {
   ]);
 
   const structured = normaliseCloudDb({
-    practices: practiceDocs.map(p => p.data || p),
-    sessions: sessionDocs.map(s => s.data || s),
-    sessionTemplates: templateDocs.map(t => t.data || t),
+    practices: practiceDocs,
+    sessions: sessionDocs,
+    sessionTemplates: templateDocs,
     banks: bankSnap.exists() ? (bankSnap.data().data || bankSnap.data() || {}) : {}
   });
   primeSyncState(structured);
@@ -198,19 +222,7 @@ async function saveIncremental(data) {
 
   const totalChanged = practiceResult.changed + sessionResult.changed + templateResult.changed + bankChanged;
   lastSavedDb = clean(cleanData);
-  if (!totalChanged) return { changed:0, practices:practiceResult, sessions:sessionResult, templates:templateResult, banks:0 };
-
-  const writeToken = `${CLIENT_ID}-${Date.now().toString(36)}-${(++saveSequence).toString(36)}`;
-  lastLocalWriteToken = writeToken;
-  await setDoc(doc(firestore, COLLECTIONS.meta, "main"), {
-    updatedAt: serverTimestamp(),
-    structure: "split-collections-v2-delta",
-    practiceCount: cleanData.practices.length,
-    sessionCount: cleanData.sessions.length,
-    templateCount: cleanData.sessionTemplates.length,
-    clientId: CLIENT_ID,
-    writeToken
-  });
+  if (totalChanged) await writeMeta(cleanData,'full-delta');
 
   return {
     changed:totalChanged,
@@ -221,12 +233,35 @@ async function saveIncremental(data) {
   };
 }
 
+async function saveSessionsIncremental(sessions) {
+  const base = lastSavedDb ? normaliseCloudDb(lastSavedDb) : normaliseCloudDb({ practices:[], sessions:[], sessionTemplates:[], banks:{} });
+  const normalisedSessions = normaliseCloudDb({ sessions }).sessions;
+  if (!syncState.primed) {
+    syncState.sessions = collectionState([],s=>s.id);
+    syncState.primed = true;
+  }
+  const sessionResult = await saveCollectionDelta(COLLECTIONS.sessions, normalisedSessions, s => s.id, 'sessions');
+  const nextData = { ...base, sessions:normalisedSessions };
+  lastSavedDb = clean(nextData);
+  if (sessionResult.changed) await writeMeta(nextData,'sessions-delta');
+  return { changed:sessionResult.changed, sessions:sessionResult };
+}
+
+function queueSave(work) {
+  const run = () => work();
+  saveChain = saveChain.then(run,run);
+  return saveChain;
+}
+
 window.nickCloud = {
   save: function(data) {
     const snapshot = clean(data);
-    const run = () => saveIncremental(snapshot);
-    saveChain = saveChain.then(run,run);
-    return saveChain;
+    return queueSave(() => saveIncremental(snapshot));
+  },
+
+  saveSessions: function(sessions) {
+    const snapshot = clean(Array.isArray(sessions) ? sessions : []);
+    return queueSave(() => saveSessionsIncremental(snapshot));
   },
 
   getCurrent: async function() {
