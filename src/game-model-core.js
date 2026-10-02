@@ -1,131 +1,170 @@
-export const GAME_MODEL_VERSION = '1.1';
+export const GAME_MODEL_VERSION = '2.0';
 
-export const GAME_MODEL_DEFINITION = 'We manipulate opponents rather than force play; threaten beyond while staying connected underneath; arrive into space rather than stand in it; protect the centre without the ball; and act together in transition. We create our own advantages, recognise the picture, and attack it decisively.';
+export const GAME_MODEL_DEFINITION = 'Four phases. Clear main principles. Three sub-principles under each one. Keep the language simple enough to recognise, coach and review on the pitch.';
+export const PLAYER_GAME_MODEL_ANSWER = 'Know the phase. Recognise the principle. Execute the detail.';
 
-export const PLAYER_GAME_MODEL_ANSWER = 'We move teams to create space, then attack what they leave. We always threaten behind while staying connected underneath. We arrive into spaces instead of standing in them. Without the ball we protect the middle and stay connected. When the ball turns over, we either hurt them quickly or get inside together.';
+export const GAME_PHASES = Object.freeze([
+  Object.freeze({ id:'in-possession', label:'In Possession', shortLabel:'In Possession', description:'How we create, connect, move and exploit advantages when we have the ball.' }),
+  Object.freeze({ id:'attacking-transition', label:'Attacking Transition', shortLabel:'Attacking Transition', description:'How we attack immediately after regaining the ball and how we finish before the opposition reset.' }),
+  Object.freeze({ id:'out-of-possession', label:'Out of Possession', shortLabel:'Out of Possession', description:'How we protect the centre, move together and defend with security.' }),
+  Object.freeze({ id:'defensive-transition', label:'Defensive Transition', shortLabel:'Defensive Transition', description:'How we react to loss, protect danger and reconnect the team.' })
+]);
+
+function sub(id,title,description) {
+  return Object.freeze({ id, title, message:title, description });
+}
+
+function principle({id,number,phaseId,message,summary,subPrinciples,keywords=[]}) {
+  return Object.freeze({
+    id,
+    number,
+    phaseId,
+    title:message,
+    principle:message,
+    message,
+    meaning:summary,
+    why:'',
+    picture:summary,
+    good:subPrinciples.map(item => item.description).join(' '),
+    bad:'',
+    questions:Object.freeze([]),
+    moments:Object.freeze([phaseId]),
+    themes:Object.freeze([]),
+    practiceKeywords:Object.freeze(keywords),
+    subPrinciples:Object.freeze(subPrinciples)
+  });
+}
 
 export const GAME_MODEL_PRINCIPLES = Object.freeze([
-  Object.freeze({
-    id:'move-free',
+  principle({
+    id:'arrive-affect-away',
     number:1,
-    title:'Create the advantage',
-    principle:'Move them to free us.',
-    message:'Bring them. Play where they leave.',
-    meaning:'Move opponents to create the free player or space.',
-    why:'We create our own route forward instead of hoping one appears.',
-    picture:'An opponent moves towards the ball, leaving a player or space available.',
-    good:'Pressure is attracted, the free player or free space is recognised, and we use it before the picture closes.',
-    bad:'We play into pressure without moving the opponent first, or we fail to notice what their movement has freed.',
-    questions:Object.freeze(['Who moved?', 'What did they leave?']),
-    moments:Object.freeze(['with-ball']),
-    themes:Object.freeze(['Build Up','Midfield Progression','Chance Creation','Wide Overloads']),
-    practiceKeywords:Object.freeze(['free player','spare player','overload','attract pressure','third man','create angles','vacate','space left'])
+    phaseId:'in-possession',
+    message:'Arrive, Affect, Away',
+    summary:'Create separation, arrive to affect the game, then move again after the action.',
+    subPrinciples:[
+      sub('create-separation','Create Separation','Move to lose, move to receive, arrive with space.'),
+      sub('arrive-to-affect','Arrive to Affect','Receive in a way that allows you to play forward, combine, carry or eliminate pressure.'),
+      sub('move-after-action','Move After Action','Once you’ve played, clear the space or become useful again.')
+    ],
+    keywords:['separation','move to receive','arrive with space','play forward','combine','carry','move after','clear the space']
   }),
-  Object.freeze({
-    id:'behind-beneath',
+  principle({
+    id:'rotate-replace-release',
     number:2,
-    title:'Threaten and connect',
-    principle:'Threaten behind, connect underneath.',
-    message:'One behind. One beneath.',
-    meaning:'Always threaten the last line while keeping support underneath.',
-    why:'Defenders hate running towards their own goal; the run also creates space underneath.',
-    picture:'At least one player threatens beyond the last line while another gives the ball carrier support underneath.',
-    good:'The last line has to defend depth while the ball carrier still has a secure connection underneath.',
-    bad:'Everyone comes towards the ball, nobody threatens beyond, and the opposition can squeeze the pitch in front of them.',
-    questions:Object.freeze(["Who's threatening?", "Who's connecting?"]),
-    moments:Object.freeze(['with-ball','win-it']),
-    themes:Object.freeze(['Build Up','Midfield Progression','Chance Creation','Wide Overloads','Finishing','Attacking Transition']),
-    practiceKeywords:Object.freeze(['support underneath','run in behind','runs in behind','depth','third man run','supporting runs','attack the gap','last line','beyond'])
+    phaseId:'in-possession',
+    message:'Rotate, Replace, Release',
+    summary:'Use connected movement to create an advantage, replace what has been vacated, then use the advantage.',
+    subPrinciples:[
+      sub('movement-triggers-movement','Movement Triggers Movement','One movement should provoke another.'),
+      sub('replace-the-threat','Replace the Threat','Replace the width, depth or presence that has been vacated.'),
+      sub('release-the-rotation','Release the Rotation','Once the movement has created the advantage, use it before the opposition recover.')
+    ],
+    keywords:['rotation','rotate','replace','vacated','movement triggers movement','width','depth','release']
   }),
-  Object.freeze({
-    id:'arrive',
+  principle({
+    id:'combine-commit-cover',
     number:3,
-    title:'Create space through timing',
-    principle:'Create space through timing.',
-    message:'Arrive. Don’t live there.',
-    meaning:'Don’t stand permanently in valuable space — arrive when it can be used.',
-    why:'Movement is harder to defend than occupation.',
-    picture:'Space is cleared first, then a player arrives as the action develops.',
-    good:'The space is empty long enough to stretch the defender, then the runner arrives as the ball or opportunity arrives.',
-    bad:'A player stands in the useful space too early, becomes easy to mark and blocks a teammate from arriving into it.',
-    questions:Object.freeze(['What space am I creating?', 'When do I arrive?']),
-    moments:Object.freeze(['with-ball','win-it']),
-    themes:Object.freeze(['Build Up','Midfield Progression','Chance Creation','Wide Overloads','Finishing','Attacking Transition']),
-    practiceKeywords:Object.freeze(['arrive','timing of arrival','timing of run','vacate','dip in and out','movement','blindside','box occupation','different lines'])
+    phaseId:'in-possession',
+    message:'Combine, Commit, Cover',
+    summary:'Connect the attack, commit players beyond the ball and keep enough security behind the attack.',
+    subPrinciples:[
+      sub('connect-the-attack','Connect the Attack','Join the back/midfield unit to the forwards through combinations, bounce passes and third-player actions.'),
+      sub('commit-bodies-beyond','Commit Bodies Beyond','Someone must take the risk and threaten beyond, attack the last line or enter the box.'),
+      sub('cover-the-commitment','Cover the Commitment','Maintain depth and security behind the attack so others have freedom to go.')
+    ],
+    keywords:['combine','bounce pass','third player','third man','beyond','last line','enter the box','security','cover']
   }),
-  Object.freeze({
-    id:'break-open',
+  principle({
+    id:'spot-sense-seize',
     number:4,
-    title:'Use the advantage',
-    principle:'Use the advantage.',
-    message:'Break them when it opens.',
-    meaning:'When the route beyond a line appears, exploit it.',
-    why:'An advantage disappears if we wait too long.',
-    picture:'A pass, carry or run can eliminate an opponent or line before they recover.',
-    good:'The window opens and we play, carry or run through it quickly enough to eliminate a player or line.',
-    bad:'The window opens but we recycle automatically, allowing the opposition to reset and remove the advantage.',
-    questions:Object.freeze(['Can we eliminate someone?', 'Is it actually on?']),
-    moments:Object.freeze(['with-ball','win-it']),
-    themes:Object.freeze(['Build Up','Midfield Progression','Chance Creation','Attacking Transition']),
-    practiceKeywords:Object.freeze(['play forward','progress','split','break lines','attack with pace','first pass forward','through ball','eliminate','drive'])
+    phaseId:'in-possession',
+    message:'Spot, Sense, Seize',
+    summary:'Recognise the picture, judge the moment and execute before the opportunity closes.',
+    subPrinciples:[
+      sub('spot-the-picture','Spot the Picture','Recognise the space, movement, defender or passing lane that is developing.'),
+      sub('sense-the-moment','Sense the Moment','Judge the timing: not too early, not too late.'),
+      sub('seize-the-window','Seize the Window','When the opportunity is there, execute decisively.')
+    ],
+    keywords:['recognise','space','passing lane','timing','window','decisive','eliminate','break line']
   }),
-  Object.freeze({
-    id:'protect-inside',
+  principle({
+    id:'see-send-sprint',
     number:5,
-    title:'Protect the danger',
-    principle:'Protect the danger.',
-    message:'Protect inside.',
-    meaning:'Shut the most dangerous central route first.',
-    why:'The centre is the quickest route towards our goal.',
-    picture:'The central route is closed and the opponent is shown into a less dangerous area.',
-    good:'Our shape closes the direct central route and guides the opponent towards the outside where the next action is more predictable.',
-    bad:'We jump towards the ball but leave the central lane open, giving the opponent the quickest route towards goal.',
-    questions:Object.freeze(['What are we protecting?', 'Where do we want them?']),
-    moments:Object.freeze(['without-ball','lose-it']),
-    themes:Object.freeze(['High Press','Mid Block','Defensive Transition']),
-    practiceKeywords:Object.freeze(['protect centre','protect center','force wide','force outside','screen','compact middle','inside first','central route'])
+    phaseId:'attacking-transition',
+    message:'See, Send, Sprint',
+    summary:'See forward early, penetrate into space and transition together around the first action.',
+    subPrinciples:[
+      sub('see-forward-early','See Forward Early','First thought and first information should be ahead of the ball.'),
+      sub('send-into-space','Send Into Space','Penetrate with the pass or carry when the opportunity is there.'),
+      sub('sprint-to-support','Sprint to Support','Transition together; give the first forward action runners around and beyond it.')
+    ],
+    keywords:['transition','forward early','first pass forward','carry','space','sprint','support','regain']
   }),
-  Object.freeze({
-    id:'connected',
+  principle({
+    id:'stretch-supply-strike',
     number:6,
-    title:'Act together',
-    principle:'Defend together.',
-    message:'Stay connected.',
-    meaning:'One player’s action must be supported by the players around them.',
-    why:'Pressure without cover creates another problem.',
-    picture:'One player engages while teammates screen, cover and squeeze the spaces behind and around them.',
-    good:'The first player presses and the players behind and around them move at the same time to cover, screen and squeeze.',
-    bad:'One player presses alone while teammates stay disconnected, opening a simple route around or through the pressure.',
-    questions:Object.freeze(['Who acts first?', 'What are we protecting behind them?']),
-    moments:Object.freeze(['without-ball','lose-it']),
-    themes:Object.freeze(['High Press','Mid Block','Counter Press','Defensive Transition']),
-    practiceKeywords:Object.freeze(['press as a group','press as a unit','press together','cover','balance','stay compact','stay connected','communicate','squeeze'])
+    phaseId:'attacking-transition',
+    message:'Stretch, Supply, Strike',
+    summary:'Stretch the back line, deliver into the space the movement creates and finish before the defence can reset.',
+    subPrinciples:[
+      sub('stretch-the-line','Stretch the Line','Use width, depth, overlaps, underlaps and runs across/beyond to distort the back line.'),
+      sub('supply-the-space','Supply the Space','Deliver into the space the movement has created — not simply “put it in the box.” Cut-backs, driven deliveries, inverted crosses, clips behind/over the back line.'),
+      sub('strike-it-early','Strike it Early','Do your work before the ball arrives. Arrive ready, finish first-time where possible, and punish defenders before they can reset.')
+    ],
+    keywords:['width','depth','overlap','underlap','cut-back','cross','delivery','finish','first time','back line']
   }),
-  Object.freeze({
-    id:'win-or-inside',
+  principle({
+    id:'screen-shuffle-squeeze',
     number:7,
-    title:'Protect transition',
-    principle:'Protect transition.',
-    message:'Win it or get inside.',
-    meaning:'After loss: regain if we’re connected; otherwise recover centrally.',
-    why:'We either kill the transition immediately or protect the dangerous space.',
-    picture:'If numbers are close around the loss we hunt; if not, we recover inside and become compact.',
-    good:'Players instantly read the distances: close enough means hunt together; stretched means recover inside and protect the route to goal.',
-    bad:'We half-press from poor distances, neither regain the ball nor recover the dangerous central space.',
-    questions:Object.freeze(['Can we win it now?', 'If not, what must we protect?']),
-    moments:Object.freeze(['lose-it']),
-    themes:Object.freeze(['Counter Press','Defensive Transition']),
-    practiceKeywords:Object.freeze(['counter press','counterpress','regain','recover inside','recover compact','defensive transition','react after loss','transition mentality'])
+    phaseId:'out-of-possession',
+    message:'Screen, Shuffle, Squeeze',
+    summary:'Protect the centre, move together with the ball and compress the pitch when pressure is established.',
+    subPrinciples:[
+      sub('screen-the-centre','Screen the Centre','Deny central progression and protect the most dangerous spaces first.'),
+      sub('shuffle-together','Shuffle Together','Travel with the ball while maintaining the distances within the block.'),
+      sub('squeeze-the-space','Squeeze the Space','When pressure is established, compress the pitch around the ball.')
+    ],
+    keywords:['screen','centre','center','central','shuffle','block','distances','squeeze','compact','pressure']
+  }),
+  principle({
+    id:'spare-step-smother',
+    number:8,
+    phaseId:'out-of-possession',
+    message:'Spare, Step, Smother',
+    summary:'Keep security behind the last line, step with confidence and stop the receiver turning or combining.',
+    subPrinciples:[
+      sub('keep-the-spare','Keep the Spare','Maintain the +1 around the last line whenever possible.'),
+      sub('step-with-security','Step With Security','The spare player behind gives the next defender permission to engage aggressively.'),
+      sub('smother-the-receiver','Smother the Receiver','Arrive with enough intensity and proximity to stop them turning, travelling or combining freely.')
+    ],
+    keywords:['spare','plus one','+1','last line','step','security','engage','smother','turning','receiver']
+  }),
+  principle({
+    id:'react-recover-reconnect',
+    number:9,
+    phaseId:'defensive-transition',
+    message:'React, Recover, Reconnect',
+    summary:'React immediately to the loss, protect the most dangerous spaces and runners, then restore team compactness.',
+    subPrinciples:[
+      sub('react-immediately','React Immediately','Respond to the loss straight away.'),
+      sub('recover-danger-first','Recover Danger First','Protect the centre, goal and most dangerous runners before worrying about exact positions.'),
+      sub('reconnect-the-team','Reconnect the Team','Restore compact distances and defensive structure as quickly as possible.')
+    ],
+    keywords:['loss','react','recover','centre','center','goal','runner','reconnect','compact','defensive transition']
   })
 ]);
 
-export const GAME_MOMENTS = Object.freeze([
-  Object.freeze({ id:'with-ball', label:'With the ball', description:'Create, recognise and use advantages.', themes:Object.freeze(['Build Up','Midfield Progression','Chance Creation','Wide Overloads','Finishing']) }),
-  Object.freeze({ id:'without-ball', label:'Without the ball', description:'Protect danger and defend together.', themes:Object.freeze(['High Press','Mid Block','1v1 & Duel Play']) }),
-  Object.freeze({ id:'win-it', label:'When we win it', description:'Exploit the disorganised picture before it disappears.', themes:Object.freeze(['Attacking Transition']) }),
-  Object.freeze({ id:'lose-it', label:'When we lose it', description:'Regain if connected; otherwise protect the inside.', themes:Object.freeze(['Counter Press','Defensive Transition']) }),
-  Object.freeze({ id:'restart-development', label:'Restarts / development', description:'Useful work that can support the model without forcing a principle link.', themes:Object.freeze(['Set Plays','Fitness','Core Passing Activations','1v1 & Duel Play']) })
-]);
+export const GAME_SUB_PRINCIPLES = Object.freeze(
+  GAME_MODEL_PRINCIPLES.flatMap(main => main.subPrinciples.map(item => Object.freeze({
+    ...item,
+    principleId:main.id,
+    phaseId:main.phaseId
+  })))
+);
+
+// Compatibility alias for older code that still reads "moments".
+export const GAME_MOMENTS = GAME_PHASES;
 
 export const TECHNICAL_STANDARDS = Object.freeze([
   'Scan before and after receiving.',
@@ -136,91 +175,121 @@ export const TECHNICAL_STANDARDS = Object.freeze([
 ]);
 
 export const PRACTICE_ROLES = Object.freeze([
-  Object.freeze({ id:'activate', label:'ACTIVATE · Tools', shortLabel:'Activate', description:'Bank touches and sharpen technique. A principle link is a bonus, not a requirement.' }),
-  Object.freeze({ id:'recognise', label:'RECOGNISE · Picture', shortLabel:'Recognise', description:'Design the practice so today’s picture appears repeatedly and clearly.' }),
-  Object.freeze({ id:'apply', label:'APPLY · Transfer', shortLabel:'Apply', description:'Remove support and see whether players recognise and solve the picture in game-real play.' })
+  Object.freeze({ id:'prepare', label:'PREPARE', shortLabel:'Prepare', description:'Get the body and ball ready and bank useful repetitions.' }),
+  Object.freeze({ id:'recognise', label:'RECOGNISE', shortLabel:'Recognise', description:'Make the picture clear enough that players learn to see it.' }),
+  Object.freeze({ id:'execute', label:'EXECUTE', shortLabel:'Execute', description:'Improve the timing, technique and detail that makes the principle work.' }),
+  Object.freeze({ id:'transfer', label:'TRANSFER', shortLabel:'Transfer', description:'Remove support and see whether the behaviour survives in game-real football.' })
 ]);
 
 export const LEARNING_EMPHASES = Object.freeze([
-  Object.freeze({ id:'understand', label:'Understand', description:'Make the WHY and shared language explicit. Exaggerate the picture so the identity is clear.' }),
-  Object.freeze({ id:'recognise', label:'Recognise', description:'Repeat the picture and use questions so players see it earlier with less prompting.' }),
-  Object.freeze({ id:'execute', label:'Execute', description:'The principle is understood; coach timing, technique, speed and detail so it succeeds more consistently.' }),
-  Object.freeze({ id:'adapt', label:'Adapt', description:'Players solve different versions of the picture with minimal instruction and flexible solutions.' })
+  Object.freeze({ id:'understand', label:'Understand', description:'Players can explain the principle and why the detail matters.' }),
+  Object.freeze({ id:'recognise', label:'Recognise', description:'Players see the picture earlier with less prompting.' }),
+  Object.freeze({ id:'execute', label:'Execute', description:'Players can produce the action with better timing, technique and speed.' }),
+  Object.freeze({ id:'adapt', label:'Adapt', description:'Players solve changing versions of the problem with minimal instruction.' })
 ]);
 
-export function principleById(id = '') {
+export function phaseById(id='') {
+  return GAME_PHASES.find(item => item.id === String(id || '')) || null;
+}
+
+export function principleById(id='') {
   return GAME_MODEL_PRINCIPLES.find(item => item.id === String(id || '')) || null;
 }
 
-export function normaliseGameModelPlan(value = {}) {
-  const primaryPrincipleId = principleById(value?.primaryPrincipleId)?.id || (value?.primaryPrincipleId === 'custom' ? 'custom' : '');
-  const supporting = principleById(value?.supportingPrincipleId)?.id || '';
-  const gameMoment = GAME_MOMENTS.some(item => item.id === value?.gameMoment) ? value.gameMoment : '';
+export function subPrincipleById(id='') {
+  return GAME_SUB_PRINCIPLES.find(item => item.id === String(id || '')) || null;
+}
+
+export function principlesForPhase(phaseId='') {
+  return GAME_MODEL_PRINCIPLES.filter(item => item.phaseId === String(phaseId || ''));
+}
+
+export function subPrinciplesForPrinciple(principleId='') {
+  return principleById(principleId)?.subPrinciples || [];
+}
+
+const LEGACY_PHASE_MAP = Object.freeze({
+  'with-ball':'in-possession',
+  'win-it':'attacking-transition',
+  'without-ball':'out-of-possession',
+  'lose-it':'defensive-transition'
+});
+
+const LEGACY_SAFE_PRINCIPLE_MAP = Object.freeze({
+  'arrive':'arrive-affect-away',
+  'behind-beneath':'combine-commit-cover',
+  'protect-inside':'screen-shuffle-squeeze',
+  'win-or-inside':'react-recover-reconnect'
+});
+
+export function normaliseGameModelPlan(value={}) {
+  const rawPhase = String(value?.gamePhase || value?.phaseId || value?.gameMoment || '');
+  const gamePhase = phaseById(rawPhase)?.id || LEGACY_PHASE_MAP[rawPhase] || '';
+  const rawPrimary = String(value?.primaryPrincipleId || '');
+  const primaryPrincipleId = principleById(rawPrimary)?.id || LEGACY_SAFE_PRINCIPLE_MAP[rawPrimary] || '';
+  const validSubs = [...new Set((Array.isArray(value?.subPrincipleIds) ? value.subPrincipleIds : [])
+    .map(id => subPrincipleById(id)?.id)
+    .filter(Boolean)
+    .filter(id => !primaryPrincipleId || subPrincipleById(id)?.principleId === primaryPrincipleId))];
   const emphasis = LEARNING_EMPHASES.some(item => item.id === value?.emphasis) ? value.emphasis : 'recognise';
   return {
     playerProblem:String(value?.playerProblem || '').trim(),
     successLooksLike:String(value?.successLooksLike || '').trim(),
-    gameMoment,
+    gamePhase,
+    gameMoment:gamePhase,
     primaryPrincipleId,
-    supportingPrincipleId:supporting === primaryPrincipleId ? '' : supporting,
+    subPrincipleIds:validSubs,
+    supportingPrincipleId:'',
     emphasis
   };
 }
 
-export function standardClarityForPrinciple(id = '') {
-  const principle = principleById(id);
-  if (!principle) return { why:'', principle:'', picture:'', cue:'', questions:[] };
+export function standardClarityForPrinciple(id='') {
+  const main = principleById(id);
+  if (!main) return { why:'', principle:'', picture:'', cue:'', questions:[] };
   return {
-    why:principle.why,
-    principle:principle.principle,
-    picture:principle.picture,
-    cue:principle.message,
-    questions:[...principle.questions]
+    why:'',
+    principle:main.message,
+    picture:main.summary || main.meaning || '',
+    cue:main.message,
+    questions:main.subPrinciples.map(item => item.title)
   };
 }
 
-export function principlesForMoment(momentId = '') {
-  return GAME_MODEL_PRINCIPLES.filter(item => item.moments.includes(momentId));
+export function principlesForMoment(momentId='') {
+  const phase = phaseById(momentId)?.id || LEGACY_PHASE_MAP[momentId] || '';
+  return principlesForPhase(phase);
 }
 
-function practiceSearchText(practice = {}) {
+function textForPractice(practice={}) {
   return [
-    practice.id,
-    practice.name,
-    practice.stage,
-    practice.theme,
-    practice.desc,
-    practice.description,
-    practice.cp,
-    practice.coachingPoints,
-    practice.prog,
-    practice.progressions,
-    practice.links,
-    practice.gameModelLinks,
-    practice.cues,
-    practice.objective
+    practice.id, practice.name, practice.desc, practice.description, practice.cp, practice.coachingPoints,
+    practice.prog, practice.progressions, practice.reg, practice.regressions, practice.condRules, practice.rules
   ].filter(Boolean).join(' ').toLowerCase();
 }
 
-export function scorePracticeForPrinciple(practice = {}, principleId = '') {
-  const principle = principleById(principleId);
-  if (!principle || !practice) return 0;
-  const text = practiceSearchText(practice);
-  const explicit = [practice.links, practice.gameModelLinks].filter(Boolean).join(' ').toLowerCase();
+export function scorePracticeForPrinciple(practice={}, principleId='') {
+  const main = principleById(principleId);
+  if (!main) return 0;
+  const explicit = Array.isArray(practice.gameModelPrincipleIds) ? practice.gameModelPrincipleIds : [];
+  if (explicit.includes(main.id)) return 100;
+  const subIds = Array.isArray(practice.gameModelSubPrincipleIds) ? practice.gameModelSubPrincipleIds : [];
+  if (subIds.some(id => subPrincipleById(id)?.principleId === main.id)) return 95;
+  const text = textForPractice(practice);
   let score = 0;
-  if ([principle.id, principle.message, principle.principle].some(value => explicit.includes(String(value || '').toLowerCase()))) score += 12;
-  if (principle.themes.some(theme => String(practice.theme || '').toLowerCase() === theme.toLowerCase())) score += 3;
-  principle.practiceKeywords.forEach(keyword => { if (text.includes(keyword.toLowerCase())) score += 2; });
-  if (practice.isFavourite || practice.favourite) score += 0.25;
+  for (const keyword of main.practiceKeywords || []) if (text.includes(String(keyword).toLowerCase())) score += 2;
+  for (const detail of main.subPrinciples || []) {
+    const words = detail.title.toLowerCase().split(/\s+/).filter(word => word.length > 4);
+    if (words.some(word => text.includes(word))) score += 1;
+  }
   return score;
 }
 
-export function linkedPracticesForPrinciple(practices = [], principleId = '', limit = 4) {
-  const max = Math.max(1, Math.min(8, Number(limit) || 4));
+export function linkedPracticesForPrinciple(practices=[], principleId='', limit=6) {
   return (Array.isArray(practices) ? practices : [])
-    .map(practice => ({ practice, score:scorePracticeForPrinciple(practice, principleId) }))
-    .filter(item => item.score >= 3)
-    .sort((a, b) => b.score - a.score || String(a.practice?.name || '').localeCompare(String(b.practice?.name || '')))
-    .slice(0, max)
+    .map(practice => ({ practice, score:scorePracticeForPrinciple(practice,principleId) }))
+    .filter(item => item.score > 0)
+    .sort((a,b) => b.score-a.score || String(a.practice?.name||'').localeCompare(String(b.practice?.name||'')))
+    .slice(0,limit)
     .map(item => item.practice);
 }
