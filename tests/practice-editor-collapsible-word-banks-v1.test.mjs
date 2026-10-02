@@ -25,8 +25,8 @@ test('editing or creating a practice resets the banks closed', () => {
   assert.match(source,/collapsePracticeWordBanks/);
 });
 
-test('compact bank patch loads after no-principle decision support', () => {
-  const noPrinciple = sessionState.indexOf("import('./practice-no-principle-decision-v1.js')");
+test('compact bank patch loads after the four-phase practice system', () => {
+  const fourPhase = sessionState.indexOf("import('./four-phase-practice-system-v1.js')");
   const banks = sessionState.indexOf("import('./practice-editor-collapsible-word-banks-v1.js')");
-  assert.ok(noPrinciple >= 0 && banks > noPrinciple);
+  assert.ok(fourPhase >= 0 && banks > fourPhase);
 });
