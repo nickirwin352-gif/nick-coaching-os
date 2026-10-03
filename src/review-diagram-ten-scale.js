@@ -180,7 +180,8 @@ function patchDashboardScores() {
     if (!progress || !paragraph || !/average effectiveness/i.test(paragraph.textContent || '')) return;
     const average = normalisedPracticeAverage(progress.dataset.progress);
     if (!average) return;
-    paragraph.innerHTML = paragraph.innerHTML.replace(/average effectiveness\s*<b>[^<]*<\/b>/i, `average effectiveness <b>${average.toFixed(1)}/10</b>`);
+    const updatedHtml = paragraph.innerHTML.replace(/average effectiveness\s*<b>[^<]*<\/b>/i, `average effectiveness <b>${average.toFixed(1)}/10</b>`);
+    if(paragraph.innerHTML !== updatedHtml) paragraph.innerHTML = updatedHtml;
   });
 }
 
