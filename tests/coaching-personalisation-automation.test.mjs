@@ -78,7 +78,7 @@ test('module covers every existing word bank and adds review suggestion tools', 
   assert.match(source,/My Coaching Language/);
   assert.match(source,/Suggested reasoning/);
   assert.match(source,/Fill coaching detail/);
-  assert.match(source,/Fill theme details/);
+  assert.match(source,/Fill principle details/);
   assert.match(source,/Existing writing is never overwritten/);
 });
 

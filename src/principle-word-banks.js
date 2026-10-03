@@ -55,7 +55,7 @@ export function renderBank(id){
 
 // Explicit targets avoid collapsing either of the two primary browsing tools.
 export const SUPPORTING_LISTS=Object.freeze([
-  ['fpePhases','Choose phases'],['fpePrinciples','Choose main principles'],['fpeSubs','Choose sub-principles'],
+  ['personalLanguageCard','My previous coaching language'],['fpePhases','Choose phases'],['fpePrinciples','Choose main principles'],['fpeSubs','Choose sub-principles'],
   ['gmSubPrinciplePicker','Choose sub-principles'],['favList','Favourite practices'],
   ['practiceList','Legacy practice list'],['blueprintList','Saved blueprints'],
   ['recentSessionList','Previous sessions'],['archiveList','Sessions on the selected date']
@@ -83,6 +83,18 @@ export function refresh(){
   for(const id of Object.keys(BANK_TARGETS))renderBank(id);
   const rules=field('condRulesBlock');if(rules)rules.style.display='block';
   ensureCollapsibleWordBanks();ensureSupportingLists();
+}
+function fillBlank(scope){
+  const banks=buildPrincipleWordBanks(contextFor(scope),appDb()?.banks?.principleWordBanks||{});
+  let changed=0;
+  for(const [, [kind,target,bankScope]] of Object.entries(BANK_TARGETS)){
+    if(bankScope!==scope)continue;
+    const input=field(target);
+    if(!input||input.value.trim()||!banks[kind].length)continue;
+    input.value=banks[kind].slice(0,kind==='cp'?4:2).join('\n');
+    input.dispatchEvent(new Event('input',{bubbles:true}));changed++;
+  }
+  refresh();window.renderPreview?.();return changed;
 }
 function option(value,text){const item=document.createElement('option');item.value=value;item.textContent=text;return item;}
 function installManager(){
@@ -127,7 +139,7 @@ function install(){
     .chips button.chip[aria-pressed="true"]{border-color:var(--turf);background:var(--turf-dim)}
     @media print{details.principleCompactList>summary{display:none}details.principleCompactList>*:not(summary){display:block}}
   `;document.head.appendChild(style);
-  window.NickPrincipleWordBanks=Object.freeze({refresh,renderBank,ensureSupportingLists});
+  window.NickPrincipleWordBanks=Object.freeze({refresh,renderBank,ensureSupportingLists,fillBlank});
   installManager();refresh();
   document.addEventListener('input',event=>{for(const [id,[,target]] of Object.entries(BANK_TARGETS))if(event.target.id===target)renderBank(id);});
   // No DOM observers: refresh only after explicit selection, rendering or navigation.

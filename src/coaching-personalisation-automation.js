@@ -404,9 +404,14 @@ function installPracticeSmartFill() {
   const theme = document.getElementById('theme'); if (!theme || document.getElementById('practiceSmartFillBar')) return;
   const anchor = theme.closest('.row') || theme.parentElement;
   const bar = document.createElement('div'); bar.id = 'practiceSmartFillBar'; bar.className = 'coachSmartBar';
-  bar.innerHTML = '<button type="button" id="practiceSmartFillBtn">⚡ Fill coaching detail</button><span class="small">Fills blank coaching points/progressions/regressions from this theme and your own language. Existing writing is never overwritten.</span>';
+  bar.innerHTML = '<button type="button" id="practiceSmartFillBtn">⚡ Fill coaching detail</button><span class="small">Fills blank coaching points/progressions/regressions from the selected principle and sub-principles. Existing writing is never overwritten.</span>';
   anchor.insertAdjacentElement('afterend',bar);
   document.getElementById('practiceSmartFillBtn')?.addEventListener('click',() => {
+    if(window.NickPrincipleWordBanks){
+      const changed=window.NickPrincipleWordBanks.fillBlank('practice');
+      toast(changed?'Blank details filled from your selected principles':'Choose a principle, or keep the details already entered');
+      return;
+    }
     refreshPersonalisation({ persist:false });
     const data = appDb(), selectedTheme = theme.value, b = data?.banks || {};
     let changed = 0;
@@ -422,9 +427,14 @@ function installPracticeSmartFill() {
 function installSessionSmartFill() {
   const theme = document.getElementById('sTheme'); if (!theme || document.getElementById('sessionSmartFillBar')) return;
   const bar = document.createElement('div'); bar.id = 'sessionSmartFillBar'; bar.className = 'coachSmartBar';
-  bar.innerHTML = '<button type="button" id="sessionSmartFillBtn">⚡ Fill theme details</button><span class="small">Adds an objective, game-model links and cues only where the session fields are blank.</span>';
+  bar.innerHTML = '<button type="button" id="sessionSmartFillBtn">⚡ Fill principle details</button><span class="small">Adds an objective, game-model links and cues only where the session fields are blank.</span>';
   theme.insertAdjacentElement('afterend',bar);
   document.getElementById('sessionSmartFillBtn')?.addEventListener('click',() => {
+    if(window.NickPrincipleWordBanks){
+      const changed=window.NickPrincipleWordBanks.fillBlank('session');
+      toast(changed?'Blank details filled from your selected principles':'Choose a principle, or keep the details already entered');
+      return;
+    }
     refreshPersonalisation({ persist:false });
     const data = appDb(), selectedTheme = theme.value, b = data?.banks || {}; let changed = 0;
     if (setIfBlank(document.getElementById('objective'),b.objByTheme?.[selectedTheme] || b.obj || [],1)) changed++;
