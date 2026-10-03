@@ -45,6 +45,8 @@
 <link rel="modulepreload" href="./src/practice-editor-collapsible-word-banks-v1.js">
 <link rel="modulepreload" href="./src/advanced-builder-visual-focus-v1.js">
 <link rel="modulepreload" href="./src/four-phase-builder-clarity-v2.js">
+<link rel="modulepreload" href="./src/principle-word-banks.js">
+<link rel="modulepreload" href="./src/principle-word-bank-data.js">
 <style>
 :root{
   --bg:#0a1120; --bg-deep:#050810; --surface:#121a2c; --surface-2:#0d1524; --surface-3:#182236;
@@ -971,7 +973,7 @@ bankCP.value=db.banks.cp.join("\n");bankProg.value=db.banks.prog.join("\n");bank
 renderPracticeCpChips();renderConditionedGameChips();renderChipBox("progChips",db.banks.prog,"prog");renderChipBox("regChips",db.banks.reg,"reg");renderObjectiveChips();renderChipBox("linkChips",db.banks.links,"links");renderChipBox("cueChips",db.banks.cues,"cues");renderChipBox("reflectChips",db.banks.reflect,"reflect");loadThemeObjectives(false);loadThemeConditionedRules(false);toggleConditionedRulesBlock();}
 function renderPracticeCpChips(){let t=(document.getElementById("theme")||{}).value;let arr=(db.banks.cpByTheme&&db.banks.cpByTheme[t])?db.banks.cpByTheme[t]:db.banks.cp;renderChipBox("cpChips",arr,"cp")}
 function renderConditionedGameChips(){let t=(document.getElementById("theme")||{}).value;let arr=(db.banks.condByTheme&&db.banks.condByTheme[t])?db.banks.condByTheme[t]:[];renderChipBox("condGameChips",arr,"condRules")}
-function toggleConditionedRulesBlock(){let block=document.getElementById("condRulesBlock");if(!block)return;block.style.display=(stage.value==="Conditioned Game")?"block":"none";}
+function toggleConditionedRulesBlock(){let block=document.getElementById("condRulesBlock");if(!block)return;block.style.display=(window.NickPrincipleWordBanks||stage.value==="Conditioned Game")?"block":"none";}
 function loadThemeObjectives(overwrite=true){
 let sel=document.getElementById("objectiveThemeSelect");let box=document.getElementById("bankThemeObj");if(!sel||!box)return;
 let t=sel.value||themes[0];if(overwrite||!box.value){box.value=((db.banks.objByTheme&&db.banks.objByTheme[t])?db.banks.objByTheme[t]:[]).join("\n");}
@@ -993,7 +995,7 @@ let themeVal=(document.getElementById("sTheme")||{}).value;
 let arr=(db.banks.objByTheme&&db.banks.objByTheme[themeVal])?db.banks.objByTheme[themeVal]:db.banks.obj;
 renderChipBox("objChips",arr,"objective");
 }
-function renderChipBox(id,arr,target){let box=document.getElementById(id);if(!box)return;box.innerHTML="";let ta=document.getElementById(target);let chosen=(ta&&ta.value?ta.value.split("\n").filter(Boolean):[]);arr.forEach(t=>{let c=document.createElement("span");c.className="chip"+(chosen.includes(t)?" on":"");c.textContent=t;c.onclick=()=>toggleText(target,t,c);box.appendChild(c)})}
+function renderChipBox(id,arr,target){if(window.NickPrincipleWordBanks?.renderBank(id))return;let box=document.getElementById(id);if(!box)return;box.innerHTML="";let ta=document.getElementById(target);let chosen=(ta&&ta.value?ta.value.split("\n").filter(Boolean):[]);arr.forEach(t=>{let c=document.createElement("span");c.className="chip"+(chosen.includes(t)?" on":"");c.textContent=t;c.onclick=()=>toggleText(target,t,c);box.appendChild(c)})}
 function toggleText(targetId,text,chip){let ta=document.getElementById(targetId);let lines=ta.value.split("\n").filter(Boolean);if(lines.includes(text)){lines=lines.filter(x=>x!==text);chip.classList.remove("on")}else{lines.push(text);chip.classList.add("on")}ta.value=lines.join("\n");renderPreview()}
 function saveBanks(){db.banks.cp=bankCP.value.split("\n").filter(Boolean);if(!db.banks.cpByTheme)db.banks.cpByTheme=defaultBanks.cpByTheme;if(!db.banks.condByTheme)db.banks.condByTheme=defaultBanks.condByTheme;db.banks.prog=bankProg.value.split("\n").filter(Boolean);db.banks.reg=bankReg.value.split("\n").filter(Boolean);db.banks.obj=bankObj.value.split("\n").filter(Boolean);db.banks.links=bankLinks.value.split("\n").filter(Boolean);db.banks.cues=bankCues.value.split("\n").filter(Boolean);db.banks.reflect=bankReflect.value.split("\n").filter(Boolean);store();alert("Word banks saved")}
 function newPractice(){saveLibraryState();clearForm();document.querySelector('[data-tab="editor"]').click();setTimeout(()=>dsOpenPracticeStudio(),0)}

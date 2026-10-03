@@ -122,6 +122,7 @@ function updatePlanSummary(){
     main?`<span>${esc(main.message)}</span>`:'',
     ...subs.map(item=>`<span>${esc(item.title)}</span>`)
   ].filter(Boolean).join('') || '<span>Choose the phase and main principle for this session.</span>';
+  window.NickPrincipleWordBanks?.refresh();
 }
 
 function hideLegacyBuilderFields(){
@@ -201,6 +202,7 @@ function ensureGameModelView(){
     <div class="fpPhaseNav">${GAME_PHASES.map(phase=>`<button type="button" data-fp-phase-jump="${esc(phase.id)}">${esc(phase.label)}</button>`).join('')}</div>
     ${GAME_PHASES.map(phaseSection).join('')}`;
   view.querySelectorAll('[data-fp-phase-jump]').forEach(button=>button.addEventListener('click',()=>field('fp-phase-'+button.dataset.fpPhaseJump)?.scrollIntoView({behavior:'smooth',block:'start'})));
+  window.NickPrincipleWordBanks?.ensureSupportingLists();
   return view;
 }
 
@@ -212,6 +214,7 @@ function showGameModelView(principleId=''){
   field(VIEW_ID)?.classList.remove('hidden');
   try{if(typeof closeMoreSheet==='function')closeMoreSheet();else window.closeMoreSheet?.();}catch(_){}
   const main=principleById(principleId);
+  if(main){const detail=field('fp-principle-'+main.id)?.closest('details');if(detail)detail.open=true;}
   if(main)setTimeout(()=>field('fp-principle-'+main.id)?.scrollIntoView({behavior:'smooth',block:'center'}),0); else window.scrollTo(0,0);
 }
 

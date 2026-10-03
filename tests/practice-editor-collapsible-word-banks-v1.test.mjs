@@ -8,7 +8,7 @@ const sessionState = await readFile(new URL('../src/session-state.js', import.me
 
 test('coaching points, progression and regression banks are collapsed', () => {
   assert.equal(COLLAPSIBLE_WORD_BANKS_VERSION,2);
-  assert.deepEqual(COLLAPSIBLE_WORD_BANKS.map(item=>item.chipsId),['cpChips','progChips','regChips']);
+  assert.deepEqual(COLLAPSIBLE_WORD_BANKS.map(item=>item.chipsId),['cpChips','progChips','regChips','condGameChips','objChips','linkChips','cueChips','reflectChips']);
 });
 
 test('word banks use closed details controls with explicit open and close affordance', () => {

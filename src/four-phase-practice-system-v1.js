@@ -479,6 +479,7 @@ function bindEditorChecks(){
       const selectedSubs=[...panel.querySelectorAll('[data-fpe-sub] input:checked')].map(x=>x.value);
       renderEditorSubs(selectedSubs,principles);
     }
+    window.NickPrincipleWordBanks?.refresh();
   });});
 }
 function ensureEditor(){
@@ -488,7 +489,7 @@ function ensureEditor(){
   const nameLabel=name.previousElementSibling;
   if(nameLabel?.tagName==='LABEL')card.insertBefore(panel,nameLabel);else card.prepend(panel);
   bindEditorChecks();
-  field('fpeNoLink')?.addEventListener('change',event=>{panel.querySelectorAll('.fpeCheck input').forEach(input=>{input.disabled=event.target.checked;});});
+  field('fpeNoLink')?.addEventListener('change',event=>{panel.querySelectorAll('.fpeCheck input').forEach(input=>{input.disabled=event.target.checked;});window.NickPrincipleWordBanks?.refresh();});
   field('fpePurpose')?.addEventListener('change',()=>syncLegacyStageFromPurpose());
   const theme=field('theme');if(theme){theme.classList.add('fourPhaseLegacyHidden');const label=theme.previousElementSibling;if(label?.tagName==='LABEL')label.classList.add('fourPhaseLegacyHidden');}
   const stage=field('stage');if(stage){stage.classList.add('fourPhaseLegacyHidden');const label=stage.previousElementSibling;if(label?.tagName==='LABEL')label.classList.add('fourPhaseLegacyHidden');}
@@ -512,6 +513,7 @@ function loadEditorForPractice(practice={}){
   renderEditorSubs(a.subPrincipleIds,a.principleIds);
   panel.querySelectorAll('.fpeCheck input').forEach(input=>{input.disabled=a.noGameModelLink;});
   bindEditorChecks();
+  window.NickPrincipleWordBanks?.refresh();
 }
 function clearEditor(){
   ensureEditor();editorPracticeId='';
