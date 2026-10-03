@@ -35,7 +35,7 @@ test('practice chooser paginates and keeps theme headers in sync', () => {
 });
 
 test('builder focus loads after existing practice and game-model enhancements', () => {
-  const banks = sessionState.indexOf("import('./practice-editor-collapsible-word-banks-v1.js')");
+  const banks = sessionState.indexOf("import('./practice-editor-collapsible-word-banks-v1.js?v=principle-banks-3')");
   const focus = sessionState.indexOf("import('./advanced-builder-visual-focus-v1.js')");
   assert.ok(banks >= 0 && focus > banks);
 });

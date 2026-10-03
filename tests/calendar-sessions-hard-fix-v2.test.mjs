@@ -58,7 +58,7 @@ test('mutation observers keep behaviour after renders filters and cloud refreshe
 
 test('hard fix is loaded last after prior enhancement layers', () => {
   const oldIndex = state.indexOf("import('./session-calendar-navigation-rating.js')");
-  const personalIndex = state.indexOf("import('./coaching-personalisation-automation.js')");
-  const hardIndex = state.indexOf("import('./calendar-sessions-hard-fix-v2.js')");
+  const personalIndex = state.indexOf("import('./coaching-personalisation-automation.js?v=principle-banks-3')");
+  const hardIndex = state.indexOf("import('./calendar-sessions-hard-fix-v2.js?v=principle-banks-3')");
   assert.ok(oldIndex >= 0 && personalIndex > oldIndex && hardIndex > personalIndex);
 });

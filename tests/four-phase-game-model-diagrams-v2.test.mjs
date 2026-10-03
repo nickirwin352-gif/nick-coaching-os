@@ -42,8 +42,8 @@ test('diagram language consistently distinguishes ball, movement, pressure and r
 });
 
 test('game-model diagrams load directly after the four-phase game model', () => {
-  const model=sessionState.indexOf("import('./four-phase-game-model-os-v1.js')");
+  const model=sessionState.indexOf("import('./four-phase-game-model-os-v1.js?v=principle-banks-3')");
   const diagrams=sessionState.indexOf("import('./four-phase-game-model-diagrams-v2.js')");
-  const practices=sessionState.indexOf("import('./four-phase-practice-system-v1.js')");
+  const practices=sessionState.indexOf("import('./four-phase-practice-system-v1.js?v=principle-banks-3')");
   assert.ok(model>=0&&diagrams>model&&practices>diagrams);
 });

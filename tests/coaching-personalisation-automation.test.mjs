@@ -89,6 +89,6 @@ test('review hook observes only overlay open-close state to avoid mutation loops
 
 test('personalisation module is loaded after the existing review and calendar passes', () => {
   const calendar = sessionState.indexOf("import('./session-calendar-navigation-rating.js')");
-  const personal = sessionState.indexOf("import('./coaching-personalisation-automation.js')");
+  const personal = sessionState.indexOf("import('./coaching-personalisation-automation.js?v=principle-banks-3')");
   assert.ok(calendar >= 0 && personal > calendar);
 });

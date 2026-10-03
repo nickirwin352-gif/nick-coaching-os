@@ -1,6 +1,6 @@
 import { GAME_MODEL_PRINCIPLES, principleById } from './game-model-core.js';
 import { BANK_KINDS, buildPrincipleWordBanks, resolveBankContext } from './principle-word-bank-data.js';
-import { ensureCollapsibleWordBanks } from './practice-editor-collapsible-word-banks-v1.js';
+import { ensureCollapsibleWordBanks } from './practice-editor-collapsible-word-banks-v1.js?v=principle-banks-3';
 
 const BANK_TARGETS={cpChips:['cp','cp','practice'],progChips:['prog','prog','practice'],regChips:['reg','reg','practice'],condGameChips:['cond','condRules','practice'],objChips:['obj','objective','session'],linkChips:['links','links','session'],cueChips:['cues','cues','session'],reflectChips:['reflect','reflect','session'],gmSuccessChips:['obj','gmSuccessLooksLike','session']};
 const field=id=>document.getElementById(id);
