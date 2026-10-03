@@ -110,9 +110,11 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./diagram-cone-colours.js'))
     .then(() => fourPhasePracticePersistenceReady)
     .then(() => import('./four-phase-game-model-os-v1.js'))
+    .then(() => import('./four-phase-game-model-diagrams-v2.js'))
     .then(() => import('./four-phase-practice-system-v1.js'))
     .then(() => import('./practice-editor-collapsible-word-banks-v1.js'))
     .then(() => import('./advanced-builder-visual-focus-v1.js'))
+    .then(() => import('./four-phase-builder-clarity-v2.js'))
     .then(() => startupPolishReady)
     .then(() => { window.NickStartupPolish?.markEnhancementsReady?.(); })
     .catch(error => {
