@@ -257,6 +257,33 @@ export function filterPractices(practices=[],filters=createFilterState()){
   return (Array.isArray(practices)?practices:[]).filter(practice=>matchesPracticeFilters(practice,filters));
 }
 
+
+export function hasActivePracticeFilters(filters=createFilterState()){
+  return ['phases','principles','subPrinciples','purposes','formats'].some(key=>filters[key]?.size>0)
+    || Boolean(String(filters.search||'').trim()) || filters.reviewOnly===true;
+}
+
+export function sortWorkbenchPractices(practices=[],filters=createFilterState()){
+  const byPurpose=hasActivePracticeFilters(filters);
+  const purposeOrder=new Map(PRACTICE_PURPOSES.map((purpose,index)=>[purpose.id,index]));
+  const enteredAt=practice=>{
+    const value=practice.createdAt||practice.addedAt;
+    const time=typeof value==='number'?value:Date.parse(value||'');
+    return Number.isFinite(time)?time:0;
+  };
+  // Legacy drills have no creation date; use their existing library position as
+  // the fallback. Never mutate the underlying library or use edit timestamps.
+  return practices.map((practice,index)=>({practice,index,time:enteredAt(practice)}))
+    .sort((a,b)=>{
+      if(byPurpose){
+        const rank=practice=>purposeOrder.get(inferPracticePurpose(practice))??PRACTICE_PURPOSES.length;
+        const difference=rank(a.practice)-rank(b.practice);
+        if(difference)return difference;
+      }
+      return b.time-a.time || b.index-a.index;
+    }).map(item=>item.practice);
+}
+
 function addStyles(){
   if(field(STYLE_ID))return;
   const style=document.createElement('style');style.id=STYLE_ID;
@@ -333,7 +360,8 @@ function refreshChipVisibility(group,filters){
 }
 function renderResults(group,filters){
   const isFinder=group==='finder'; const panel=panelFor(group); if(!panel)return;
-  const all=filterPractices(appDb()?.practices||[],filters).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+  const matches=filterPractices(appDb()?.practices||[],filters);
+  const all=isFinder?matches.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))):sortWorkbenchPractices(matches,filters);
   let page=isFinder?finderPage:workbenchPage;
   const pages=Math.max(1,Math.ceil(all.length/FOUR_PHASE_FILTER_PAGE_SIZE));
   if(page>=pages)page=pages-1;
@@ -341,6 +369,8 @@ function renderResults(group,filters){
   const visible=all.slice(page*FOUR_PHASE_FILTER_PAGE_SIZE,(page+1)*FOUR_PHASE_FILTER_PAGE_SIZE);
   panel.querySelector('[data-fpw-selected]').innerHTML=selectedMarkup(filters);
   panel.querySelector('[data-fpw-count]').textContent=`${all.length} exact ${all.length===1?'match':'matches'}`;
+  const orderLabel=panel.querySelector('[data-fpw-sort]');
+  if(orderLabel)orderLabel.textContent=hasActivePracticeFilters(filters)?'Prepare → Recognise → Execute → Transfer':'Newest entered first';
   const results=panel.querySelector('[data-fpw-results]');
   results.innerHTML=visible.length?`<div class="fpwGrid">${visible.map((practice,index)=>cardMarkup(practice,isFinder?'finder':'workbench',page*FOUR_PHASE_FILTER_PAGE_SIZE+index)).join('')}</div>${pages>1?`<div class="fpwPager"><button type="button" data-fpw-page="prev" ${page===0?'disabled':''}>← Previous</button><span>Page ${page+1} of ${pages}</span><button type="button" data-fpw-page="next" ${page>=pages-1?'disabled':''}>Next →</button></div>`:''}`:'<div class="fpwEmpty"><b>No exact matches.</b><br>No saved practice currently satisfies every selected row. Remove a filter or edit the practice tags — the finder will not leak in near-matches.</div>';
   requestAnimationFrame(()=>drawVisible(visible,isFinder?'finder':'workbench',page));
@@ -363,7 +393,7 @@ function handlePanelClick(group,filters,event){
 function buildWorkbench(){
   const library=field('library');if(!library||field(WORKBENCH_ID))return;
   const panel=document.createElement('section');panel.id=WORKBENCH_ID;
-  panel.innerHTML=`<div class="fpwHead"><div><h2>Practice Workbench · Four-Phase Model</h2><p>This is strict. Select a Phase and only practices tagged to that phase can appear. Add a Main Principle and the practice must match both. Add a Sub-Principle, Purpose or Format and every selected row continues to stack.</p></div><span class="fpwLogic">OR within a row · AND between rows</span></div>${rowsMarkup('workbench',workbenchFilters)}<div class="fpwControls"><input id="fpwSearch" placeholder="Search inside exact matches..."><button type="button" id="fpwReview">Needs principle</button><button type="button" id="fpwClear">Clear</button></div><div class="fpwSelected" data-fpw-selected></div><div class="fpwStats"><b data-fpw-count></b><span>Exact tags only · no suggestions mixed into results</span></div><div data-fpw-results></div><div class="fpLegacyNote">The old Theme browser underneath is kept only as a legacy fallback. “Needs principle” now means only that no main principle could be resolved; sub-principles are optional detail.</div>`;
+  panel.innerHTML=`<div class="fpwHead"><div><h2>Practice Workbench · Four-Phase Model</h2><p>This is strict. Select a Phase and only practices tagged to that phase can appear. Add a Main Principle and the practice must match both. Add a Sub-Principle, Purpose or Format and every selected row continues to stack.</p></div><span class="fpwLogic">OR within a row · AND between rows</span></div>${rowsMarkup('workbench',workbenchFilters)}<div class="fpwControls"><input id="fpwSearch" placeholder="Search inside exact matches..."><button type="button" id="fpwReview">Needs principle</button><button type="button" id="fpwClear">Clear</button></div><div class="fpwSelected" data-fpw-selected></div><div class="fpwStats"><b data-fpw-count></b><span data-fpw-sort>Newest entered first</span></div><div data-fpw-results></div><div class="fpLegacyNote">The old Theme browser underneath is kept only as a legacy fallback. “Needs principle” now means only that no main principle could be resolved; sub-principles are optional detail.</div>`;
   library.prepend(panel);
   panel.addEventListener('click',event=>handlePanelClick('workbench',workbenchFilters,event));
   field('fpwSearch')?.addEventListener('input',event=>{workbenchFilters.search=event.target.value||'';workbenchPage=0;renderResults('workbench',workbenchFilters);});
