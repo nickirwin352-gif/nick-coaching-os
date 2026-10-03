@@ -8,8 +8,31 @@ import {
   principlesForPhase
 } from './game-model-core.js';
 
-export const FOUR_PHASE_PRACTICE_SYSTEM_VERSION = 1;
+export const FOUR_PHASE_PRACTICE_SYSTEM_VERSION = 2;
 export const FOUR_PHASE_FILTER_PAGE_SIZE = 6;
+
+export const LEGACY_STAGE_PURPOSE = Object.freeze({
+  'Activation':'prepare',
+  'Skill Practice':'recognise',
+  'Tactical Practice':'execute',
+  'Conditioned Game':'transfer'
+});
+
+export function purposeForLegacyStage(stage=''){
+  const raw=String(stage||'').trim();
+  if(LEGACY_STAGE_PURPOSE[raw])return LEGACY_STAGE_PURPOSE[raw];
+  const lower=raw.toLowerCase();
+  if(lower.includes('activation'))return 'prepare';
+  if(lower.includes('skill'))return 'recognise';
+  if(lower.includes('tactical'))return 'execute';
+  if(lower.includes('conditioned')||lower==='game')return 'transfer';
+  return '';
+}
+
+export function legacyStageForPurpose(purpose=''){
+  const id=String(purpose||'');
+  return Object.entries(LEGACY_STAGE_PURPOSE).find(([,value])=>value===id)?.[0]||'';
+}
 
 export const PRACTICE_PURPOSES = Object.freeze([
   Object.freeze({id:'prepare',label:'Prepare',description:'Get the body and ball ready and bank useful repetitions.'}),
@@ -64,11 +87,7 @@ export function inferPracticePurpose(practice={}){
   if(['technical-repetition','physical-development'].includes(legacy))return 'prepare';
   if(['picture-recognition','scenario-wave','restart-setplay'].includes(legacy))return 'recognise';
   if(legacy==='game-transfer')return 'transfer';
-  const stage=String(practice.stage||'').toLowerCase();
-  if(stage.includes('activation'))return 'prepare';
-  if(stage.includes('conditioned')||stage==='game')return 'transfer';
-  if(stage.includes('tactical'))return 'recognise';
-  return 'execute';
+  return purposeForLegacyStage(practice.stage)||'execute';
 }
 
 export function inferPracticeFormat(practice={}){
@@ -124,9 +143,14 @@ function ambiguousLegacySuggestions(practice={}){
 
 export function migratePracticeToFourPhase(practice={}){
   let changed=false;
-  const alreadyVersioned=Number(practice.fourPhaseModelVersion||0)>=FOUR_PHASE_PRACTICE_SYSTEM_VERSION;
+  const previousVersion=Number(practice.fourPhaseModelVersion||0);
+  const alreadyVersioned=previousVersion>=FOUR_PHASE_PRACTICE_SYSTEM_VERSION;
+  const manual=practice.fourPhaseOrganisationSource==='manual'||Number(practice.fourPhaseTagSaveVersion||0)>=1;
 
-  if(!purposeById(practice.practicePurpose)){
+  const stagePurpose=purposeForLegacyStage(practice.stage);
+  if(!manual&&previousVersion<2&&stagePurpose){
+    if(practice.practicePurpose!==stagePurpose){practice.practicePurpose=stagePurpose;changed=true;}
+  }else if(!purposeById(practice.practicePurpose)){
     const value=inferPracticePurpose(practice);
     if(practice.practicePurpose!==value){practice.practicePurpose=value;changed=true;}
   }
@@ -161,7 +185,9 @@ export function migratePracticeToFourPhase(practice={}){
     practice.gameModelSubPrincipleIds=uniq(practice.gameModelSubPrincipleIds).filter(id=>subPrincipleById(id));
     const suggestions=ambiguousLegacySuggestions(practice);
     practice.fourPhaseSuggestedPrincipleIds=suggestions;
-    practice.fourPhaseNeedsReview=practice.noGameModelLink!==true && (suggestions.length>0 || !principles.length || (principles.length>0 && practice.gameModelSubPrincipleIds.length===0));
+    // A practice is organised once it has a genuine main-principle link (or an explicit
+    // no-link decision). Sub-principles are useful extra precision, not a requirement.
+    practice.fourPhaseNeedsReview=practice.noGameModelLink!==true && principles.length===0;
     if(!practice.fourPhaseOrganisationSource)practice.fourPhaseOrganisationSource='migrated';
   }
 
@@ -433,7 +459,15 @@ function ensureEditor(){
   if(nameLabel?.tagName==='LABEL')card.insertBefore(panel,nameLabel);else card.prepend(panel);
   bindEditorChecks();
   field('fpeNoLink')?.addEventListener('change',event=>{panel.querySelectorAll('.fpeCheck input').forEach(input=>{input.disabled=event.target.checked;});});
+  field('fpePurpose')?.addEventListener('change',()=>syncLegacyStageFromPurpose());
   const theme=field('theme');if(theme){theme.classList.add('fourPhaseLegacyHidden');const label=theme.previousElementSibling;if(label?.tagName==='LABEL')label.classList.add('fourPhaseLegacyHidden');}
+  const stage=field('stage');if(stage){stage.classList.add('fourPhaseLegacyHidden');const label=stage.previousElementSibling;if(label?.tagName==='LABEL')label.classList.add('fourPhaseLegacyHidden');}
+}
+function syncLegacyStageFromPurpose(){
+  const stage=field('stage');
+  const purpose=field('fpePurpose')?.value||'';
+  const legacyStage=legacyStageForPurpose(purpose);
+  if(stage&&legacyStage)stage.value=legacyStage;
 }
 function loadEditorForPractice(practice={}){
   ensureEditor();editorPracticeId=String(practice.id||'');
@@ -441,6 +475,7 @@ function loadEditorForPractice(practice={}){
   const panel=field(EDITOR_ID);if(!panel)return;
   field('fpePurpose').value=a.purpose;
   field('fpeFormat').value=a.format;
+  syncLegacyStageFromPurpose();
   field('fpeNoLink').checked=a.noGameModelLink;
   field('fpePhases').innerHTML=GAME_PHASES.map(item=>editorChip(item,'phase',a.phaseIds.includes(item.id))).join('');
   renderEditorPrinciples(a.principleIds,a.phaseIds);
@@ -459,6 +494,8 @@ async function persistPracticeTags(practiceId,draft,quiet=false){
   practice.gameModelSubPrincipleIds=uniq(draft.subPrincipleIds).filter(id=>subPrincipleById(id));
   practice.practicePurpose=purposeById(draft.practicePurpose)?.id||'execute';
   practice.practiceFormat=formatById(draft.practiceFormat)?.id||'other';
+  const legacyStage=legacyStageForPurpose(practice.practicePurpose);
+  if(legacyStage)practice.stage=legacyStage;
   practice.noGameModelLink=draft.noGameModelLink===true||practice.gameModelPrincipleIds.length===0;
   if(practice.noGameModelLink){practice.gameModelPhaseIds=[];practice.gameModelPrincipleIds=[];practice.gameModelSubPrincipleIds=[];}
   practice.fourPhaseNeedsReview=false;
@@ -493,6 +530,8 @@ function wrapPracticeEditor(){
     const wrapped=function(...args){
       const draft=editorState()||{phaseIds:[],principleIds:[],subPrincipleIds:[],practicePurpose:'execute',practiceFormat:'other',noGameModelLink:true};
       const target=String(field('pid')?.value||'').trim();
+      const legacyStage=legacyStageForPurpose(draft.practicePurpose);
+      if(field('stage')&&legacyStage)field('stage').value=legacyStage;
       const result=saveOriginal.apply(this,args);
       if(target){setTimeout(()=>persistPracticeTags(target,draft),30);setTimeout(()=>persistPracticeTags(target,draft,true),320);}
       return result;
