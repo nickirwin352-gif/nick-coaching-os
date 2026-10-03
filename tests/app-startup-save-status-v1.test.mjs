@@ -10,7 +10,7 @@ test('startup polish exposes a versioned clean loading shell', () => {
   assert.equal(APP_STARTUP_SAVE_STATUS_VERSION,2);
   assert.match(source,/nickAppStartupOverlayV1/);
   assert.match(source,/Loading your coaching workspace/);
-  assert.match(source,/enhancementsReady && cloudResolved/);
+  assert.match(source,/if \(enhancementsReady\) releaseOverlay/);
   assert.match(source,/5000/);
 });
 
@@ -38,4 +38,20 @@ test('startup polish is requested immediately and marked ready after enhancement
   const markReady = sessionState.indexOf('markEnhancementsReady');
   assert.ok(startup >= 0 && startup < review);
   assert.ok(visualFocus > review && markReady > visualFocus);
+});
+
+test('ready local workspace opens while Firebase is still connecting', async () => {
+  const vm = await import('node:vm');
+  const classes = [];
+  let removed = false;
+  const overlay = { classList:{ add:name=>classes.push(name) }, remove:()=>{ removed = true; } };
+  const label = { textContent:'' };
+  const context = vm.createContext({
+    document:{ getElementById:id=>id==='nickAppStartupOverlayV1'?overlay:id==='nickBootTextV1'?label:null },
+    clearTimeout:()=>{}, setTimeout:callback=>callback()
+  });
+  vm.runInContext(source.replaceAll('export ', '') + '\nmarkEnhancementsReady();',context);
+  assert.deepEqual(classes,['leaving']);
+  assert.equal(removed,true);
+  assert.equal(vm.runInContext('cloudResolved',context),false,'opening local UI must not pretend cloud sync completed');
 });
