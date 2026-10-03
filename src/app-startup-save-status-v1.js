@@ -116,13 +116,14 @@ function releaseOverlay() {
 
 function maybeReleaseOverlay() {
   if (overlayReleased) return;
-  if (enhancementsReady && cloudResolved) releaseOverlay();
+  // Local data is already rendered. Remote sync must not block the workspace.
+  if (enhancementsReady) releaseOverlay();
 }
 
 export function markEnhancementsReady({degraded=false}={}) {
   enhancementsReady = true;
   const text = field('nickBootTextV1');
-  if (text) text.textContent = degraded ? 'Opening Coaching OS…' : (cloudResolved ? 'Ready.' : 'Syncing your latest coaching data…');
+  if (text) text.textContent = degraded ? 'Opening Coaching OS…' : 'Ready.';
   maybeReleaseOverlay();
 }
 
