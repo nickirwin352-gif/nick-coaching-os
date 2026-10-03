@@ -11,6 +11,11 @@ export const LEGACY_STAGE_TO_PURPOSE = Object.freeze({
 });
 
 function field(id){return document.getElementById(id);}
+// Setting identical text still emits a childList mutation. Keep observer-driven
+// decoration idempotent so its own updates cannot starve clicks and timers.
+function setTextIfChanged(element,text){
+  if(element && element.textContent!==text)element.textContent=text;
+}
 function appDb(){try{return typeof db!=='undefined'?db:window.db;}catch(_){return window.db;}}
 function purposeLabelForStage(stage=''){return LEGACY_STAGE_TO_PURPOSE[String(stage||'')]||String(stage||'');}
 function practiceById(id=''){
@@ -49,14 +54,14 @@ function reorderGameModelBeforeCueBank(){
   const dateTeamRow=[...details.children].find(el=>el.classList?.contains('row')&&el.querySelector('#sDate')&&el.querySelector('#team'));
   if(dateTeamRow && dateTeamRow.nextElementSibling!==panel)dateTeamRow.insertAdjacentElement('afterend',panel);
   const cueLabel=cues.previousElementSibling;
-  if(cueLabel?.tagName==='LABEL')cueLabel.textContent="Coaching Cue Bank";
+  if(cueLabel?.tagName==='LABEL')setTextIfChanged(cueLabel,"Coaching Cue Bank");
 }
 
 function relabelSelect(select){
   if(!select)return;
   [...select.options].forEach(option=>{
     const label=LEGACY_STAGE_TO_PURPOSE[option.value];
-    if(label)option.textContent=label;
+    if(label)setTextIfChanged(option,label);
   });
 }
 function relabelPurposeControls(){
@@ -68,14 +73,14 @@ function relabelPurposeControls(){
   ];
   buttons.forEach(([id,label,title])=>{
     const button=field(id);if(!button)return;
-    button.textContent=label;button.title=title;button.setAttribute('aria-label',title);
+    setTextIfChanged(button,label);button.title=title;button.setAttribute('aria-label',title);
   });
   ['plannerStage','stage','filterStage'].forEach(id=>relabelSelect(field(id)));
   const visual=field('visualPicker');
   const card=visual?.closest('.card');
   if(card){
     const intro=[...card.querySelectorAll('p.small')].find(p=>/Pick a stage/i.test(p.textContent||''));
-    if(intro)intro.textContent='Choose the practice purpose first. Format stays separate, so use Format when you want a particular session structure.';
+    if(intro)setTextIfChanged(intro,'Choose the practice purpose first. Format stays separate, so use Format when you want a particular session structure.');
   }
 }
 
@@ -87,7 +92,7 @@ function ensurePurposePath(){
   const head=finder.querySelector('.fpwHead');
   if(head)head.insertAdjacentElement('afterend',strip);else finder.prepend(strip);
   const description=finder.querySelector('.fpwHead p');
-  if(description)description.textContent='Your session Phase, Main Principle and Sub-Principles start the search. Then choose the job of the practice today and, only if useful, the format you want.';
+  if(description)setTextIfChanged(description,'Your session Phase, Main Principle and Sub-Principles start the search. Then choose the job of the practice today and, only if useful, the format you want.');
 }
 
 function decorateSessionRows(){
@@ -99,7 +104,7 @@ function decorateSessionRows(){
       if(!practice)return;
       const firstPill=row.querySelector('.pill');
       if(firstPill){
-        firstPill.textContent=practicePurposeLabel(practice);
+        setTextIfChanged(firstPill,practicePurposeLabel(practice));
         firstPill.dataset.purposeMapped='true';
       }
     });
@@ -112,7 +117,10 @@ function replaceLeadingStageText(node,practice){
     if(child.nodeType!==Node.TEXT_NODE)continue;
     const current=child.nodeValue||'';
     const stage=String(practice.stage||'');
-    if(stage&&current.includes(stage))child.nodeValue=current.replace(stage,label);
+    if(stage&&current.includes(stage)){
+      const next=current.replace(stage,label);
+      if(next!==current)child.nodeValue=next;
+    }
   }
 }
 function decoratePreview(){
