@@ -9,7 +9,7 @@ import {
 } from './game-model-core.js';
 
 export const FOUR_PHASE_PRACTICE_SYSTEM_VERSION = 2;
-export const FOUR_PHASE_FILTER_PAGE_SIZE = 6;
+export const FOUR_PHASE_FILTER_PAGE_SIZE = 3;
 
 export const LEGACY_STAGE_PURPOSE = Object.freeze({
   'Activation':'prepare',
