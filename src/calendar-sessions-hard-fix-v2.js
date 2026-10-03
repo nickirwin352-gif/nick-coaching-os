@@ -276,6 +276,9 @@ function decorateArchiveTheme() {
 
 function highlightAndScroll(card) {
   if (!card) return false;
+  for (let parent = card.parentElement; parent; parent = parent.parentElement) {
+    if (parent.tagName === 'DETAILS') parent.open = true;
+  }
   document.querySelectorAll(`.${HIGHLIGHT_CLASS}`).forEach(node => node.classList.remove(HIGHLIGHT_CLASS));
   card.classList.add(HIGHLIGHT_CLASS);
   card.scrollIntoView({ behavior: 'smooth', block: 'start' });

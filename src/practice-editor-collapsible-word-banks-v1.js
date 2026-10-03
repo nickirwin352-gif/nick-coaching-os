@@ -3,7 +3,12 @@ export const COLLAPSIBLE_WORD_BANKS_VERSION = 2;
 export const COLLAPSIBLE_WORD_BANKS = Object.freeze([
   Object.freeze({ chipsId:'cpChips', label:'Coaching Points Word Bank', summary:'Coaching points word bank' }),
   Object.freeze({ chipsId:'progChips', label:'Progressions Word Bank', summary:'Progressions word bank' }),
-  Object.freeze({ chipsId:'regChips', label:'Regressions Word Bank', summary:'Regressions word bank' })
+  Object.freeze({ chipsId:'regChips', label:'Regressions Word Bank', summary:'Regressions word bank' }),
+  Object.freeze({ chipsId:'condGameChips', label:'Conditioned Game Rules / Constraints Word Bank', summary:'Rules / constraints suggestions' }),
+  Object.freeze({ chipsId:'objChips', label:'Session Objective Bank', summary:'Session objective suggestions' }),
+  Object.freeze({ chipsId:'linkChips', label:'Game Model Links Bank', summary:'Game model link suggestions' }),
+  Object.freeze({ chipsId:'cueChips', label:"Coach's Cues Bank", summary:'Coaching cue suggestions' }),
+  Object.freeze({ chipsId:'reflectChips', label:'Reflection Bank', summary:'Reflection suggestions' })
 ]);
 
 const STYLE_ID = 'practiceEditorCollapsibleWordBanksV1Styles';
@@ -42,16 +47,14 @@ export function wrapWordBank(spec) {
   const chips = field(spec?.chipsId);
   if (!chips) return false;
   const existing = chips.closest(`details.${DETAILS_CLASS}`);
-  if (existing) {
-    existing.open = false;
-    return true;
-  }
+  if (existing) return true;
 
   const label = associatedLabel(chips,spec?.label || '');
   const details = document.createElement('details');
   details.className = DETAILS_CLASS;
   details.dataset.wordBank = spec?.chipsId || '';
   details.open = false;
+  if (chips.classList.contains('fourPhaseLegacyHidden')) details.classList.add('fourPhaseLegacyHidden');
 
   const summary = document.createElement('summary');
   summary.textContent = spec?.summary || spec?.label || 'Word bank';

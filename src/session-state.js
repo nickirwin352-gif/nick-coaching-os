@@ -115,6 +115,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./practice-editor-collapsible-word-banks-v1.js'))
     .then(() => import('./advanced-builder-visual-focus-v1.js'))
     .then(() => import('./four-phase-builder-clarity-v2.js'))
+    .then(() => import('./principle-word-banks.js'))
     .then(() => startupPolishReady)
     .then(() => { window.NickStartupPolish?.markEnhancementsReady?.(); })
     .catch(error => {
