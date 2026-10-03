@@ -6,7 +6,10 @@ import {
   filterPractices,
   practiceArchitecture,
   migratePracticeToFourPhase,
-  inferPracticeFormat
+  inferPracticePurpose,
+  inferPracticeFormat,
+  purposeForLegacyStage,
+  legacyStageForPurpose
 } from '../src/four-phase-practice-system-v1.js';
 
 const practices=[
@@ -48,13 +51,45 @@ test('safe old tags migrate to the new model and ambiguous tags stay for review'
   migratePracticeToFourPhase(safe);
   assert.deepEqual(safe.gameModelPhaseIds,['in-possession']);
   assert.deepEqual(safe.gameModelPrincipleIds,['arrive-affect-away']);
-  assert.equal(safe.fourPhaseNeedsReview,true);
+  assert.equal(safe.fourPhaseNeedsReview,false);
+  assert.equal(safe.practicePurpose,'execute');
 
   const ambiguous={id:'old2',gameContext:'build-out',primaryGameModelPrinciple:'move-free',gameModelPrinciples:['move-free'],stage:'Tactical Practice'};
   migratePracticeToFourPhase(ambiguous);
   assert.deepEqual(ambiguous.gameModelPrincipleIds,[]);
   assert.deepEqual(ambiguous.fourPhaseSuggestedPrincipleIds,['rotate-replace-release','spot-sense-seize']);
   assert.equal(ambiguous.fourPhaseNeedsReview,true);
+});
+
+
+test('legacy stage names now map exactly onto the four practice purposes', () => {
+  assert.equal(purposeForLegacyStage('Activation'),'prepare');
+  assert.equal(purposeForLegacyStage('Skill Practice'),'recognise');
+  assert.equal(purposeForLegacyStage('Tactical Practice'),'execute');
+  assert.equal(purposeForLegacyStage('Conditioned Game'),'transfer');
+  assert.equal(legacyStageForPurpose('prepare'),'Activation');
+  assert.equal(legacyStageForPurpose('recognise'),'Skill Practice');
+  assert.equal(legacyStageForPurpose('execute'),'Tactical Practice');
+  assert.equal(legacyStageForPurpose('transfer'),'Conditioned Game');
+});
+
+test('legacy practices receive purpose from their old stage without changing format', () => {
+  assert.equal(inferPracticePurpose({stage:'Activation'}),'prepare');
+  assert.equal(inferPracticePurpose({stage:'Skill Practice'}),'recognise');
+  assert.equal(inferPracticePurpose({stage:'Tactical Practice'}),'execute');
+  assert.equal(inferPracticePurpose({stage:'Conditioned Game'}),'transfer');
+  const practice={id:'legacy-skill',stage:'Skill Practice',practiceFormat:'wave',gameModelPrincipleIds:['arrive-affect-away'],fourPhaseModelVersion:1};
+  migratePracticeToFourPhase(practice);
+  assert.equal(practice.practicePurpose,'recognise');
+  assert.equal(practice.practiceFormat,'wave');
+  assert.equal(practice.fourPhaseNeedsReview,false);
+});
+
+test('sub-principles are optional precision rather than a reason to flag a linked practice', () => {
+  const practice={id:'linked',stage:'Tactical Practice',gameModelPhaseIds:['in-possession'],gameModelPrincipleIds:['spot-sense-seize'],gameModelSubPrincipleIds:[],fourPhaseModelVersion:1};
+  migratePracticeToFourPhase(practice);
+  assert.equal(practice.practicePurpose,'execute');
+  assert.equal(practice.fourPhaseNeedsReview,false);
 });
 
 test('an intentional no-principle practice stays out of review', () => {
