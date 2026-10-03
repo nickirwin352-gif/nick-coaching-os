@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  FOUR_PHASE_FILTER_PAGE_SIZE,
   createFilterState,
   matchesPracticeFilters,
   filterPractices,
@@ -17,6 +18,10 @@ const practices=[
   {id:'B',name:'Transition wave',gameModelPhaseIds:['attacking-transition'],gameModelPrincipleIds:['see-send-sprint'],gameModelSubPrincipleIds:['send-into-space'],practicePurpose:'execute',practiceFormat:'wave'},
   {id:'C',name:'Defending block',gameModelPhaseIds:['out-of-possession'],gameModelPrincipleIds:['screen-shuffle-squeeze'],gameModelSubPrincipleIds:['screen-the-centre'],practicePurpose:'transfer',practiceFormat:'conditioned-game'}
 ];
+
+test('four-phase workbench keeps the visual choice set focused', () => {
+  assert.equal(FOUR_PHASE_FILTER_PAGE_SIZE,3);
+});
 
 test('workbench is OR within a row and AND between rows', () => {
   const filters=createFilterState({
