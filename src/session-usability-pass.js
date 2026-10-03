@@ -1,3 +1,4 @@
+import { cloudSaveFeedback } from './cloud-save-feedback.js';
 let copiedSessionIndex = null;
 let selectedSessionIndex = null;
 
@@ -68,10 +69,8 @@ function installSaveFeedback() {
   const cloudLabel = document.getElementById('cloudPillLabel');
   if (!cloudLabel) return;
   const reflectCloudState = () => {
-    const text = (cloudLabel.textContent || '').toLowerCase();
-    if (text.includes('saved') || text.includes('firebase')) showSaveState('Saved everywhere', 'Local save complete · cloud sync complete', 'saved', 2100);
-    else if (text.includes('retry') || text.includes('failed') || text.includes('error')) showSaveState('Saved on this device', 'Cloud sync will retry automatically.', 'error', 4200);
-    else if (text.includes('sync') || text.includes('saving')) showSaveState('Saved on this device', 'Syncing to cloud in the background…', 'syncing', 0);
+    const feedback=cloudSaveFeedback(cloudLabel.textContent,navigator.onLine);
+    showSaveState(feedback.main,feedback.sub,feedback.state,feedback.state==='syncing'?0:3200);
   };
   new MutationObserver(reflectCloudState).observe(cloudLabel, { childList: true, characterData: true, subtree: true });
 }

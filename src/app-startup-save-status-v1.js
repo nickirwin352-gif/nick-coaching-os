@@ -77,14 +77,16 @@ export function setSaveStatus(text,kind='') {
 
 function cloudText() { return String(field('cloudPillLabel')?.textContent || '').trim(); }
 function cloudIsResolved(text=cloudText()) { return /connected|saved|not available|failed/i.test(text); }
-function cloudIsHealthy(text=cloudText()) { return /connected|saved/i.test(text) && !/failed/i.test(text); }
+function cloudIsHealthy(text=cloudText()) { return /saved to firebase|saved to cloud|cloud synced|cloud sync complete/i.test(text) && !/fail|retry|pending|syncing|offline|error/i.test(text); }
 
 function refreshSaveStatusFromCloud() {
   const text = cloudText();
   if (!navigator.onLine) setSaveStatus('Saved locally ✓ · Offline','warn');
-  else if (/fail/i.test(text)) setSaveStatus('Saved locally ✓ · Cloud retry','bad');
+  else if (/fail|retry|error/i.test(text)) setSaveStatus('Saved locally ✓ · Cloud retry','bad');
   else if (/not available/i.test(text)) setSaveStatus('Saved locally ✓ · Local only','warn');
   else if (cloudIsHealthy(text)) setSaveStatus('Saved locally ✓ · Cloud synced ✓','ok');
+  else if (/syncing|saving|pending/i.test(text)) setSaveStatus('Saved locally ✓ · Cloud syncing…','saving');
+  else if (/connected/i.test(text)) setSaveStatus('Cloud connected · Backup not confirmed','warn');
   else setSaveStatus('Local ready · Cloud connecting…','saving');
   if (cloudIsResolved(text)) {
     cloudResolved = true;

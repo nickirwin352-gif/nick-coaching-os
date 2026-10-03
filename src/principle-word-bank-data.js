@@ -1,6 +1,36 @@
 import { GAME_MODEL_PRINCIPLES, principleById, subPrincipleById } from './game-model-core.js';
 
-export const BANK_KINDS=Object.freeze({cp:'Coaching points',prog:'Progressions',reg:'Regressions',cond:'Rules / constraints',obj:'Learning objectives',links:'Game model links',cues:'Coach’s cues',reflect:'Reflection prompts'});
+export const BANK_KINDS=Object.freeze({cp:'Coaching points',prog:'Progressions',reg:'Regressions',cond:'Rules / constraints',obj:'Learning objectives',links:'Game model links',cues:'Short delivery cues',reflect:'Reflection prompts'});
+
+export const SUB_DELIVERY_CUES=Object.freeze({
+  'create-separation':['Separate','Disguise','Explode'],
+  'arrive-to-affect':['Arrive','Open','Forward'],
+  'move-after-action':['Move','Reoffer','Clear'],
+  'movement-triggers-movement':['Trigger','Rotate','Respond'],
+  'replace-the-threat':['Replace','Balance','Occupy'],
+  'release-the-rotation':['Release','Find','Connect'],
+  'connect-the-attack':['Link','Bounce','Combine'],
+  'commit-bodies-beyond':['Commit','Beyond','Arrive'],
+  'cover-the-commitment':['Cover','Balance','Secure'],
+  'spot-the-picture':['Scan','Check','Aware'],
+  'sense-the-moment':['Sense','Time','Anticipate'],
+  'seize-the-window':['Decisive','Quick','Go'],
+  'see-forward-early':['Scan','Forward','Early'],
+  'send-into-space':['Penetrate','Drive','Release'],
+  'sprint-to-support':['Sprint','Support','Beyond'],
+  'stretch-the-line':['Wide','Deep','Stretch'],
+  'supply-the-space':['Look','Deliver','Weight'],
+  'strike-it-early':['Set','Strike','Follow'],
+  'screen-the-centre':['Screen','Inside','Protect'],
+  'shuffle-together':['Shift','Together','Compact'],
+  'squeeze-the-space':['Squeeze','Step','Together'],
+  'keep-the-spare':['Spare','Cover','Balance'],
+  'step-with-security':['Check','Step','Secure'],
+  'smother-the-receiver':['Close','Aggressive','Contain'],
+  'react-immediately':['React','Fast','Press'],
+  'recover-danger-first':['Recover','Inside','Goal-side'],
+  'reconnect-the-team':['Reconnect','Compact','Together']
+});
 
 // Each sub-principle has its own challenge, support and game condition.
 export const SUB_PRACTICE_SUGGESTIONS=Object.freeze({
@@ -49,7 +79,7 @@ export function defaultSubBank(sub){
   return {
     cp:[sub.description],prog:[progression],reg:[regression],cond:[condition],
     obj:[`${sub.title}: ${sub.description}`],links:[`${main.message} → ${sub.title}`],
-    cues:[sub.title,sub.description],reflect:[`${sub.title}: what did players recognise and do?`,`What helped or prevented ${sub.title.toLowerCase()}?`]
+    cues:SUB_DELIVERY_CUES[sub.id]||[sub.title],reflect:[`${sub.title}: what did players recognise and do?`,`What helped or prevented ${sub.title.toLowerCase()}?`]
   };
 }
 export function buildPrincipleWordBanks(context={},custom={}){

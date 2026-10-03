@@ -95,7 +95,7 @@ export function calibratePreviewPitch(pitch) {
 }
 
 export function calibrateStudioPitch(pitch = (typeof document !== 'undefined' ? document.getElementById('dsPitch') : null)) {
-  if (!pitch) return false;
+  if (!pitch || typeof pitch.querySelector !== 'function') return false;
   ['dsArrowHead', 'dsPressHead'].forEach(id => calibrateSvgMarker(pitch.querySelector(`#${id}`), STUDIO_ARROW_SIZE));
   pitch.querySelectorAll('.dsMovementVisible').forEach(path => {
     if (path.classList.contains('press')) path.setAttribute('stroke-width', '4');
@@ -150,7 +150,7 @@ function installDocumentObserver() {
         if (node.id === 'dsPitch' || node.querySelector?.('#dsPitch')) studioChanged = true;
       });
     });
-    if (studioChanged) requestAnimationFrame(calibrateStudioPitch);
+    if (studioChanged) requestAnimationFrame(() => calibrateStudioPitch());
   });
   documentObserver.observe(document.body, { childList:true, subtree:true });
 }
@@ -181,7 +181,7 @@ function installViewportCalibration() {
   window.addEventListener('resize', scheduleViewportRefresh, { passive:true });
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', scheduleViewportRefresh, { passive:true });
-    window.visualViewport.addEventListener('scroll', () => requestAnimationFrame(calibrateStudioPitch), { passive:true });
+    window.visualViewport.addEventListener('scroll', () => requestAnimationFrame(() => calibrateStudioPitch()), { passive:true });
   }
 }
 

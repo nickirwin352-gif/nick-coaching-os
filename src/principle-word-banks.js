@@ -1,8 +1,8 @@
 import { GAME_MODEL_PRINCIPLES, principleById } from './game-model-core.js';
-import { BANK_KINDS, buildPrincipleWordBanks, resolveBankContext } from './principle-word-bank-data.js';
+import { BANK_KINDS, buildPrincipleWordBanks, resolveBankContext } from './principle-word-bank-data.js?v=coaching-cues-4';
 import { ensureCollapsibleWordBanks } from './practice-editor-collapsible-word-banks-v1.js?v=principle-banks-3';
 
-const BANK_TARGETS={cpChips:['cp','cp','practice'],progChips:['prog','prog','practice'],regChips:['reg','reg','practice'],condGameChips:['cond','condRules','practice'],objChips:['obj','objective','session'],linkChips:['links','links','session'],cueChips:['cues','cues','session'],reflectChips:['reflect','reflect','session'],gmSuccessChips:['obj','gmSuccessLooksLike','session']};
+const BANK_TARGETS={practiceCueChips:['cues','cp','practice'],cpChips:['cp','cp','practice'],progChips:['prog','prog','practice'],regChips:['reg','reg','practice'],condGameChips:['cond','condRules','practice'],objChips:['obj','objective','session'],linkChips:['links','links','session'],cueChips:['cues','cues','session'],reflectChips:['reflect','reflect','session'],gmSuccessChips:['obj','gmSuccessLooksLike','session']};
 const field=id=>document.getElementById(id);
 function appDb(){try{return typeof db!=='undefined'?db:window.db;}catch(_){return window.db;}}
 function selected(selector){return [...document.querySelectorAll(selector)].map(el=>el.value);}
@@ -79,6 +79,11 @@ function ensureSuccessBank(){
   wrapSupportingList(host,'Learning objective suggestions');
 }
 export function refresh(){
+  const cp=field('cp');
+  if(cp&&!field('practiceCueChips')){
+    const host=document.createElement('div');host.id='practiceCueChips';host.className='chips';
+    cp.before(host);wrapSupportingList(host,'Short delivery cues · add to coaching points');
+  }
   ensureSuccessBank();
   for(const id of Object.keys(BANK_TARGETS))renderBank(id);
   const rules=field('condRulesBlock');if(rules)rules.style.display='block';
@@ -97,6 +102,15 @@ function fillBlank(scope){
   refresh();window.renderPreview?.();return changed;
 }
 function option(value,text){const item=document.createElement('option');item.value=value;item.textContent=text;return item;}
+export function createBankDrafts(){
+  const drafts=new Map();
+  return {
+    put:(key,value)=>drafts.set(key,{...value}),
+    get:key=>drafts.has(key)?{...drafts.get(key)}:null,
+    hasAny:()=>drafts.size>0,
+    clearIfUnchanged(key,snapshot){if(JSON.stringify(drafts.get(key))===JSON.stringify(snapshot))drafts.delete(key);}
+  };
+}
 function installManager(){
   const view=field('wordbank');if(!view||field('principleBankManager'))return;
   const legacy=view.querySelector('.grid.three');
@@ -113,20 +127,36 @@ function installManager(){
     const input=document.createElement('textarea');input.setAttribute('aria-label',label+' suggestions');input.rows=5;inputs[key]=input;
     details.append(summary,input);field('principleBankFields').append(details);
   }
+  const drafts=createBankDrafts();
+  let activeScope='';
+  const values=()=>Object.fromEntries(Object.entries(inputs).map(([key,input])=>[key,input.value]));
+  for(const input of Object.values(inputs))input.addEventListener('input',()=>{
+    drafts.put(activeScope,values());
+    field('principleBankSaveStatus').textContent='Draft kept for this selection. Save to apply your changes.';
+  });
+  window.addEventListener('beforeunload',event=>{if(drafts.hasAny()){event.preventDefault();event.returnValue='';}});
   const scope=()=>sub.value?`sub:${sub.value}`:`principle:${main.value}`;
   const load=()=>{
     const banks=buildPrincipleWordBanks({principleIds:[main.value],subPrincipleIds:sub.value?[sub.value]:[]},appDb()?.banks?.principleWordBanks||{});
-    for(const key of Object.keys(inputs))inputs[key].value=banks[key].join('\n');
-    field('principleBankSaveStatus').textContent='';
+    activeScope=scope();
+    const draft=drafts.get(activeScope);
+    for(const key of Object.keys(inputs))inputs[key].value=draft?.[key]??banks[key].join('\n');
+    field('principleBankSaveStatus').textContent=draft?'Unsaved draft restored for this selection.':'';
   };
   const loadSubs=()=>{sub.replaceChildren(option('','Whole principle'));principleById(main.value).subPrinciples.forEach(item=>sub.append(option(item.id,item.title)));load();};
   main.addEventListener('change',loadSubs);sub.addEventListener('change',load);loadSubs();
   field('savePrincipleBanks').addEventListener('click',async()=>{
     const data=appDb();if(!data)return;
+    const savedScope=activeScope;const savedDraft=values();
     data.banks ||= {};data.banks.principleWordBanks ||= {};
-    data.banks.principleWordBanks[scope()]=Object.fromEntries(Object.entries(inputs).map(([key,input])=>[key,[...new Set(input.value.split('\n').map(x=>x.trim()).filter(Boolean))]]));
+    data.banks.principleWordBanks[savedScope]=Object.fromEntries(Object.entries(inputs).map(([key,input])=>[key,[...new Set(input.value.split('\n').map(x=>x.trim()).filter(Boolean))]]));
     const status=field('principleBankSaveStatus');
-    try{await window.store();status.textContent='Word banks saved.';refresh();}
+    try{
+      await window.store();
+      drafts.clearIfUnchanged(savedScope,savedDraft);
+      if(activeScope===savedScope)status.textContent=drafts.get(savedScope)?'Earlier changes saved. Your newer edits are still a draft.':'Word banks saved on this device. See the top bar for cloud sync status.';
+      refresh();
+    }
     catch(error){status.textContent='Could not finish saving. Please retry.';console.error('Principle bank save failed',error);}
   });
 }

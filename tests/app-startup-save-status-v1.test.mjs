@@ -32,7 +32,7 @@ test('save status wraps store and cloud save without replacing app data format',
 });
 
 test('startup polish is requested immediately and marked ready after enhancements', () => {
-  const startup = sessionState.indexOf("import('./app-startup-save-status-v1.js')");
+  const startup = sessionState.indexOf("import('./app-startup-save-status-v1.js?v=coaching-cues-4')");
   const review = sessionState.indexOf("import('./post-session-review.js')");
   const visualFocus = sessionState.indexOf("import('./advanced-builder-visual-focus-v1.js')");
   const markReady = sessionState.indexOf('markEnhancementsReady');

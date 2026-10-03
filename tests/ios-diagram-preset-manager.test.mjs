@@ -73,7 +73,7 @@ test('preset manager stores custom presets inside cloud-backed banks and support
 test('new calibration and preset manager load after existing diagram enhancement layers', () => {
   const preview = stateSource.indexOf("import('./diagram-preview-calibration-v2.js')");
   const workflow = stateSource.indexOf("import('./diagram-editor-coach-workflow.js')");
-  const ios = stateSource.indexOf("import('./ios-diagram-calibration-v3.js')");
+  const ios = stateSource.indexOf("import('./ios-diagram-calibration-v3.js?v=coaching-cues-4')");
   const presets = stateSource.indexOf("import('./diagram-preset-manager.js')");
   assert.ok(preview >= 0 && workflow >= 0 && ios > preview && ios > workflow && presets > ios);
 });

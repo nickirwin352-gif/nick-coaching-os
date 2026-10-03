@@ -71,7 +71,7 @@ const api = {
 if (typeof window !== 'undefined') window.CoachingOSSessionState = api;
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-  const startupPolishReady = import('./app-startup-save-status-v1.js')
+  const startupPolishReady = import('./app-startup-save-status-v1.js?v=coaching-cues-4')
     .catch(error => { console.warn('Startup/save status patch failed to load', error); return null; });
   const fourPhasePracticePersistenceReady = import('./four-phase-practice-persistence-v1.js')
     .catch(error => { console.warn('Four-phase practice persistence failed to load', error); return null; });
@@ -82,7 +82,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./review-integrations.js'))
     .then(() => import('./session-library-speed-v2.js'))
     .then(() => import('./startup-performance.js'))
-    .then(() => import('./session-usability-pass.js'))
+    .then(() => import('./session-usability-pass.js?v=coaching-cues-4'))
     .then(() => import('./practice-editor-unified.js'))
     .then(() => import('./builder-session-visuals.js'))
     .then(() => import('./sticky-session-diagrams-fix.js'))
@@ -104,7 +104,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./session-calendar-navigation-rating.js'))
     .then(() => import('./coaching-personalisation-automation.js?v=principle-banks-3'))
     .then(() => import('./calendar-sessions-hard-fix-v2.js?v=principle-banks-3'))
-    .then(() => import('./ios-diagram-calibration-v3.js'))
+    .then(() => import('./ios-diagram-calibration-v3.js?v=coaching-cues-4'))
     .then(() => import('./diagram-preset-manager.js'))
     .then(() => import('./session-return-sideline-setup.js'))
     .then(() => import('./diagram-cone-colours.js'))
@@ -115,7 +115,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./practice-editor-collapsible-word-banks-v1.js?v=principle-banks-3'))
     .then(() => import('./advanced-builder-visual-focus-v1.js'))
     .then(() => import('./four-phase-builder-clarity-v2.js'))
-    .then(() => import('./principle-word-banks.js?v=principle-banks-3'))
+    .then(() => import('./principle-word-banks.js?v=coaching-cues-4'))
     .then(() => startupPolishReady)
     .then(() => { window.NickStartupPolish?.markEnhancementsReady?.(); })
     .catch(error => {
