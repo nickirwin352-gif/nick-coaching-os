@@ -296,7 +296,7 @@ function rowsMarkup(group,filters){
 function selectedMarkup(filters){
   const values=[];
   ['phases','principles','subPrinciples','purposes','formats'].forEach(kind=>filters[kind].forEach(id=>values.push(labelFor(kind,id))));
-  if(filters.reviewOnly)values.push('Needs organising');
+  if(filters.reviewOnly)values.push('Needs principle');
   return values.length?values.map(value=>`<span>${esc(value)}</span>`).join(''):'<span>No filters · showing all practices</span>';
 }
 function cardMarkup(practice,mode,index){
@@ -310,7 +310,7 @@ function cardMarkup(practice,mode,index){
     `<span>${esc(formatById(a.format)?.label||a.format)}</span>`
   ].join('');
   let inSession=false; try{inSession=Array.isArray(plannerDrills)&&plannerDrills.includes(practice.id);}catch(_){}
-  const review=practice.fourPhaseNeedsReview===true?'<span class="sub">Needs organising</span>':'';
+  const review=practice.fourPhaseNeedsReview===true?'<span class="sub">Needs principle</span>':'';
   return `<article class="fpwCard"><div class="fpwPitch" id="${pitchId}"></div><h4>${esc(practice.id)} · ${esc(practice.name||'Practice')}</h4><div class="fpwTags">${tags}${review}${a.noGameModelLink?'<span>No Game Model link</span>':''}</div><div class="fpwActions">${mode==='finder'?`<button type="button" data-fpw-session="${esc(practice.id)}">${inSession?'Remove from session':'Add to session'}</button>`:`<button type="button" data-fpw-edit="${esc(practice.id)}">Edit practice</button>`}${practice.fourPhaseSuggestedPrincipleIds?.length?`<button type="button" data-fpw-edit="${esc(practice.id)}">Review suggestions</button>`:''}</div></article>`;
 }
 function drawVisible(practices,mode,page){
@@ -363,7 +363,7 @@ function handlePanelClick(group,filters,event){
 function buildWorkbench(){
   const library=field('library');if(!library||field(WORKBENCH_ID))return;
   const panel=document.createElement('section');panel.id=WORKBENCH_ID;
-  panel.innerHTML=`<div class="fpwHead"><div><h2>Practice Workbench · Four-Phase Model</h2><p>This is strict. Select a Phase and only practices tagged to that phase can appear. Add a Main Principle and the practice must match both. Add a Sub-Principle, Purpose or Format and every selected row continues to stack.</p></div><span class="fpwLogic">OR within a row · AND between rows</span></div>${rowsMarkup('workbench',workbenchFilters)}<div class="fpwControls"><input id="fpwSearch" placeholder="Search inside exact matches..."><button type="button" id="fpwReview">Needs organising</button><button type="button" id="fpwClear">Clear</button></div><div class="fpwSelected" data-fpw-selected></div><div class="fpwStats"><b data-fpw-count></b><span>Exact tags only · no suggestions mixed into results</span></div><div data-fpw-results></div><div class="fpLegacyNote">The old Theme browser underneath is kept only as a legacy fallback while you reorganise older practices.</div>`;
+  panel.innerHTML=`<div class="fpwHead"><div><h2>Practice Workbench · Four-Phase Model</h2><p>This is strict. Select a Phase and only practices tagged to that phase can appear. Add a Main Principle and the practice must match both. Add a Sub-Principle, Purpose or Format and every selected row continues to stack.</p></div><span class="fpwLogic">OR within a row · AND between rows</span></div>${rowsMarkup('workbench',workbenchFilters)}<div class="fpwControls"><input id="fpwSearch" placeholder="Search inside exact matches..."><button type="button" id="fpwReview">Needs principle</button><button type="button" id="fpwClear">Clear</button></div><div class="fpwSelected" data-fpw-selected></div><div class="fpwStats"><b data-fpw-count></b><span>Exact tags only · no suggestions mixed into results</span></div><div data-fpw-results></div><div class="fpLegacyNote">The old Theme browser underneath is kept only as a legacy fallback. “Needs principle” now means only that no main principle could be resolved; sub-principles are optional detail.</div>`;
   library.prepend(panel);
   panel.addEventListener('click',event=>handlePanelClick('workbench',workbenchFilters,event));
   field('fpwSearch')?.addEventListener('input',event=>{workbenchFilters.search=event.target.value||'';workbenchPage=0;renderResults('workbench',workbenchFilters);});
