@@ -259,7 +259,7 @@ function installPlannerPersistence(){
 
   let loadOriginal; try{loadOriginal=loadSessionToPlanner;}catch(_){loadOriginal=window.loadSessionToPlanner;}
   if(typeof loadOriginal==='function'&&!loadOriginal.__fourPhaseGameModel){
-    const wrapped=function(index,mode='edit',...rest){const session=appDb()?.sessions?.[index];const result=loadOriginal.call(this,index,mode,...rest);setTimeout(()=>{ensurePlannerPanel();setPlan(session?.gameModelPlan||{});decoratePreview();},0);return result;};
+    const wrapped=function(index,mode='edit',...rest){const session=appDb()?.sessions?.[index];const result=loadOriginal.call(this,index,mode,...rest);ensurePlannerPanel();setPlan(session?.gameModelPlan||{});decoratePreview();return result;};
     wrapped.__fourPhaseGameModel=true; try{loadSessionToPlanner=wrapped;}catch(_){} window.loadSessionToPlanner=wrapped;
   }
 

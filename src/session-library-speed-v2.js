@@ -1,3 +1,4 @@
+import { phaseById, principleById, subPrincipleById } from './game-model-core.js';
 export function filterSessions(sessions = [], { search = '', team = '', theme = '' } = {}, practiceLookup = () => null) {
   const q = String(search || '').trim().toLowerCase();
   return [...sessions]
@@ -158,6 +159,7 @@ function installFastSessionSave() {
         links: links.value, cues: cues.value, drills: [...plannerDrills], diagramOverrides: typeof copyPlannerDiagramOverrides === 'function' ? copyPlannerDiagramOverrides() : [],
         reflect: reflect.value, rating: sessionRating.value
       };
+      if(window.NickFourPhaseGameModel?.currentPlan)base.gameModelPlan=window.NickFourPhaseGameModel.currentPlan();
       if (!Array.isArray(base.drills) || !base.drills.length) return alert('Add at least one practice before saving the session.');
       const data = appDb();
       if (mode === 'update' && editingSessionId) {
@@ -251,7 +253,9 @@ function renderSessionLibrary() {
   root.innerHTML = `<div class="sessionLibraryGrid">${sessions.map(session => {
     const index = data.sessions.indexOf(session);
     const drills = Array.isArray(session.drills) ? session.drills : [];
-    return `<article class="sessionLibraryCard"><div class="small">${esc(session.date || 'No date')}${session.team ? ` · ${esc(session.team)}` : ''}</div><h3>${esc(session.theme || 'Session')}</h3><div class="sessionLibraryMeta"><span class="pill">${drills.length} ${drills.length === 1 ? 'practice' : 'practices'}</span>${session.rating ? `<span class="pill">${'★'.repeat(Number(session.rating) || 0)}</span>` : ''}${session.review ? '<span class="pill">Reviewed</span>' : ''}</div><div class="sessionLibraryObjective"><b>Objective:</b> ${esc(session.objective || '—')}</div><div class="sessionLibraryActions"><button type="button" data-session-action="view" data-index="${index}">View Session</button><button type="button" data-session-action="diagrams" data-index="${index}">🗺 All Diagrams</button><button type="button" data-session-action="sideline" data-index="${index}">▶ Sideline</button><button type="button" data-session-action="edit" data-index="${index}">Edit</button></div></article>`;
+    const plan=session.gameModelPlan||{};
+    const modelLabels=[phaseById(plan.gamePhase)?.label,principleById(plan.primaryPrincipleId)?.message,...(plan.subPrincipleIds||[]).map(id=>subPrincipleById(id)?.title)].filter(Boolean);
+    return `<article class="sessionLibraryCard"><div class="small">${esc(session.date || 'No date')}${session.team ? ` · ${esc(session.team)}` : ''}</div><h3>${esc(session.theme || 'Session')}</h3><div class="sessionLibraryMeta">${modelLabels.map(label=>`<span class="pill">${esc(label)}</span>`).join('')}<span class="pill">${drills.length} ${drills.length === 1 ? 'practice' : 'practices'}</span>${session.rating ? `<span class="pill">${'★'.repeat(Number(session.rating) || 0)}</span>` : ''}${session.review ? '<span class="pill">Reviewed</span>' : ''}</div><div class="sessionLibraryObjective"><b>Objective:</b> ${esc(session.gameModelPlan?.successLooksLike || session.objective || '—')}</div><div class="sessionLibraryActions"><button type="button" data-session-action="view" data-index="${index}">View Session</button><button type="button" data-session-action="diagrams" data-index="${index}">🗺 All Diagrams</button><button type="button" data-session-action="sideline" data-index="${index}">▶ Sideline</button><button type="button" data-session-action="edit" data-index="${index}">Edit</button></div></article>`;
   }).join('')}</div>`;
 }
 

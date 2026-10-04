@@ -16,7 +16,7 @@ export function cleanFourPhaseDecision(value={}){
     practicePurpose:String(value.practicePurpose||''),
     practiceFormat:String(value.practiceFormat||''),
     noGameModelLink:value.noGameModelLink===true,
-    updatedAt:Number(value.updatedAt||Date.now())
+    updatedAt:Number(value.updatedAt||0)
   };
 }
 
@@ -41,6 +41,7 @@ export function applyFourPhaseDecision(practice={},rawDecision={}){
   practice.fourPhaseNeedsReview=false;
   practice.fourPhaseSuggestedPrincipleIds=[];
   practice.fourPhaseOrganisationSource='manual';
+  practice.fourPhaseDecisionUpdatedAt=d.updatedAt;
   practice.fourPhaseTagSaveVersion=FOUR_PHASE_PRACTICE_PERSISTENCE_VERSION;
   return practice;
 }
@@ -49,7 +50,17 @@ export function applyStoredFourPhaseDecisions(data,decisions=readFourPhaseDecisi
   if(!data||!Array.isArray(data.practices))return 0;
   let changed=0;
   data.practices.forEach(practice=>{
-    const decision=decisions[String(practice.id||'')];
+    const id=String(practice.id||'');
+    const decision=decisions[id];
+    const remoteTime=Number(practice.fourPhaseDecisionUpdatedAt||0);
+    if(remoteTime && (!decision||remoteTime>=Number(decision.updatedAt||0))){
+      decisions[id]=cleanFourPhaseDecision({
+        phaseIds:practice.gameModelPhaseIds,principleIds:practice.gameModelPrincipleIds,
+        subPrincipleIds:practice.gameModelSubPrincipleIds,practicePurpose:practice.practicePurpose,
+        practiceFormat:practice.practiceFormat,noGameModelLink:practice.noGameModelLink,updatedAt:remoteTime
+      });
+      return;
+    }
     if(!decision)return;
     const before=JSON.stringify({
       a:practice.gameModelPhaseIds,b:practice.gameModelPrincipleIds,c:practice.gameModelSubPrincipleIds,
@@ -62,6 +73,7 @@ export function applyStoredFourPhaseDecisions(data,decisions=readFourPhaseDecisi
     });
     if(before!==after)changed++;
   });
+  writeDecisions(decisions);
   return changed;
 }
 
@@ -87,7 +99,7 @@ export function seedFourPhaseDecisionsFromLocal(){
       practicePurpose:practice.practicePurpose,
       practiceFormat:practice.practiceFormat,
       noGameModelLink:practice.noGameModelLink,
-      updatedAt:Date.now()
+      updatedAt:Number(practice.fourPhaseDecisionUpdatedAt||0)
     });
     changed=true;
   });
@@ -106,10 +118,7 @@ export function rememberFourPhasePracticeDecision(practiceId,draft={}){
   return true;
 }
 
-function legacyCloudReady(){
-  if(cloudHydrated)return true;
-  try{return typeof cloudReady!=='undefined'&&!!cloudReady;}catch(_){return false;}
-}
+function legacyCloudReady(){return cloudHydrated;}
 
 export async function flushFourPhaseDecisionsToCloud(){
   if(cloudFlushBusy||!legacyCloudReady())return false;
@@ -146,13 +155,15 @@ function wrapNickCloud(){
   if(originalSave)cloud.save=async function(data){return await originalSave(mergeIntoPayload(data));};
   if(originalGetCurrent)cloud.getCurrent=async function(...args){
     const current=await originalGetCurrent(...args); cloudHydrated=true;
-    const merged=mergeIntoPayload(current); scheduleCloudFlush(140); return merged;
+    return mergeIntoPayload(current);
   };
   if(originalListen)cloud.listen=function(callback,...rest){
     return originalListen(function(cloudDoc){
-      cloudHydrated=true;
+      if(!cloudDoc?.pendingRemote)cloudHydrated=true;
       const merged=cloudDoc&&cloudDoc.data?{...cloudDoc,data:mergeIntoPayload(cloudDoc.data)}:cloudDoc;
-      const result=callback(merged); scheduleCloudFlush(180); return result;
+      const result=callback(merged);
+      if(!cloudDoc?.pendingRemote&&JSON.stringify(merged?.data)!==JSON.stringify(cloudDoc?.data))scheduleCloudFlush(180);
+      return result;
     },...rest);
   };
   try{Object.defineProperty(cloud,'__fourPhasePracticePersistence',{value:true});}catch(_){cloud.__fourPhasePracticePersistence=true;}
@@ -178,6 +189,7 @@ function install(){
     remember:rememberFourPhasePracticeDecision,
     apply:reconcileFourPhaseDecisions,
     flush:flushFourPhaseDecisionsToCloud,
+    connect:wrapNickCloud,
     read:readFourPhaseDecisions
   });
 }

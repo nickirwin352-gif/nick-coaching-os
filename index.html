@@ -6,13 +6,13 @@
 <!-- Fetch enhancements together; session-state.js still installs them in dependency order. -->
 <link rel="modulepreload" href="./src/cloud-save-feedback.js">
 <link rel="modulepreload" href="./src/app-startup-save-status-v1.js?v=coaching-cues-4">
-<link rel="modulepreload" href="./src/four-phase-practice-persistence-v1.js">
+<link rel="modulepreload" href="./src/four-phase-practice-persistence-v1.js?v=cross-device-5">
 <link rel="modulepreload" href="./src/mobile-reliability.js">
 <link rel="modulepreload" href="./src/display-calibration.js">
 <link rel="modulepreload" href="./src/sideline-glance-layout.js">
 <link rel="modulepreload" href="./src/post-session-review.js">
 <link rel="modulepreload" href="./src/review-integrations.js">
-<link rel="modulepreload" href="./src/session-library-speed-v2.js">
+<link rel="modulepreload" href="./src/session-library-speed-v2.js?v=cross-device-5">
 <link rel="modulepreload" href="./src/startup-performance.js">
 <link rel="modulepreload" href="./src/session-usability-pass.js?v=coaching-cues-4">
 <link rel="modulepreload" href="./src/practice-editor-unified.js">
@@ -40,7 +40,7 @@
 <link rel="modulepreload" href="./src/diagram-preset-manager.js">
 <link rel="modulepreload" href="./src/session-return-sideline-setup.js">
 <link rel="modulepreload" href="./src/diagram-cone-colours.js">
-<link rel="modulepreload" href="./src/four-phase-game-model-os-v1.js?v=principle-banks-3">
+<link rel="modulepreload" href="./src/four-phase-game-model-os-v1.js?v=cross-device-5">
 <link rel="modulepreload" href="./src/four-phase-game-model-diagrams-v2.js">
 <link rel="modulepreload" href="./src/four-phase-practice-system-v1.js?v=principle-banks-3">
 <link rel="modulepreload" href="./src/practice-editor-collapsible-word-banks-v1.js?v=principle-banks-3">
@@ -522,7 +522,7 @@ body.sessionDrawerOpen{overflow:hidden}
   #diagramStudioInlineHost .diagramStudioOverlay.streamlinedInline{height:68dvh;min-height:540px}
 }
 </style>
-<script type="module" src="./src/session-state.js?v=coaching-cues-4"></script>
+<script type="module" src="./src/session-state.js?v=cross-device-5"></script>
 </head>
 <body>
 <header>
@@ -1354,7 +1354,7 @@ function resetSessionPlanner(){
   updatePlannerSaveControls();renderObjectiveChips();renderPlannerPracticeOptions();renderSessionDrillList();renderPreview();renderVisualPicker();
 }
 function saveSession(mode="new"){
-  const base={date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,drills:[...plannerDrills],diagramOverrides:copyPlannerDiagramOverrides(),reflect:reflect.value,rating:sessionRating.value};
+  const base={gameModelPlan:window.NickFourPhaseGameModel?.currentPlan?.(),date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,drills:[...plannerDrills],diagramOverrides:copyPlannerDiagramOverrides(),reflect:reflect.value,rating:sessionRating.value};
   if(!base.drills.length)return alert("Add at least one practice before saving the session.");
   if(mode==="update"&&editingSessionId){
     const index=db.sessions.findIndex(s=>s.id===editingSessionId);if(index<0)return alert("The original session could not be found.");
@@ -1517,7 +1517,7 @@ function copyPlannerDiagramOverrides(){
   return plannerDiagramOverrides.map(item=>item==null?null:JSON.parse(JSON.stringify(item)));
 }
 function applyPlannerSessionState(next){plannerDrills=next.drills;plannerDiagramOverrides=next.overrides;}
-function currentPlannerSession(){return {date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,drills:[...plannerDrills],diagramOverrides:copyPlannerDiagramOverrides(),reflect:reflect.value,rating:sessionRating.value};}
+function currentPlannerSession(){return {gameModelPlan:window.NickFourPhaseGameModel?.currentPlan?.(),date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,drills:[...plannerDrills],diagramOverrides:copyPlannerDiagramOverrides(),reflect:reflect.value,rating:sessionRating.value};}
 function deleteSession(i){if(!db.sessions[i])return;if(confirm('Delete this session from the archive?')){db.sessions.splice(i,1);store();}}
 
 
@@ -1614,11 +1614,16 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!document.getElemen
 updateCloudStatus("Connecting to Firebase...", "");
 renderAll();
 
-setTimeout(function(){
+setTimeout(function connectLiveCloud(){
+  if(!window.nickCloud?.listen || !window.NickFourPhasePracticePersistence){
+    setTimeout(connectLiveCloud,500);
+    return;
+  }
+  window.NickFourPhasePracticePersistence.connect();
   if (window.nickCloud && window.nickCloud.listen) {
     window.nickCloud.listen(function(cloudDoc){
-      cloudReady = true;
-      updateCloudStatus("Firebase connected", new Date().toLocaleString("en-GB"));
+      cloudReady = !cloudDoc?.pendingRemote;
+      updateCloudStatus(cloudReady?"Firebase connected":"Loading cloud data...", new Date().toLocaleString("en-GB"));
 
       if (!cloudDoc || !cloudDoc.data) {
         console.log("No cloud data yet. Using local data until first save.");
@@ -1929,9 +1934,9 @@ renderSessionDrillList=function(){
 };
 function dsPracticeDetailData(p,index){if(!p)return'';const mid=`sessionmini-${safe(p.id)}-${Math.random().toString(36).slice(2,7)}`;const first=(p.diagramSteps&&p.diagramSteps[0])||{diagram:p.diagram||[],pitchMode:p.pitchMode||'full'};setTimeout(()=>drawMini(mid,first.diagram,first.pitchMode),0);return `<div class="practiceDetail"><div id="${mid}"></div><div><h3>${p.stage}: ${p.id} · ${p.name}${p.sessionDiagramOverride?'<span class="sessionDiagramBadge">Session diagram</span>':''}</h3><span class="pill">${p.theme}</span><span class="pill">${p.players||''}</span><span class="pill">${p.time||''}</span>${p.diagramSteps&&p.diagramSteps.length>1?`<span class="pill">${p.diagramSteps.length} visual steps</span>`:''}<p>${nl(p.desc||'')}</p><div class="practiceCols"><div class="infoBox"><b>Coaching Points</b><br>${nl(p.cp||'—')}</div><div class="infoBox"><b>Progressions</b><br>${nl(p.prog||'—')}</div><div class="infoBox"><b>Regressions</b><br>${nl(p.reg||'—')}</div>${p.condRules?`<div class="infoBox"><b>Conditioned Game Rules</b><br>${nl(p.condRules)}</div>`:''}</div>${Number.isInteger(index)?`<div class="sessionActions"><button onclick="openSessionDiagramStudio(${index})">Edit This Session Diagram</button></div>`:''}</div></div>`}
 renderPreview=function(){dsEnsurePlannerOverrides();preview.innerHTML=`<h2>Session Preview</h2><p><b>Theme:</b> ${sTheme.value||''}</p><p><b>Objective:</b><br>${nl(objective.value)}</p><p><b>Links:</b><br>${nl(links.value)}</p><p><b>Cues:</b><br>${nl(cues.value)}</p>${plannerDrills.map((id,i)=>dsPracticeDetailData(dsCurrentPlannerPractice(i),i)).join('')}`};
-currentPlannerSession=function(){dsEnsurePlannerOverrides();return {date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,drills:[...plannerDrills],diagramOverrides:dsClone(plannerDiagramOverrides),reflect:reflect.value,rating:sessionRating.value}};
+currentPlannerSession=function(){dsEnsurePlannerOverrides();return {gameModelPlan:window.NickFourPhaseGameModel?.currentPlan?.(),date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,drills:[...plannerDrills],diagramOverrides:dsClone(plannerDiagramOverrides),reflect:reflect.value,rating:sessionRating.value}};
 loadSessionToPlanner=function(i,mode='edit'){const s=db.sessions[i];if(!s)return;editingSessionId=mode==='edit'?s.id:null;sDate.value=mode==='edit'?(s.date||new Date().toISOString().slice(0,10)):new Date().toISOString().slice(0,10);team.value=s.team||'';sTheme.value=s.theme||'';pickerThemeFilter=s.theme||'';populatePlannerThemeFilter();objective.value=s.objective||'';links.value=s.links||'';cues.value=s.cues||'';plannerDrills=sessionDrillIds(s);plannerDiagramOverrides=dsClone(s.diagramOverrides||[]);dsEnsurePlannerOverrides();reflect.value=s.reflect||'';if(document.getElementById('sessionRating'))sessionRating.value=mode==='edit'?(s.rating||''):'';document.querySelector('[data-tab="planner"]').click();showBuildRoute('advanced');updatePlannerSaveControls();renderObjectiveChips();renderPlannerPracticeOptions();renderSessionDrillList();renderPreview();renderVisualPicker();window.scrollTo(0,0)};
-saveSession=async function(mode='new'){dsEnsurePlannerOverrides();const base={date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,drills:[...plannerDrills],diagramOverrides:dsClone(plannerDiagramOverrides),reflect:reflect.value,rating:sessionRating.value};if(!base.drills.length)return alert('Add at least one practice before saving the session.');if(mode==='update'&&editingSessionId){const index=db.sessions.findIndex(s=>s.id===editingSessionId);if(index<0)return alert('The original session could not be found.');db.sessions[index]={...db.sessions[index],...base,id:editingSessionId};await store();resetSessionPlanner();showBuildRoute('home');alert('Existing session updated.');return}db.sessions.push({...base,id:makeLocalId('session')});await store();resetSessionPlanner();showBuildRoute('home');alert('Session saved as a new session.')};
+saveSession=async function(mode='new'){dsEnsurePlannerOverrides();const base={gameModelPlan:window.NickFourPhaseGameModel?.currentPlan?.(),date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,drills:[...plannerDrills],diagramOverrides:dsClone(plannerDiagramOverrides),reflect:reflect.value,rating:sessionRating.value};if(!base.drills.length)return alert('Add at least one practice before saving the session.');if(mode==='update'&&editingSessionId){const index=db.sessions.findIndex(s=>s.id===editingSessionId);if(index<0)return alert('The original session could not be found.');db.sessions[index]={...db.sessions[index],...base,id:editingSessionId};await store();resetSessionPlanner();showBuildRoute('home');alert('Existing session updated.');return}db.sessions.push({...base,id:makeLocalId('session')});await store();resetSessionPlanner();showBuildRoute('home');alert('Session saved as a new session.')};
 
 /* Rich mini diagrams and Sideline steps */
 function dsMiniBase(mode){const m=dsParseMode(mode);let html='<div class="miniHalf"></div><div class="miniCirc"></div>';if(m.core==='thirds')html+='<div style="position:absolute;left:33%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,.4)"></div><div style="position:absolute;left:66%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,.4)"></div>';if(m.core==='central')html+='<div style="position:absolute;left:38%;right:38%;top:0;bottom:0;border-left:1px dashed white;border-right:1px dashed white"></div>';if(m.core==='quarters')html+='<div style="position:absolute;left:50%;top:0;bottom:0;border-left:1px solid white"></div><div style="position:absolute;left:0;right:0;top:50%;border-top:1px solid white"></div>';return html}
