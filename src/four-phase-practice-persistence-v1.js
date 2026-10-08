@@ -10,6 +10,7 @@ function clone(value){return value==null?value:JSON.parse(JSON.stringify(value))
 
 export function cleanFourPhaseDecision(value={}){
   return {
+    ...(Array.isArray(value.passingFundamentals)?{passingFundamentals:uniq(value.passingFundamentals)}:{}),
     phaseIds:uniq(value.phaseIds),
     principleIds:uniq(value.principleIds),
     subPrincipleIds:uniq(value.subPrincipleIds),
@@ -32,6 +33,7 @@ function writeDecisions(value){
 
 export function applyFourPhaseDecision(practice={},rawDecision={}){
   const d=cleanFourPhaseDecision(rawDecision);
+  if(Array.isArray(d.passingFundamentals))practice.passingFundamentals=d.passingFundamentals;
   practice.gameModelPhaseIds=d.noGameModelLink?[]:d.phaseIds;
   practice.gameModelPrincipleIds=d.noGameModelLink?[]:d.principleIds;
   practice.gameModelSubPrincipleIds=d.noGameModelLink?[]:d.subPrincipleIds;
@@ -56,19 +58,19 @@ export function applyStoredFourPhaseDecisions(data,decisions=readFourPhaseDecisi
     if(remoteTime && (!decision||remoteTime>=Number(decision.updatedAt||0))){
       decisions[id]=cleanFourPhaseDecision({
         phaseIds:practice.gameModelPhaseIds,principleIds:practice.gameModelPrincipleIds,
-        subPrincipleIds:practice.gameModelSubPrincipleIds,practicePurpose:practice.practicePurpose,
+        subPrincipleIds:practice.gameModelSubPrincipleIds,passingFundamentals:practice.passingFundamentals,practicePurpose:practice.practicePurpose,
         practiceFormat:practice.practiceFormat,noGameModelLink:practice.noGameModelLink,updatedAt:remoteTime
       });
       return;
     }
     if(!decision)return;
     const before=JSON.stringify({
-      a:practice.gameModelPhaseIds,b:practice.gameModelPrincipleIds,c:practice.gameModelSubPrincipleIds,
+      fundamentals:practice.passingFundamentals,a:practice.gameModelPhaseIds,b:practice.gameModelPrincipleIds,c:practice.gameModelSubPrincipleIds,
       d:practice.practicePurpose,e:practice.practiceFormat,f:practice.noGameModelLink,g:practice.fourPhaseNeedsReview
     });
     applyFourPhaseDecision(practice,decision);
     const after=JSON.stringify({
-      a:practice.gameModelPhaseIds,b:practice.gameModelPrincipleIds,c:practice.gameModelSubPrincipleIds,
+      fundamentals:practice.passingFundamentals,a:practice.gameModelPhaseIds,b:practice.gameModelPrincipleIds,c:practice.gameModelSubPrincipleIds,
       d:practice.practicePurpose,e:practice.practiceFormat,f:practice.noGameModelLink,g:practice.fourPhaseNeedsReview
     });
     if(before!==after)changed++;
@@ -95,7 +97,7 @@ export function seedFourPhaseDecisionsFromLocal(){
     decisions[id]=cleanFourPhaseDecision({
       phaseIds:practice.gameModelPhaseIds,
       principleIds:practice.gameModelPrincipleIds,
-      subPrincipleIds:practice.gameModelSubPrincipleIds,
+      subPrincipleIds:practice.gameModelSubPrincipleIds,passingFundamentals:practice.passingFundamentals,
       practicePurpose:practice.practicePurpose,
       practiceFormat:practice.practiceFormat,
       noGameModelLink:practice.noGameModelLink,

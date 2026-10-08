@@ -1,3 +1,4 @@
+import {sessionModelError} from '../src/session-identity.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -41,7 +42,7 @@ test('fast session save round-trips phone model selections through a cloud JSON 
   const install=source.slice(source.indexOf('function installFastSessionSave()'),source.indexOf('function getEffectivePractice'));
   const plan={gamePhase:'out-of-possession',primaryPrincipleId:'screen-shuffle-squeeze',subPrincipleIds:['shuffle-together'],successLooksLike:'Stay compact',emphasis:'execute'};
   const db={sessions:[]};let payload;
-  const context={window:{NickFourPhaseGameModel:{currentPlan:()=>({...plan})}},saveSession:()=>{},currentPlannerSession:()=>({drills:['p1'],date:'2026-10-04',team:'Test'}),appDb:()=>db,makeLocalId:()=> 'session-test',persistFast:()=>{payload=JSON.stringify(db);},resetSessionPlanner:()=>{},showBuildRoute:()=>{},toast:()=>{},console};
+  const context={sessionModelError,window:{NickFourPhaseGameModel:{currentPlan:()=>({...plan})}},saveSession:()=>{},currentPlannerSession:()=>({drills:['p1'],date:'2026-10-04',team:'Test'}),appDb:()=>db,makeLocalId:()=> 'session-test',persistFast:()=>{payload=JSON.stringify(db);},resetSessionPlanner:()=>{},showBuildRoute:()=>{},toast:()=>{},console};
   vm.runInNewContext(install+'\ninstallFastSessionSave();saveSession();',context);
   const laptop=JSON.parse(payload);
   assert.deepEqual(laptop.sessions[0].gameModelPlan,plan);

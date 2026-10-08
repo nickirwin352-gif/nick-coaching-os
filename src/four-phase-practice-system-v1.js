@@ -1,3 +1,4 @@
+import {PASSING_FUNDAMENTALS,passingFundamentals,fundamentalLabel} from './passing-fundamentals.js';
 import {
   GAME_PHASES,
   GAME_MODEL_PRINCIPLES,
@@ -226,6 +227,7 @@ export function createFilterState(seed={}){
     principles:new Set(Array.isArray(seed.principles)?seed.principles:[]),
     subPrinciples:new Set(Array.isArray(seed.subPrinciples)?seed.subPrinciples:[]),
     purposes:new Set(Array.isArray(seed.purposes)?seed.purposes:[]),
+    fundamentals:new Set(Array.isArray(seed.fundamentals)?seed.fundamentals:[]),
     formats:new Set(Array.isArray(seed.formats)?seed.formats:[]),
     search:String(seed.search||''),
     reviewOnly:seed.reviewOnly===true
@@ -239,11 +241,12 @@ export function matchesPracticeFilters(practice={},filters=createFilterState()){
   if(filters.subPrinciples?.size&&!intersects(filters.subPrinciples,a.subPrincipleIds))return false;
   if(filters.purposes?.size&&!filters.purposes.has(a.purpose))return false;
   if(filters.formats?.size&&!filters.formats.has(a.format))return false;
+  if(filters.fundamentals?.size&&![...filters.fundamentals].every(id=>passingFundamentals(practice).includes(id)))return false;
   if(filters.reviewOnly&&practice.fourPhaseNeedsReview!==true)return false;
   const q=String(filters.search||'').trim().toLowerCase();
   if(q){
     const text=[
-      practice.id,practice.name,practice.desc,practice.description,
+      practice.id,practice.name,practice.desc,practice.description,...passingFundamentals(practice).map(fundamentalLabel),
       ...a.phaseIds.map(id=>phaseById(id)?.label),
       ...a.principleIds.map(id=>principleById(id)?.message),
       ...a.subPrincipleIds.map(id=>subPrincipleById(id)?.title),
@@ -259,7 +262,7 @@ export function filterPractices(practices=[],filters=createFilterState()){
 
 
 export function hasActivePracticeFilters(filters=createFilterState()){
-  return ['phases','principles','subPrinciples','purposes','formats'].some(key=>filters[key]?.size>0)
+  return ['phases','principles','subPrinciples','purposes','formats','fundamentals'].some(key=>filters[key]?.size>0)
     || Boolean(String(filters.search||'').trim()) || filters.reviewOnly===true;
 }
 
@@ -306,6 +309,7 @@ function labelFor(kind,id){
   if(kind==='principles')return principleById(id)?.message||id;
   if(kind==='subPrinciples')return subPrincipleById(id)?.title||id;
   if(kind==='purposes')return purposeById(id)?.label||id;
+  if(kind==='fundamentals')return fundamentalLabel(id);
   if(kind==='formats')return formatById(id)?.label||id;
   return id;
 }
@@ -318,11 +322,11 @@ function rowsMarkup(group,filters){
     <div class="fpwRow"><div class="fpwRowTitle"><b>2 · Main Principle</b><span>Must also match Phase</span></div>${chipMarkup(group,'principles',GAME_MODEL_PRINCIPLES,filters,item=>item.message)}</div>
     <div class="fpwRow"><div class="fpwRowTitle"><b>3 · Sub-Principle</b><span>Must also match Main Principle</span></div>${chipMarkup(group,'subPrinciples',GAME_SUB_PRINCIPLES,filters,item=>item.title)}</div>
     <div class="fpwRow"><div class="fpwRowTitle"><b>4 · Purpose</b><span>Prepare · Recognise · Execute · Transfer</span></div>${chipMarkup(group,'purposes',PRACTICE_PURPOSES,filters)}</div>
-    <div class="fpwRow"><div class="fpwRowTitle"><b>5 · Format</b><span>What the exercise physically looks like</span></div>${chipMarkup(group,'formats',PRACTICE_FORMATS,filters)}</div>`;
+    <div class="fpwRow"><div class="fpwRowTitle"><b>5 · Format</b><span>What the exercise physically looks like</span></div>${chipMarkup(group,'formats',PRACTICE_FORMATS,filters)}</div><div class="fpwRow"><div class="fpwRowTitle"><b>6 · Passing fundamentals</b><span>Match ALL selected fundamentals</span></div>${chipMarkup(group,'fundamentals',PASSING_FUNDAMENTALS,filters)}</div>`;
 }
 function selectedMarkup(filters){
   const values=[];
-  ['phases','principles','subPrinciples','purposes','formats'].forEach(kind=>filters[kind].forEach(id=>values.push(labelFor(kind,id))));
+  ['phases','principles','subPrinciples','purposes','formats','fundamentals'].forEach(kind=>filters[kind].forEach(id=>values.push(labelFor(kind,id))));
   if(filters.reviewOnly)values.push('Needs principle');
   return values.length?values.map(value=>`<span>${esc(value)}</span>`).join(''):'<span>No filters · showing all practices</span>';
 }
@@ -330,6 +334,7 @@ function cardMarkup(practice,mode,index){
   const a=practiceArchitecture(practice);
   const pitchId=`fpw-${mode}-${index}-${String(practice.id||'').replace(/[^a-z0-9_-]/gi,'-')}`;
   const tags=[
+    ...passingFundamentals(practice).map(id=>`<span>${esc(fundamentalLabel(id))}</span>`),
     ...a.phaseIds.map(id=>`<span class="phase">${esc(phaseById(id)?.label||id)}</span>`),
     ...a.principleIds.map(id=>`<span class="principle">${esc(principleById(id)?.message||id)}</span>`),
     ...a.subPrincipleIds.map(id=>`<span class="sub">${esc(subPrincipleById(id)?.title||id)}</span>`),
@@ -398,12 +403,12 @@ function buildWorkbench(){
   panel.addEventListener('click',event=>handlePanelClick('workbench',workbenchFilters,event));
   field('fpwSearch')?.addEventListener('input',event=>{workbenchFilters.search=event.target.value||'';workbenchPage=0;renderResults('workbench',workbenchFilters);});
   field('fpwReview')?.addEventListener('click',event=>{workbenchFilters.reviewOnly=!workbenchFilters.reviewOnly;event.currentTarget.classList.toggle('on',workbenchFilters.reviewOnly);workbenchPage=0;renderResults('workbench',workbenchFilters);});
-  field('fpwClear')?.addEventListener('click',()=>{['phases','principles','subPrinciples','purposes','formats'].forEach(k=>workbenchFilters[k].clear());workbenchFilters.search='';workbenchFilters.reviewOnly=false;field('fpwSearch').value='';field('fpwReview')?.classList.remove('on');workbenchPage=0;renderResults('workbench',workbenchFilters);});
+  field('fpwClear')?.addEventListener('click',()=>{['phases','principles','subPrinciples','purposes','formats','fundamentals'].forEach(k=>workbenchFilters[k].clear());workbenchFilters.search='';workbenchFilters.reviewOnly=false;field('fpwSearch').value='';field('fpwReview')?.classList.remove('on');workbenchPage=0;renderResults('workbench',workbenchFilters);});
   renderResults('workbench',workbenchFilters);
 }
 
 export function resetFinderToSession(){
-  ['phases','principles','subPrinciples','purposes','formats'].forEach(k=>finderFilters[k].clear());
+  ['phases','principles','subPrinciples','purposes','formats','fundamentals'].forEach(k=>finderFilters[k].clear());
   finderFilters.search='';finderFilters.reviewOnly=false;finderPage=0;
   const plan=window.NickFourPhaseGameModel?.currentPlan?.()||{};
   if(phaseById(plan.gamePhase))finderFilters.phases.add(plan.gamePhase);
@@ -444,6 +449,7 @@ function editorState(){
     principleIds:derivedPrinciples,
     subPrincipleIds:subs,
     practicePurpose:field('fpePurpose')?.value||'execute',
+    passingFundamentals:[...panel.querySelectorAll('[data-fpe-fundamental] input:checked')].map(input=>input.value),
     practiceFormat:field('fpeFormat')?.value||'other',
     noGameModelLink:noLink||derivedPrinciples.length===0
   };
@@ -485,11 +491,11 @@ function bindEditorChecks(){
 function ensureEditor(){
   const name=field('pname');const card=name?.closest('.card');if(!card||field(EDITOR_ID))return;
   const panel=document.createElement('section');panel.id=EDITOR_ID;
-  panel.innerHTML=`<div class="fpwHead"><div><h3>Practice Game Model Tags</h3><p>Tag what this practice can genuinely expose. You can select multiple phases, main principles and sub-principles. Saving with no main principle records an intentional “No Game Model link”.</p></div></div><div class="fpeGrid"><div><label>PURPOSE</label><select id="fpePurpose">${PRACTICE_PURPOSES.map(item=>`<option value="${item.id}">${item.label}</option>`).join('')}</select></div><div><label>FORMAT</label><select id="fpeFormat">${PRACTICE_FORMATS.map(item=>`<option value="${item.id}">${item.label}</option>`).join('')}</select></div></div><div class="fpeBlock"><div class="fpeBlockTitle">PHASE · MULTI-SELECT</div><div id="fpePhases" class="fpeChecks">${GAME_PHASES.map(item=>editorChip(item,'phase',false)).join('')}</div></div><div class="fpeBlock"><div class="fpeBlockTitle">MAIN PRINCIPLE · MULTI-SELECT</div><div id="fpePrinciples" class="fpeChecks"></div></div><div class="fpeBlock"><div class="fpeBlockTitle">SUB-PRINCIPLE · MULTI-SELECT</div><div id="fpeSubs" class="fpeChecks"></div></div><div class="fpeNoLink"><label><input id="fpeNoLink" type="checkbox"> No Game Model link — keep this as useful technical / physical / general work without forcing a principle.</label></div>`;
+  panel.innerHTML=`<div class="fpwHead"><div><h3>Practice Game Model Tags</h3><p>Tag what this practice can genuinely expose. You can select multiple phases, main principles and sub-principles. Saving with no main principle records an intentional “No Game Model link”.</p></div></div><div class="fpeGrid"><div><label>PURPOSE</label><select id="fpePurpose">${PRACTICE_PURPOSES.map(item=>`<option value="${item.id}">${item.label}</option>`).join('')}</select></div><div><label>FORMAT</label><select id="fpeFormat">${PRACTICE_FORMATS.map(item=>`<option value="${item.id}">${item.label}</option>`).join('')}</select></div></div><div class="fpeBlock"><div class="fpeBlockTitle">PHASE · MULTI-SELECT</div><div id="fpePhases" class="fpeChecks">${GAME_PHASES.map(item=>editorChip(item,'phase',false)).join('')}</div></div><div class="fpeBlock"><div class="fpeBlockTitle">MAIN PRINCIPLE · MULTI-SELECT</div><div id="fpePrinciples" class="fpeChecks"></div></div><div class="fpeBlock"><div class="fpeBlockTitle">SUB-PRINCIPLE · MULTI-SELECT</div><div id="fpeSubs" class="fpeChecks"></div></div><details class="principleCompactList"><summary>Passing fundamentals · what does this drill work on?</summary><p class="small">Tick the key details. Existing drill text suggests a starting set; your saved choices take priority.</p><div id="fpeFundamentals" class="fpeChecks">${PASSING_FUNDAMENTALS.map(item=>editorChip(item,'fundamental',false)).join('')}</div></details><div class="fpeNoLink"><label><input id="fpeNoLink" type="checkbox"> No Game Model link — keep this as useful technical / physical / general work without forcing a principle.</label></div>`;
   const nameLabel=name.previousElementSibling;
   if(nameLabel?.tagName==='LABEL')card.insertBefore(panel,nameLabel);else card.prepend(panel);
   bindEditorChecks();
-  field('fpeNoLink')?.addEventListener('change',event=>{panel.querySelectorAll('.fpeCheck input').forEach(input=>{input.disabled=event.target.checked;});window.NickPrincipleWordBanks?.refresh();});
+  field('fpeNoLink')?.addEventListener('change',event=>{panel.querySelectorAll('.fpeCheck:not([data-fpe-fundamental]) input').forEach(input=>{input.disabled=event.target.checked;});window.NickPrincipleWordBanks?.refresh();});
   field('fpePurpose')?.addEventListener('change',()=>syncLegacyStageFromPurpose());
   const theme=field('theme');if(theme){theme.classList.add('fourPhaseLegacyHidden');const label=theme.previousElementSibling;if(label?.tagName==='LABEL')label.classList.add('fourPhaseLegacyHidden');}
   const stage=field('stage');if(stage){stage.classList.add('fourPhaseLegacyHidden');const label=stage.previousElementSibling;if(label?.tagName==='LABEL')label.classList.add('fourPhaseLegacyHidden');}
@@ -506,12 +512,13 @@ function loadEditorForPractice(practice={}){
   const panel=field(EDITOR_ID);if(!panel)return;
   field('fpePurpose').value=a.purpose;
   field('fpeFormat').value=a.format;
+  field('fpeFundamentals').innerHTML=PASSING_FUNDAMENTALS.map(item=>editorChip(item,'fundamental',passingFundamentals(practice).includes(item.id))).join('');
   syncLegacyStageFromPurpose();
   field('fpeNoLink').checked=a.noGameModelLink;
   field('fpePhases').innerHTML=GAME_PHASES.map(item=>editorChip(item,'phase',a.phaseIds.includes(item.id))).join('');
   renderEditorPrinciples(a.principleIds,a.phaseIds);
   renderEditorSubs(a.subPrincipleIds,a.principleIds);
-  panel.querySelectorAll('.fpeCheck input').forEach(input=>{input.disabled=a.noGameModelLink;});
+  panel.querySelectorAll('.fpeCheck input').forEach(input=>{input.disabled=!input.closest('[data-fpe-fundamental]')&&a.noGameModelLink;});
   bindEditorChecks();
   window.NickPrincipleWordBanks?.refresh();
 }
@@ -525,6 +532,7 @@ async function persistPracticeTags(practiceId,draft,quiet=false){
   practice.gameModelPrincipleIds=uniq(draft.principleIds).filter(id=>principleById(id));
   practice.gameModelSubPrincipleIds=uniq(draft.subPrincipleIds).filter(id=>subPrincipleById(id));
   practice.practicePurpose=purposeById(draft.practicePurpose)?.id||'execute';
+  practice.passingFundamentals=passingFundamentals({passingFundamentals:draft.passingFundamentals||[]});
   practice.practiceFormat=formatById(draft.practiceFormat)?.id||'other';
   const legacyStage=legacyStageForPurpose(practice.practicePurpose);
   if(legacyStage)practice.stage=legacyStage;
@@ -537,7 +545,7 @@ async function persistPracticeTags(practiceId,draft,quiet=false){
   practice.fourPhaseModelVersion=FOUR_PHASE_PRACTICE_SYSTEM_VERSION;
   window.NickFourPhasePracticePersistence?.remember?.(practiceId,{
     phaseIds:practice.gameModelPhaseIds,principleIds:practice.gameModelPrincipleIds,subPrincipleIds:practice.gameModelSubPrincipleIds,
-    practicePurpose:practice.practicePurpose,practiceFormat:practice.practiceFormat,noGameModelLink:practice.noGameModelLink
+    practicePurpose:practice.practicePurpose,practiceFormat:practice.practiceFormat,passingFundamentals:practice.passingFundamentals,noGameModelLink:practice.noGameModelLink
   });
   try{localStorage.setItem('nickCoachOSv3',JSON.stringify(appDb()));}catch(_){}
   try{await window.NickFourPhasePracticePersistence?.flush?.();}catch(_){}

@@ -1,16 +1,17 @@
+import {sessionTitle,sessionModelError} from './session-identity.js';
 import { phaseById, principleById, subPrincipleById } from './game-model-core.js';
 export function filterSessions(sessions = [], { search = '', team = '', theme = '' } = {}, practiceLookup = () => null) {
   const q = String(search || '').trim().toLowerCase();
   return [...sessions]
     .filter(session => !team || String(session.team || '') === team)
-    .filter(session => !theme || String(session.theme || '') === theme)
+    .filter(session => !theme || (sessionTitle(session) === theme || String(session.theme || '') === theme))
     .filter(session => {
       if (!q) return true;
       const practiceNames = (session.drills || session.practiceIds || []).map(id => {
         const practice = practiceLookup(id);
         return practice ? `${practice.name || ''} ${practice.stage || ''} ${practice.theme || ''}` : String(id || '');
       }).join(' ');
-      return [session.date, session.team, session.theme, session.objective, session.cues, session.reflect, practiceNames]
+      return [sessionTitle(session),session.date, session.team, session.theme, session.objective, session.cues, session.reflect, practiceNames]
         .join(' ')
         .toLowerCase()
         .includes(q);
@@ -161,6 +162,7 @@ function installFastSessionSave() {
       };
       if(window.NickFourPhaseGameModel?.currentPlan)base.gameModelPlan=window.NickFourPhaseGameModel.currentPlan();
       if (!Array.isArray(base.drills) || !base.drills.length) return alert('Add at least one practice before saving the session.');
+      const modelError=sessionModelError(base);if(modelError){alert(modelError);return false;}
       const data = appDb();
       if (mode === 'update' && editingSessionId) {
         const index = data.sessions.findIndex(session => session.id === editingSessionId);
@@ -214,7 +216,7 @@ export function openAllSessionDiagrams(sessionOrIndex = null, title = '') {
   const overlay = document.createElement('div');
   overlay.id = 'diagramOverviewOverlay';
   overlay.className = 'diagramOverviewOverlay';
-  overlay.innerHTML = `<div class="diagramOverviewShell"><div class="diagramOverviewHead"><div><h2>${esc(title || session.theme || 'All Session Diagrams')}</h2><div class="small">${esc(session.date || '')}${session.team ? ` · ${esc(session.team)}` : ''} · ${items.length} practices</div></div><button type="button" id="closeDiagramOverview">Close</button></div><div class="diagramOverviewGrid">${items.map((item, i) => `<article class="diagramOverviewCard"><h3>${i + 1}. ${esc(item.stage ? `${item.stage} · ` : '')}${esc(item.name)}</h3>${item.time ? `<div class="small" style="margin-bottom:7px">${esc(item.time)}</div>` : ''}<div id="diagram-overview-${i}"></div></article>`).join('')}</div></div>`;
+  overlay.innerHTML = `<div class="diagramOverviewShell"><div class="diagramOverviewHead"><div><h2>${esc(title || sessionTitle(session))}</h2><div class="small">${esc(session.date || '')}${session.team ? ` · ${esc(session.team)}` : ''} · ${items.length} practices</div></div><button type="button" id="closeDiagramOverview">Close</button></div><div class="diagramOverviewGrid">${items.map((item, i) => `<article class="diagramOverviewCard"><h3>${i + 1}. ${esc(item.stage ? `${item.stage} · ` : '')}${esc(item.name)}</h3>${item.time ? `<div class="small" style="margin-bottom:7px">${esc(item.time)}</div>` : ''}<div id="diagram-overview-${i}"></div></article>`).join('')}</div></div>`;
   document.body.appendChild(overlay);
   document.getElementById('closeDiagramOverview')?.addEventListener('click', () => overlay.remove());
   overlay.addEventListener('click', event => { if (event.target === overlay) overlay.remove(); });
@@ -229,7 +231,7 @@ function openSessionDetail(index) {
   const overlay = document.createElement('div');
   overlay.id = 'sessionDetailOverlay';
   overlay.className = 'sessionDetailOverlay';
-  overlay.innerHTML = `<div class="sessionDetailShell"><div class="sessionDetailHead"><h2>${esc(session.date || '')} · ${esc(session.theme || 'Session')}</h2><button type="button" id="closeSessionDetail">Close</button></div><div id="sessionDetailContent"></div></div>`;
+  overlay.innerHTML = `<div class="sessionDetailShell"><div class="sessionDetailHead"><h2>${esc(session.date || '')} · ${esc(sessionTitle(session))}</h2><button type="button" id="closeSessionDetail">Close</button></div><div id="sessionDetailContent"></div></div>`;
   document.body.appendChild(overlay);
   const content = document.getElementById('sessionDetailContent');
   try { content.appendChild(buildSessionCard(session, index)); } catch (_) { content.innerHTML = `<p>${esc(session.objective || '')}</p>`; }
@@ -255,7 +257,7 @@ function renderSessionLibrary() {
     const drills = Array.isArray(session.drills) ? session.drills : [];
     const plan=session.gameModelPlan||{};
     const modelLabels=[phaseById(plan.gamePhase)?.label,principleById(plan.primaryPrincipleId)?.message,...(plan.subPrincipleIds||[]).map(id=>subPrincipleById(id)?.title)].filter(Boolean);
-    return `<article class="sessionLibraryCard"><div class="small">${esc(session.date || 'No date')}${session.team ? ` · ${esc(session.team)}` : ''}</div><h3>${esc(session.theme || 'Session')}</h3><div class="sessionLibraryMeta">${modelLabels.map(label=>`<span class="pill">${esc(label)}</span>`).join('')}<span class="pill">${drills.length} ${drills.length === 1 ? 'practice' : 'practices'}</span>${session.rating ? `<span class="pill">${'★'.repeat(Number(session.rating) || 0)}</span>` : ''}${session.review ? '<span class="pill">Reviewed</span>' : ''}</div><div class="sessionLibraryObjective"><b>Objective:</b> ${esc(session.gameModelPlan?.successLooksLike || session.objective || '—')}</div><div class="sessionLibraryActions"><button type="button" data-session-action="view" data-index="${index}">View Session</button><button type="button" data-session-action="diagrams" data-index="${index}">🗺 All Diagrams</button><button type="button" data-session-action="sideline" data-index="${index}">▶ Sideline</button><button type="button" data-session-action="edit" data-index="${index}">Edit</button></div></article>`;
+    return `<article class="sessionLibraryCard"><div class="small">${esc(session.date || 'No date')}${session.team ? ` · ${esc(session.team)}` : ''}</div><h3>${esc(sessionTitle(session))}</h3><div class="sessionLibraryMeta">${modelLabels.map(label=>`<span class="pill">${esc(label)}</span>`).join('')}<span class="pill">${drills.length} ${drills.length === 1 ? 'practice' : 'practices'}</span>${session.rating ? `<span class="pill">${'★'.repeat(Number(session.rating) || 0)}</span>` : ''}${session.review ? '<span class="pill">Reviewed</span>' : ''}</div><div class="sessionLibraryObjective"><b>Objective:</b> ${esc(session.gameModelPlan?.successLooksLike || session.objective || '—')}</div><div class="sessionLibraryActions"><button type="button" data-session-action="view" data-index="${index}">View Session</button><button type="button" data-session-action="diagrams" data-index="${index}">🗺 All Diagrams</button><button type="button" data-session-action="sideline" data-index="${index}">▶ Sideline</button><button type="button" data-session-action="edit" data-index="${index}">Edit</button></div></article>`;
   }).join('')}</div>`;
 }
 
@@ -278,13 +280,13 @@ function installSessionLibrary() {
   if (archiveTab) nav.insertBefore(button, archiveTab); else nav.appendChild(button);
   const view = document.createElement('section');
   view.id = 'sessionsLibraryView'; view.className = 'view hidden';
-  view.innerHTML = `<div class="card"><h2>Saved Sessions</h2><p class="small">Every saved session in one place. Search it, open it, start Sideline Mode, or view every diagram in one tap.</p><div class="sessionLibraryToolbar"><input id="sessionLibrarySearch" type="search" placeholder="Search objective, practice, theme…" aria-label="Search saved sessions"><select id="sessionLibraryTeam" aria-label="Filter sessions by team"><option value="">All teams</option></select><select id="sessionLibraryTheme" aria-label="Filter sessions by theme"><option value="">All themes</option></select></div><div class="sessionLibrarySummary"><b id="sessionLibraryCount">0 sessions</b><button type="button" id="sessionLibraryClearFilters">Clear filters</button></div><div id="sessionLibraryResults"></div></div>`;
+  view.innerHTML = `<div class="card"><h2>Saved Sessions</h2><p class="small">Every saved session in one place. Search it, open it, start Sideline Mode, or view every diagram in one tap.</p><div class="sessionLibraryToolbar"><input id="sessionLibrarySearch" type="search" placeholder="Search objective, practice, theme…" aria-label="Search saved sessions"><select id="sessionLibraryTeam" aria-label="Filter sessions by team"><option value="">All teams</option></select><select id="sessionLibraryTheme" aria-label="Filter sessions by theme"><option value="">All phases / principles</option></select></div><div class="sessionLibrarySummary"><b id="sessionLibraryCount">0 sessions</b><button type="button" id="sessionLibraryClearFilters">Clear filters</button></div><div id="sessionLibraryResults"></div></div>`;
   document.body.appendChild(view);
   const data = appDb();
   const teamSelect = document.getElementById('sessionLibraryTeam');
   uniqueValues((data?.sessions || []).map(s => s.team)).forEach(value => teamSelect.insertAdjacentHTML('beforeend', `<option value="${esc(value)}">${esc(value)}</option>`));
   const themeSelect = document.getElementById('sessionLibraryTheme');
-  uniqueValues((data?.sessions || []).map(s => s.theme)).forEach(value => themeSelect.insertAdjacentHTML('beforeend', `<option value="${esc(value)}">${esc(value)}</option>`));
+  uniqueValues((data?.sessions || []).map(s => sessionTitle(s))).forEach(value => themeSelect.insertAdjacentHTML('beforeend', `<option value="${esc(value)}">${esc(value)}</option>`));
   button.addEventListener('click', showSessionLibrary);
   ['sessionLibrarySearch', 'sessionLibraryTeam', 'sessionLibraryTheme'].forEach(id => document.getElementById(id)?.addEventListener('input', renderSessionLibrary));
   document.getElementById('sessionLibraryClearFilters')?.addEventListener('click', () => {
