@@ -51,3 +51,12 @@ test('coaching pathway is mounted outside the hidden diagram studio',()=>{
  assert.match(loop,/document\.body\.append\(view\)/);
  assert.doesNotMatch(loop,/document\.querySelector\('main'\)/);
 });
+
+test('opening a previously hidden finder refreshes results without background redraw loops',()=>{
+ const source=fs.readFileSync(new URL('../src/four-phase-practice-system-v1.js',import.meta.url),'utf8');
+ const code=source.match(/function refreshVisibleResults\(\)\{[\s\S]*?\n\}/)[0];let visible='planner';const calls=[];
+ const ctx={ensureAll(){},field:id=>({classList:{contains:()=>id!==visible}}),renderResults:group=>calls.push(group),workbenchFilters:{},finderFilters:{}};
+ vm.runInNewContext(code+';refreshVisibleResults();',ctx);assert.deepEqual(calls,['finder']);
+ visible='library';ctx.refreshVisibleResults();assert.deepEqual(calls,['finder','workbench']);
+ assert.match(source,/setTimeout\(refreshVisibleResults,70\)/);
+});

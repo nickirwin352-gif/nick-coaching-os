@@ -612,10 +612,16 @@ async function migrateLibrary(){
 function ensureAll(){
   addStyles();buildWorkbench();buildFinder();ensureEditor();wrapPracticeEditor();
 }
+function refreshVisibleResults(){
+  ensureAll();
+  if(!field('library')?.classList.contains('hidden'))renderResults('workbench',workbenchFilters);
+  if(!field('planner')?.classList.contains('hidden'))renderResults('finder',finderFilters);
+}
 function install(){
+  window.addEventListener('coaching:data',refreshVisibleResults);
   ensureAll();migrateLibrary().then(()=>{renderResults('workbench',workbenchFilters);resetFinderToSession();});
   [150,500,1200,2600].forEach(delay=>setTimeout(()=>{ensureAll();renderResults('workbench',workbenchFilters);},delay));
-  document.addEventListener('click',event=>{if(event.target.closest?.('[data-tab="library"],[data-tab="planner"],[data-tab="editor"],[onclick*="showBuildRoute"]'))setTimeout(ensureAll,70);},true);
+  document.addEventListener('click',event=>{if(event.target.closest?.('[data-tab="library"],[data-tab="planner"],[data-tab="editor"],[onclick*="showBuildRoute"]'))setTimeout(refreshVisibleResults,70);},true);
   window.NickFourPhasePracticeSystem=Object.freeze({
     version:FOUR_PHASE_PRACTICE_SYSTEM_VERSION,
     tagDraft,editorState,classificationReview,refresh:()=>{renderResults('workbench',workbenchFilters);renderResults('finder',finderFilters);},
