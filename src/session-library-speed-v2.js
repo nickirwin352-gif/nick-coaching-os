@@ -106,46 +106,16 @@ function updateStatus(text) {
 }
 
 async function flushCloudSync() {
-  if (cloudSyncRunning || !pendingCloudSnapshot) return;
-  let ready = false;
-  try { ready = !!cloudReady; } catch (_) { ready = true; }
-  if (!ready || !window.nickCloud || typeof window.nickCloud.save !== 'function') {
-    clearTimeout(cloudRetryTimer);
-    cloudRetryTimer = setTimeout(flushCloudSync, 650);
-    return;
-  }
-  cloudSyncRunning = true;
-  const snapshot = pendingCloudSnapshot;
-  pendingCloudSnapshot = null;
-  try {
-    await window.nickCloud.save(snapshot);
-    try { lastCloudJson = JSON.stringify(snapshot); } catch (_) {}
-    updateStatus('Saved to Firebase');
-    toast('Saved to cloud');
-  } catch (error) {
-    console.error('Background session sync failed', error);
-    pendingCloudSnapshot = snapshot;
-    updateStatus('Saved locally · cloud retry pending');
-    clearTimeout(cloudRetryTimer);
-    cloudRetryTimer = setTimeout(flushCloudSync, 1500);
-  } finally {
-    cloudSyncRunning = false;
-    if (pendingCloudSnapshot) queueMicrotask(flushCloudSync);
-  }
+  const snapshot=pendingCloudSnapshot; pendingCloudSnapshot=null;
+  if(snapshot)window.NickPersistence.enqueue(snapshot);
 }
 
+
 function persistFast() {
-  const data = appDb();
-  try { db = typeof normaliseDbShape === 'function' ? normaliseDbShape(data) : data; } catch (_) {}
-  const current = appDb();
-  localStorage.setItem('nickCoachOSv3', JSON.stringify(current));
-  pendingCloudSnapshot = JSON.parse(JSON.stringify(current));
-  updateStatus('Saved locally · syncing…');
-  toast('Saved · syncing in background');
-  queueMicrotask(flushCloudSync);
-  const render = () => { try { renderAll(); } catch (_) {} };
-  if ('requestIdleCallback' in window) requestIdleCallback(render, { timeout: 1200 });
-  else setTimeout(render, 0);
+  const current=appDb();
+  window.NickPersistence.enqueue(current);
+  toast('Session saved on this device');
+  requestAnimationFrame(()=>{try{renderAll();}catch(_){}});
 }
 
 function installFastSessionSave() {
@@ -153,6 +123,7 @@ function installFastSessionSave() {
   try { original = saveSession; } catch (_) { original = window.saveSession; }
   if (original && original.__fastSessionSave) return;
   const fastSave = function(mode = 'new') {
+    const previousSessions = [...(appDb()?.sessions || [])];
     try {
       if (typeof dsEnsurePlannerOverrides === 'function') dsEnsurePlannerOverrides();
       const base = typeof currentPlannerSession === 'function' ? currentPlannerSession() : {
@@ -178,8 +149,10 @@ function installFastSessionSave() {
       toast(mode === 'update' ? 'Session updated · syncing' : 'Session saved · syncing');
       return true;
     } catch (error) {
-      console.error('Fast session save failed; falling back to original save', error);
-      return original ? original(mode) : undefined;
+      appDb().sessions = previousSessions;
+      console.error('Session save failed', error);
+      alert('Session was not saved. Your planner is still open. ' + error.message);
+      return false;
     }
   };
   fastSave.__fastSessionSave = true;
@@ -235,6 +208,7 @@ function openSessionDetail(index) {
   document.body.appendChild(overlay);
   const content = document.getElementById('sessionDetailContent');
   try { content.appendChild(buildSessionCard(session, index)); } catch (_) { content.innerHTML = `<p>${esc(session.objective || '')}</p>`; }
+  window.NickCoachingLoop?.detail?.(session,content);
   document.getElementById('closeSessionDetail')?.addEventListener('click', () => overlay.remove());
 }
 

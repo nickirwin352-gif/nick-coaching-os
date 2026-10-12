@@ -1,3 +1,4 @@
+import './persistence-client.js';
 export function cloneOverride(value) {
   return value == null ? null : JSON.parse(JSON.stringify(value));
 }
@@ -71,9 +72,9 @@ const api = {
 if (typeof window !== 'undefined') window.CoachingOSSessionState = api;
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-  const startupPolishReady = import('./app-startup-save-status-v1.js?v=coaching-cues-4')
+  const startupPolishReady = import('./app-startup-save-status-v1.js?v=coaching-loop-7')
     .catch(error => { console.warn('Startup/save status patch failed to load', error); return null; });
-  const fourPhasePracticePersistenceReady = import('./four-phase-practice-persistence-v1.js?v=activation-focus-6')
+  const fourPhasePracticePersistenceReady = import('./four-phase-practice-persistence-v1.js?v=coaching-loop-7')
     .catch(error => { console.warn('Four-phase practice persistence failed to load', error); return null; });
   import('./mobile-reliability.js').catch(error => console.warn('Mobile reliability patch failed to load', error));
   import('./display-calibration.js').catch(error => console.warn('Display calibration patch failed to load', error));
@@ -81,9 +82,9 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   import('./session-identity.js')
     .then(() => import('./post-session-review.js'))
     .then(() => import('./review-integrations.js'))
-    .then(() => import('./session-library-speed-v2.js?v=activation-focus-6'))
+    .then(() => import('./session-library-speed-v2.js?v=coaching-loop-7'))
     .then(() => import('./startup-performance.js'))
-    .then(() => import('./session-usability-pass.js?v=coaching-cues-4'))
+    .then(() => import('./session-usability-pass.js?v=coaching-loop-7'))
     .then(() => import('./practice-editor-unified.js'))
     .then(() => import('./builder-session-visuals.js'))
     .then(() => import('./sticky-session-diagrams-fix.js'))
@@ -105,18 +106,19 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./session-calendar-navigation-rating.js'))
     .then(() => import('./coaching-personalisation-automation.js?v=principle-banks-3'))
     .then(() => import('./calendar-sessions-hard-fix-v2.js?v=principle-banks-3'))
-    .then(() => import('./ios-diagram-calibration-v3.js?v=coaching-cues-4'))
+    .then(() => import('./ios-diagram-calibration-v3.js?v=coaching-loop-7'))
     .then(() => import('./diagram-preset-manager.js'))
     .then(() => import('./session-return-sideline-setup.js'))
     .then(() => import('./diagram-cone-colours.js'))
     .then(() => fourPhasePracticePersistenceReady)
-    .then(() => import('./four-phase-game-model-os-v1.js?v=cross-device-5'))
+    .then(() => import('./four-phase-game-model-os-v1.js?v=coaching-loop-7'))
     .then(() => import('./four-phase-game-model-diagrams-v2.js'))
-    .then(() => import('./four-phase-practice-system-v1.js?v=activation-focus-6'))
+    .then(() => import('./four-phase-practice-system-v1.js?v=coaching-loop-7'))
     .then(() => import('./practice-editor-collapsible-word-banks-v1.js?v=principle-banks-3'))
     .then(() => import('./advanced-builder-visual-focus-v1.js'))
     .then(() => import('./four-phase-builder-clarity-v2.js'))
-    .then(() => import('./principle-word-banks.js?v=coaching-cues-4'))
+    .then(() => import('./principle-word-banks.js?v=coaching-loop-7'))
+    .then(() => import('./coaching-loop.js?v=coaching-loop-7'))
     .then(() => startupPolishReady)
     .then(() => { window.NickStartupPolish?.markEnhancementsReady?.(); })
     .catch(error => {

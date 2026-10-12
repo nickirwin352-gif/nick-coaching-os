@@ -1,3 +1,5 @@
+import {subscribe} from './persistence-client.js';
+import {syncPresentation} from './sync-presentation.js';
 import { cloudSaveFeedback } from './cloud-save-feedback.js';
 let copiedSessionIndex = null;
 let selectedSessionIndex = null;
@@ -54,25 +56,10 @@ function showSaveState(main, sub = '', state = 'saved', duration = 2600) {
 window.showSaveState = showSaveState;
 
 function installSaveFeedback() {
-  const existing = window.saveSession;
-  if (typeof existing === 'function' && !existing.__pronouncedSaveFeedback) {
-    const wrapped = function(...args) {
-      showSaveState('Session saved on this device', 'Syncing to cloud in the background…', 'syncing', 0);
-      const result = existing.apply(this, args);
-      if (result === false) showSaveState('Session was not saved', 'Check the session and try again.', 'error', 3200);
-      return result;
-    };
-    wrapped.__pronouncedSaveFeedback = true;
-    window.saveSession = wrapped;
-  }
-
-  const cloudLabel = document.getElementById('cloudPillLabel');
-  if (!cloudLabel) return;
-  const reflectCloudState = () => {
-    const feedback=cloudSaveFeedback(cloudLabel.textContent,navigator.onLine);
-    showSaveState(feedback.main,feedback.sub,feedback.state,feedback.state==='syncing'?0:3200);
-  };
-  new MutationObserver(reflectCloudState).observe(cloudLabel, { childList: true, characterData: true, subtree: true });
+ subscribe(state=>{
+  const view=syncPresentation(state);
+  showSaveState(view.text,view.detail,view.kind==='bad'?'error':view.kind==='ok'?'saved':'syncing',state.pending||state.conflicts?0:3200);
+ });
 }
 
 function clearSessionSelection() {

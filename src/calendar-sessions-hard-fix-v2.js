@@ -1,3 +1,4 @@
+import {observeRender} from './observe-render.js';
 const STYLE_ID = 'calendarSessionsHardFixV2Styles';
 const HIGHLIGHT_CLASS = 'calendarHardJumpTarget';
 let installed = false;
@@ -334,29 +335,29 @@ function installObservers() {
   if (calendar && !calendar.dataset.hardJumpV2) {
     calendar.dataset.hardJumpV2 = 'true';
     calendar.addEventListener('click', onCalendarClick, true);
-    calendarObserver = new MutationObserver(() => requestAnimationFrame(decorateCalendar));
-    calendarObserver.observe(calendar, { childList: true, subtree: true });
+    calendarObserver = observeRender(calendar,decorateCalendar);
+
   }
 
   const results = document.getElementById('sessionLibraryResults');
   if (results && !results.dataset.hardRatingV2) {
     results.dataset.hardRatingV2 = 'true';
-    sessionObserver = new MutationObserver(() => requestAnimationFrame(decorateSessionLibrary));
-    sessionObserver.observe(results, { childList: true, subtree: true });
+    sessionObserver = observeRender(results,decorateSessionLibrary);
+
   }
 
   const list = document.getElementById('archiveList');
   if (list && !list.dataset.hardRatingV2) {
     list.dataset.hardRatingV2 = 'true';
-    archiveObserver = new MutationObserver(() => requestAnimationFrame(() => decorateArchiveList()));
-    archiveObserver.observe(list, { childList: true, subtree: true });
+    archiveObserver = observeRender(list,decorateArchiveList);
+
   }
 
   const theme = document.getElementById('archiveThemeWrap');
   if (theme && !theme.dataset.hardRatingV2) {
     theme.dataset.hardRatingV2 = 'true';
-    themeObserver = new MutationObserver(() => requestAnimationFrame(decorateArchiveTheme));
-    themeObserver.observe(theme, { childList: true, subtree: true });
+    themeObserver = observeRender(theme,decorateArchiveTheme);
+
   }
 }
 

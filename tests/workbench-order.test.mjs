@@ -44,7 +44,7 @@ test('undated legacy drills retain a deterministic reverse-library fallback',()=
 const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
 const save=html.match(/savePractice=async function\(\)\{[\s\S]*?\n\};/)[0];
 async function saveFixture(existing,oldId=''){
-  const context={db:{practices:existing},practiceDiagramStepsDraft:[{diagram:[],pitchMode:'full'}],diagram:[],pitchMode:'full',
+  const context={window:{},db:{practices:existing},practiceDiagramStepsDraft:[{diagram:[],pitchMode:'full'}],diagram:[],pitchMode:'full',
     dsClone:value=>JSON.parse(JSON.stringify(value)),dsNormaliseObject:value=>value,dsRenderEditorPreview(){},alert(){},store:async()=>{}};
   for(const name of ['pid','pname','theme','stage','players','time','area','desc','prog','reg','cp','condRules','oldId'])context[name]={value:''};
   context.pid.value='saved';context.pname.value='Saved drill';context.oldId.value=oldId;

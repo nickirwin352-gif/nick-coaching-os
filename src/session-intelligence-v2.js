@@ -277,31 +277,12 @@ function saveLocal(data) {
 function cloudStatus(text) { try { if (typeof updateCloudStatus === 'function') updateCloudStatus(text,new Date().toLocaleString('en-GB')); } catch (_) {} }
 
 async function flushCloud() {
-  if (cloudSyncRunning || !pendingCloudSnapshot) return;
-  if (!window.nickCloud || typeof window.nickCloud.save !== 'function') { setTimeout(flushCloud,900); return; }
-  cloudSyncRunning = true;
-  const snapshot = pendingCloudSnapshot;
-  pendingCloudSnapshot = null;
-  try {
-    await window.nickCloud.save(snapshot);
-    try { lastCloudJson = JSON.stringify(snapshot); } catch (_) {}
-    cloudStatus('Saved to Firebase');
-  } catch (error) {
-    console.error('Background review sync failed',error);
-    pendingCloudSnapshot = snapshot;
-    cloudStatus('Saved locally · cloud retry pending');
-    setTimeout(flushCloud,1600);
-  } finally {
-    cloudSyncRunning = false;
-    if (pendingCloudSnapshot) setTimeout(flushCloud,0);
-  }
+  const snapshot=pendingCloudSnapshot; pendingCloudSnapshot=null;
+  if(snapshot)window.NickPersistence.enqueue(snapshot);
 }
 
-function queueCloud(data) {
-  pendingCloudSnapshot = clone(data);
-  cloudStatus('Saved locally · syncing…');
-  setTimeout(flushCloud,0);
-}
+
+function queueCloud(data) { return window.NickPersistence.enqueue(data); }
 
 function closeReviewNow() {
   document.getElementById('postSessionReviewOverlay')?.classList.remove('open');
@@ -318,13 +299,13 @@ function saveReviewInstant(openDashboard) {
     return { ...(previous[index] || {}), practiceId:row.dataset.practiceId, effectiveness:row.querySelector('.practiceEffect')?.value || '', engagement:row.querySelector('.practiceEngagement')?.value || '', decision:row.querySelector('.practiceDecision')?.value || '', reasoning, note:reasoning };
   });
   const review = {
-    ...(session.review || {}), scale:10, objectiveOutcome:selectedChoice('objectiveOutcome'), rating:document.getElementById('reviewRating')?.value || '',
+    ...(session.review || {}), learning:window.NickCoachingLoop?.readReview?.(session), scale:10, objectiveOutcome:selectedChoice('objectiveOutcome'), rating:document.getElementById('reviewRating')?.value || '',
     worked:String(document.getElementById('reviewWorked')?.value || '').trim(), didntWork:String(document.getElementById('reviewDidnt')?.value || '').trim(), repeat:String(document.getElementById('reviewRepeat')?.value || '').trim(), changeNext:String(document.getElementById('reviewChange')?.value || '').trim(), practices, reviewedAt:new Date().toISOString()
   };
   session.review = review; session.rating = review.rating; session.reflect = summariseReview(review);
   const index = (data.sessions || []).findIndex(item => item === session || (item.id && session.id && item.id === session.id));
   if (index >= 0) data.sessions[index] = session;
-  if (saveLocal(data)) { queueCloud(data); showToast('Review saved · syncing in background'); } else showToast('Review could not be saved locally');
+  try { queueCloud(data); showToast('Review saved on this device'); } catch(error) { showToast('Review not saved: device storage unavailable'); return false; }
   closeReviewNow();
   try { window.renderSessionLibrary?.(); } catch (_) {}
   try { if (typeof renderRecentSessions === 'function') renderRecentSessions(); } catch (_) {}

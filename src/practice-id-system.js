@@ -302,7 +302,7 @@ function installPracticeEditorAutomation() {
       const oldId = oldField.value.trim();
       const current = currentFormPractice();
       const sameCategory = current && current.stage === stageField.value && current.theme === themeField.value;
-      const targetId = oldId && sameCategory
+      const targetId = oldId
         ? oldId
         : nextPracticeId(data?.practices || [], stageField.value, themeField.value, oldId);
       idField.value = targetId;

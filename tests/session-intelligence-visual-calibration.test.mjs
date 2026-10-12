@@ -45,10 +45,10 @@ test('latest practice review preserves reasoning for reuse decisions', () => {
 });
 
 test('review saving is local first and cloud sync is backgrounded', () => {
-  assert.match(intelligenceSource, /saveLocal\(data\)/);
+  assert.match(intelligenceSource, /window\.NickPersistence\.enqueue\(data\)/);
   assert.match(intelligenceSource, /queueCloud\(data\)/);
   assert.match(intelligenceSource, /closeReviewNow\(\)/);
-  assert.match(intelligenceSource, /Review saved · syncing in background/);
+  assert.match(intelligenceSource, /Review saved on this device/);
 });
 
 test('review reasoning, session subtitles and calendar scores are surfaced', () => {

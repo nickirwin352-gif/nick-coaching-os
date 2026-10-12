@@ -1,3 +1,5 @@
+import {subscribe,status} from './persistence-client.js';
+import {syncPresentation} from './sync-presentation.js';
 export const APP_STARTUP_SAVE_STATUS_VERSION = 2;
 
 const STYLE_ID = 'nickAppStartupSaveStatusV1Styles';
@@ -80,30 +82,11 @@ function cloudIsResolved(text=cloudText()) { return /connected|saved|not availab
 function cloudIsHealthy(text=cloudText()) { return /saved to firebase|saved to cloud|cloud synced|cloud sync complete/i.test(text) && !/fail|retry|pending|syncing|offline|error/i.test(text); }
 
 function refreshSaveStatusFromCloud() {
-  const text = cloudText();
-  if (!navigator.onLine) setSaveStatus('Saved locally ✓ · Offline','warn');
-  else if (/fail|retry|error/i.test(text)) setSaveStatus('Saved locally ✓ · Cloud retry','bad');
-  else if (/not available/i.test(text)) setSaveStatus('Saved locally ✓ · Local only','warn');
-  else if (cloudIsHealthy(text)) setSaveStatus('Saved locally ✓ · Cloud synced ✓','ok');
-  else if (/syncing|saving|pending/i.test(text)) setSaveStatus('Saved locally ✓ · Cloud syncing…','saving');
-  else if (/connected/i.test(text)) setSaveStatus('Cloud connected · Backup not confirmed','warn');
-  else setSaveStatus('Local ready · Cloud connecting…','saving');
-  if (cloudIsResolved(text)) {
-    cloudResolved = true;
-    maybeReleaseOverlay();
-  }
-}
-
-function observeCloudState() {
-  const label = field('cloudPillLabel');
-  if (!label) {
-    setTimeout(observeCloudState,60);
-    return;
-  }
-  cloudObserver?.disconnect?.();
-  cloudObserver = new MutationObserver(refreshSaveStatusFromCloud);
-  cloudObserver.observe(label,{childList:true,characterData:true,subtree:true});
-  refreshSaveStatusFromCloud();
+ const presentation=syncPresentation(status());
+ setSaveStatus(presentation.text,presentation.kind);
+ cloudResolved=status().connected;maybeReleaseOverlay();
+ const label=field('cloudPillLabel');if(label&&label.textContent!==presentation.text)label.textContent=presentation.text;
+ if(field('cloudStatus'))field('cloudStatus').value=presentation.text;
 }
 
 function releaseOverlay() {
@@ -129,96 +112,15 @@ export function markEnhancementsReady({degraded=false}={}) {
   maybeReleaseOverlay();
 }
 
-function appDb() {
-  try { return typeof db !== 'undefined' ? db : window.db; }
-  catch (_) { return window.db; }
-}
-
-function saveLocalOnly() {
-  const data = appDb();
-  if (!data) return false;
-  try {
-    const normalised = typeof normaliseDbShape === 'function' ? normaliseDbShape(data) : data;
-    localStorage.setItem('nickCoachOSv3',JSON.stringify(normalised));
-    try { if (typeof renderAll === 'function') renderAll(); else window.renderAll?.(); } catch (_) {}
-    return true;
-  } catch (_) { return false; }
-}
-
-function wrapStore() {
-  if (storeWrapped) return;
-  let original;
-  try { original = store; } catch (_) { original = window.store; }
-  if (typeof original !== 'function' || original.__saveStatusV1) return;
-  const wrapped = async function(...args) {
-    setSaveStatus('Saving…','saving');
-    const connecting = !cloudIsResolved();
-    if (connecting) {
-      const local = saveLocalOnly();
-      setSaveStatus(local ? 'Saved locally ✓ · Cloud waiting' : 'Save needs retry',local?'warn':'bad');
-      if (local) setTimeout(()=>window.NickPracticeTagPersistence?.flush?.(),700);
-      return local;
-    }
-    try {
-      const result = await original.apply(this,args);
-      refreshSaveStatusFromCloud();
-      return result;
-    } catch (error) {
-      setSaveStatus('Saved locally ✓ · Cloud retry','bad');
-      throw error;
-    }
-  };
-  wrapped.__saveStatusV1 = true;
-  try { store = wrapped; storeWrapped = true; } catch (_) {}
-  window.store = wrapped;
-  storeWrapped = true;
-}
-
-function wrapCloudSave() {
-  const cloud = window.nickCloud;
-  const original = cloud?.save;
-  if (typeof original !== 'function' || original.__saveStatusV1) return false;
-  const wrapped = async function(...args) {
-    setSaveStatus(navigator.onLine ? 'Syncing…' : 'Saved locally ✓ · Offline',navigator.onLine?'saving':'warn');
-    let settled = false;
-    const slowTimer = setTimeout(()=>{
-      if (!settled) setSaveStatus(navigator.onLine ? 'Saved locally ✓ · Cloud still working…' : 'Saved locally ✓ · Offline','warn');
-    },6500);
-    try {
-      const result = await original.apply(this,args);
-      settled = true;
-      clearTimeout(slowTimer);
-      setSaveStatus('Saved locally ✓ · Cloud synced ✓','ok');
-      return result;
-    } catch (error) {
-      settled = true;
-      clearTimeout(slowTimer);
-      setSaveStatus('Saved locally ✓ · Cloud retry','bad');
-      throw error;
-    }
-  };
-  wrapped.__saveStatusV1 = true;
-  cloud.save = wrapped;
-  return true;
-}
-
 function install() {
   addStyles();
   ensureOverlay();
   ensureSaveIndicator();
-  observeCloudState();
-  wrapStore();
-  [80,250,600,1200,2200,3800].forEach(delay=>setTimeout(()=>{ wrapStore(); wrapCloudSave(); },delay));
-  setInterval(()=>{ wrapStore(); wrapCloudSave(); },1800);
-  window.addEventListener('offline',()=>setSaveStatus('Saved locally ✓ · Offline','warn'));
-  window.addEventListener('online',()=>{
-    setSaveStatus('Cloud reconnecting…','saving');
-    setTimeout(refreshSaveStatusFromCloud,350);
-  });
+  subscribe(refreshSaveStatusFromCloud);
   releaseTimer = setTimeout(()=>{
     if (!cloudResolved) {
       cloudResolved = true;
-      setSaveStatus('Local ready · Cloud still connecting','warn');
+      refreshSaveStatusFromCloud();
     }
     if (!enhancementsReady) enhancementsReady = true;
     releaseOverlay();

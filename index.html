@@ -7,16 +7,16 @@
 <link rel="modulepreload" href="./src/cloud-save-feedback.js">
 <link rel="modulepreload" href="./src/session-identity.js">
 <link rel="modulepreload" href="./src/passing-fundamentals.js">
-<link rel="modulepreload" href="./src/app-startup-save-status-v1.js?v=coaching-cues-4">
-<link rel="modulepreload" href="./src/four-phase-practice-persistence-v1.js?v=activation-focus-6">
+<link rel="modulepreload" href="./src/app-startup-save-status-v1.js?v=coaching-loop-7">
+<link rel="modulepreload" href="./src/four-phase-practice-persistence-v1.js?v=coaching-loop-7">
 <link rel="modulepreload" href="./src/mobile-reliability.js">
 <link rel="modulepreload" href="./src/display-calibration.js">
 <link rel="modulepreload" href="./src/sideline-glance-layout.js">
 <link rel="modulepreload" href="./src/post-session-review.js">
 <link rel="modulepreload" href="./src/review-integrations.js">
-<link rel="modulepreload" href="./src/session-library-speed-v2.js?v=activation-focus-6">
+<link rel="modulepreload" href="./src/session-library-speed-v2.js?v=coaching-loop-7">
 <link rel="modulepreload" href="./src/startup-performance.js">
-<link rel="modulepreload" href="./src/session-usability-pass.js?v=coaching-cues-4">
+<link rel="modulepreload" href="./src/session-usability-pass.js?v=coaching-loop-7">
 <link rel="modulepreload" href="./src/practice-editor-unified.js">
 <link rel="modulepreload" href="./src/builder-session-visuals.js">
 <link rel="modulepreload" href="./src/sticky-session-diagrams-fix.js">
@@ -38,17 +38,17 @@
 <link rel="modulepreload" href="./src/session-calendar-navigation-rating.js">
 <link rel="modulepreload" href="./src/coaching-personalisation-automation.js?v=principle-banks-3">
 <link rel="modulepreload" href="./src/calendar-sessions-hard-fix-v2.js?v=principle-banks-3">
-<link rel="modulepreload" href="./src/ios-diagram-calibration-v3.js?v=coaching-cues-4">
+<link rel="modulepreload" href="./src/ios-diagram-calibration-v3.js?v=coaching-loop-7">
 <link rel="modulepreload" href="./src/diagram-preset-manager.js">
 <link rel="modulepreload" href="./src/session-return-sideline-setup.js">
 <link rel="modulepreload" href="./src/diagram-cone-colours.js">
-<link rel="modulepreload" href="./src/four-phase-game-model-os-v1.js?v=cross-device-5">
+<link rel="modulepreload" href="./src/four-phase-game-model-os-v1.js?v=coaching-loop-7">
 <link rel="modulepreload" href="./src/four-phase-game-model-diagrams-v2.js">
-<link rel="modulepreload" href="./src/four-phase-practice-system-v1.js?v=activation-focus-6">
+<link rel="modulepreload" href="./src/four-phase-practice-system-v1.js?v=coaching-loop-7">
 <link rel="modulepreload" href="./src/practice-editor-collapsible-word-banks-v1.js?v=principle-banks-3">
 <link rel="modulepreload" href="./src/advanced-builder-visual-focus-v1.js">
 <link rel="modulepreload" href="./src/four-phase-builder-clarity-v2.js">
-<link rel="modulepreload" href="./src/principle-word-banks.js?v=coaching-cues-4">
+<link rel="modulepreload" href="./src/principle-word-banks.js?v=coaching-loop-7">
 <link rel="modulepreload" href="./src/principle-word-bank-data.js?v=coaching-cues-4">
 <style>
 :root{
@@ -524,7 +524,7 @@ body.sessionDrawerOpen{overflow:hidden}
   #diagramStudioInlineHost .diagramStudioOverlay.streamlinedInline{height:68dvh;min-height:540px}
 }
 </style>
-<script type="module" src="./src/session-state.js?v=activation-focus-6"></script>
+<script type="module" src="./src/session-state.js?v=coaching-loop-7"></script>
 </head>
 <body>
 <header>
@@ -756,7 +756,7 @@ body.sessionDrawerOpen{overflow:hidden}
 </div>
 <p class="small">Data now saves into separate Firestore collections: coachingOSPractices, coachingOSSessions, coachingOSSessionBlueprints, coachingOSWordbanks and coachingOSBackups. Tip: create a cloud backup before big editing sessions or before testing new features.</p>
 </div></section>
-<script type="module" src="./src/firebase-cloud.js"></script>
+<script type="module" src="./src/firebase-cloud.js?v=coaching-loop-7"></script>
 <script>
 const themes=["Core Passing Activations", "Build Up", "Midfield Progression", "Chance Creation", "Wide Overloads", "Finishing", "High Press", "Mid Block", "Counter Press", "Attacking Transition", "Defensive Transition", "1v1 & Duel Play", "Set Plays", "Conditioned Games", "Fitness"];const stages=["Activation","Skill Practice","Tactical Practice","Conditioned Game"];
 const defaultBanks={
@@ -851,29 +851,13 @@ function normaliseDbShape(data){
 }
 async function store(){
   db=normaliseDbShape(db);
-  localStorage.setItem("nickCoachOSv3", JSON.stringify(db));
+  if(applyingCloudUpdate)return {local:true};
+  if(!window.NickPersistence)throw new Error('Workspace is still starting. Please try saving again.');
+  const result=window.NickPersistence.enqueue(db);
   renderAll();
-
-  if (applyingCloudUpdate) return;
-
-  if (!cloudReady) {
-    alert("Cloud is still loading. Wait a second, then save again.");
-    return;
-  }
-
-  if (window.nickCloud && window.nickCloud.save) {
-    try {
-      await window.nickCloud.save(db);
-      lastCloudJson = JSON.stringify(db);
-      updateCloudStatus("Saved to Firebase", new Date().toLocaleString("en-GB"));
-      console.log("Saved to Firebase");
-    } catch (e) {
-      console.error("Firebase save failed", e);
-      updateCloudStatus("Firebase save failed", "Check console");
-      alert("Saved locally, but Firebase sync failed.");
-    }
-  }
+  return result;
 }
+
 function fill(id,arr,all=false){let e=document.getElementById(id);if(!e)return;let prev=e.value;e.innerHTML=all?'<option value="">All</option>':'';arr.forEach(x=>{let o=document.createElement("option");o.value=x;o.textContent=x;e.appendChild(o)});if(prev!==undefined && [...e.options].some(o=>o.value===prev))e.value=prev;else if(all)e.value="";}
 function plannerThemeOptions(){
   const practiceThemes=(db.practices||[]).map(p=>p.theme).filter(Boolean);
@@ -1001,7 +985,7 @@ renderChipBox("objChips",arr,"objective");
 function renderChipBox(id,arr,target){if(window.NickPrincipleWordBanks?.renderBank(id))return;let box=document.getElementById(id);if(!box)return;box.innerHTML="";let ta=document.getElementById(target);let chosen=(ta&&ta.value?ta.value.split("\n").filter(Boolean):[]);arr.forEach(t=>{let c=document.createElement("span");c.className="chip"+(chosen.includes(t)?" on":"");c.textContent=t;c.onclick=()=>toggleText(target,t,c);box.appendChild(c)})}
 function toggleText(targetId,text,chip){let ta=document.getElementById(targetId);let lines=ta.value.split("\n").filter(Boolean);if(lines.includes(text)){lines=lines.filter(x=>x!==text);chip.classList.remove("on")}else{lines.push(text);chip.classList.add("on")}ta.value=lines.join("\n");renderPreview()}
 function saveBanks(){db.banks.cp=bankCP.value.split("\n").filter(Boolean);if(!db.banks.cpByTheme)db.banks.cpByTheme=defaultBanks.cpByTheme;if(!db.banks.condByTheme)db.banks.condByTheme=defaultBanks.condByTheme;db.banks.prog=bankProg.value.split("\n").filter(Boolean);db.banks.reg=bankReg.value.split("\n").filter(Boolean);db.banks.obj=bankObj.value.split("\n").filter(Boolean);db.banks.links=bankLinks.value.split("\n").filter(Boolean);db.banks.cues=bankCues.value.split("\n").filter(Boolean);db.banks.reflect=bankReflect.value.split("\n").filter(Boolean);store();alert("Word banks saved")}
-function newPractice(){saveLibraryState();clearForm();document.querySelector('[data-tab="editor"]').click();setTimeout(()=>dsOpenPracticeStudio(),0)}
+function newPractice(){saveLibraryState();clearForm();window.NickCoachingLoop?.loadPractice?.({});document.querySelector('[data-tab="editor"]').click();setTimeout(()=>dsOpenPracticeStudio(),0)}
 function editPracticeFromList(ev,id){if(ev){ev.preventDefault();ev.stopPropagation()}editPractice(id);setTimeout(()=>dsOpenPracticeStudio(),0)}
 function clearForm(){["oldId","pid","pname","players","time","area","desc","prog","reg","cp","condRules"].forEach(id=>document.getElementById(id).value="");diagram=[];pitchMode="full";selected=null;selectedSet.clear();draw()}
 
@@ -1156,7 +1140,7 @@ let diagramClipboard=null;
 function copyCurrentDiagram(){diagramClipboard={diagram:JSON.parse(JSON.stringify(diagram||[])),pitchMode};alert("Diagram copied. Open another practice and press Paste Copied Diagram.")}
 function pasteCopiedDiagram(){if(!diagramClipboard)return alert("No diagram copied yet.");if(!confirm("Replace this practice diagram with the copied one? Written content will stay."))return;diagram=JSON.parse(JSON.stringify(diagramClipboard.diagram||[]));pitchMode=diagramClipboard.pitchMode||"full";selected=null;draw();}
 function populateDiagramSourceSelect(){let sel=document.getElementById('diagramSourceSelect');if(!sel)return;let cur=sel.value;sel.innerHTML='<option value="">Choose practice...</option>'+db.practices.map(p=>`<option value="${escapeHtml(p.id)}">${escapeHtml(p.id)} · ${escapeHtml(p.name)}</option>`).join('');sel.value=cur;}
-function loadDiagramFromPractice(){let sel=document.getElementById('diagramSourceSelect');if(!sel||!sel.value)return alert("Choose a practice first.");let p=db.practices.find(x=>x.id===sel.value);if(!p)return alert("Practice not found.");if(!confirm(`Load diagram from ${p.id} · ${p.name}? Written content will stay.`))return;diagram=JSON.parse(JSON.stringify(p.diagram||[]));pitchMode=p.pitchMode||"full";selected=null;draw();}
+function loadDiagramFromPractice(){let sel=document.getElementById('diagramSourceSelect');if(!sel||!sel.value)return alert("Choose a practice first.");let p=db.practices.find(x=>x.id===sel.value);if(!p)return alert("Practice not found.");if(!confirm(`Load diagram from ${escapeHtml(p.id)} · ${escapeHtml(p.name)}? Written content will stay.`))return;diagram=JSON.parse(JSON.stringify(p.diagram||[]));pitchMode=p.pitchMode||"full";selected=null;draw();}
 document.onmousemove=e=>{let r=pitch.getBoundingClientRect();if(rotateDrag){let o=diagram[rotateDrag.i];let angle=Math.atan2(e.clientY-r.top-rotateDrag.cy,e.clientX-r.left-rotateDrag.cx)*180/Math.PI;o.rot=Math.round(angle);setSliders();draw();return;}if(resizeDrag){let o=diagram[resizeDrag.i];o.w=Math.max(8,resizeDrag.w+(e.clientX-resizeDrag.startX));if(o.type!=="arrow"&&o.type!=="runline")o.h=Math.max(4,resizeDrag.h+(e.clientY-resizeDrag.startY));else o.h=4;setSliders();draw();return;}if(drag===null)return;let o=diagram[drag.i];let w=o.w||defaultW(o.type),h=o.h||defaultH(o.type);o.x=Math.max(0,Math.min(e.clientX-r.left-drag.offsetX,r.width-w));o.y=Math.max(0,Math.min(e.clientY-r.top-drag.offsetY,r.height-h));draw()}
 document.onmouseup=()=>{drag=null;rotateDrag=null;resizeDrag=null};
 function drawMini(id,dia,mode="full"){
@@ -1191,7 +1175,7 @@ function renderPlannerPracticeOptions(){
 function renderSessionDrillList(){
   const boxes=[document.getElementById("sessionDrillList"),document.getElementById("currentSessionDrawerList")].filter(Boolean);
   const markup=!plannerDrills.length?'<div class="emptyDrills">No practices added yet. Choose a practice to begin building the session.</div>':plannerDrills.map((id,index)=>{const p=get(id);return `<div class="sessionDrillRow"><div class="sessionDrillNumber">${index+1}</div><div><b>${p?(escapeHtml(p.id)+' · '+escapeHtml(p.name)):escapeHtml(id)}</b><div><span class="pill">${p?escapeHtml(p.stage):'Missing practice'}</span>${p&&p.theme?`<span class="pill">${escapeHtml(p.theme)}</span>`:''}${p&&p.time?`<span class="pill">${escapeHtml(p.time)}</span>`:''}</div></div><div class="sessionDrillActions"><button onclick="moveSessionDrill(${index},-1)" ${index===0?'disabled':''}>↑</button><button onclick="moveSessionDrill(${index},1)" ${index===plannerDrills.length-1?'disabled':''}>↓</button><button onclick="duplicateSessionDrill(${index})">Duplicate</button><button class="danger" onclick="removeSessionDrill(${index})">Remove</button></div></div>`}).join("");
-  boxes.forEach(box=>box.innerHTML=markup);renderCurrentSessionDock();
+  boxes.forEach(box=>box.innerHTML=markup);window.NickCoachingLoop?.renderPrescriptions?.();renderCurrentSessionDock();
 }
 function renderCurrentSessionDock(){
   const count=document.getElementById("currentSessionDockCount"),meta=document.getElementById("currentSessionDockMeta"),pills=document.getElementById("currentSessionDockPills"),drawerMeta=document.getElementById("currentSessionDrawerMeta");
@@ -1210,7 +1194,7 @@ function removeAllInstancesFromSession(id){applyPlannerSessionState(window.Coach
 function duplicateSessionDrill(index){applyPlannerSessionState(window.CoachingOSSessionState.duplicatePracticeAt(plannerDrills,plannerDiagramOverrides,index));renderSessionDrillList();renderPreview();renderVisualPicker()}
 function duplicateSession(i){loadSessionToPlanner(i,"copy")}
 function moveSessionDrill(index,delta){applyPlannerSessionState(window.CoachingOSSessionState.movePractice(plannerDrills,plannerDiagramOverrides,index,delta));renderSessionDrillList();renderPreview();renderVisualPicker()}
-function clearSessionDrills(){if(!plannerDrills.length)return;if(confirm("Remove all practices from this session?")){plannerDrills=[];plannerDiagramOverrides=[];renderSessionDrillList();renderPreview();renderVisualPicker()}}
+function clearSessionDrills(){if(!plannerDrills.length)return;if(confirm("Remove all practices from this session?")){plannerDrills=[];plannerDiagramOverrides=[];window.NickCoachingLoop?.change?.('clear');renderSessionDrillList();renderPreview();renderVisualPicker()}}
 function renderPreview(){preview.innerHTML=`<h2>Session Preview</h2><p><b>Theme:</b> ${escapeHtml(sTheme.value||"")}</p><p><b>Objective:</b><br>${nl(objective.value)}</p><p><b>Links:</b><br>${nl(links.value)}</p><p><b>Cues:</b><br>${nl(cues.value)}</p>${plannerDrills.map(id=>practiceDetail(id)).join("")}`}
 function nl(x){return escapeHtml(x||"").replace(/\n/g,"<br>")}
 function setPickStage(s){pickStage=s;let stageSel=document.getElementById("plannerStage");if(stageSel)stageSel.value=s;populatePlannerThemeFilter();renderPlannerPracticeOptions();renderVisualPicker()}
@@ -1352,11 +1336,11 @@ function resetSessionPlanner(){
   if(document.getElementById("sTheme"))sTheme.value="";
   pickerThemeFilter="";populatePlannerThemeFilter();
   ["objective","links","cues","reflect","sessionRating"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
-  plannerDrills=[];plannerDiagramOverrides=[];pickStage="Activation";editingSessionId=null;let stageSel=document.getElementById("plannerStage");if(stageSel)stageSel.value=pickStage;
+  plannerDrills=[];plannerDiagramOverrides=[];window.NickCoachingLoop?.reset?.();pickStage="Activation";editingSessionId=null;let stageSel=document.getElementById("plannerStage");if(stageSel)stageSel.value=pickStage;
   updatePlannerSaveControls();renderObjectiveChips();renderPlannerPracticeOptions();renderSessionDrillList();renderPreview();renderVisualPicker();
 }
 function saveSession(mode="new"){
-  const base={gameModelPlan:window.NickFourPhaseGameModel?.currentPlan?.(),date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,drills:[...plannerDrills],diagramOverrides:copyPlannerDiagramOverrides(),reflect:reflect.value,rating:sessionRating.value};
+  const base={coaching:window.NickCoachingLoop?.capture?.(),gameModelPlan:window.NickFourPhaseGameModel?.currentPlan?.(),date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,drills:[...plannerDrills],diagramOverrides:copyPlannerDiagramOverrides(),reflect:reflect.value,rating:sessionRating.value};
   if(!base.drills.length)return alert("Add at least one practice before saving the session.");
   if(mode==="update"&&editingSessionId){
     const index=db.sessions.findIndex(s=>s.id===editingSessionId);if(index<0)return alert("The original session could not be found.");
@@ -1467,10 +1451,10 @@ function renderSidelinePractice(){
 }
 function sidelineTabContent(p){
   const tab=sidelineState.activeTab;
-  if(tab==="setup")return `<h3>Setup & Rules</h3><p>${nl(p.desc||'No setup description yet.')}</p>${p.condRules?`<h3>Conditions</h3><p>${nl(p.condRules)}</p>`:''}`;
+  if(tab==="setup")return `<h3>Setup & Rules</h3><p>${nl(p.desc||'No setup description yet.')}</p>${p.condRules?`<h3>Conditions</h3><p>${nl(p.condRules)}</p>`:''}${p.sessionPrescription?.rotation?`<h3>Work, rest and rotation</h3><p>${nl(p.sessionPrescription.rotation)}</p>`:''}${p.sessionPrescription?.equipment?`<h3>Equipment</h3><p>${nl(p.sessionPrescription.equipment)}</p>`:''}`;
   if(tab==="progressions")return `<h3>Make It Harder</h3><p>${nl(p.prog||'No progression saved yet.')}</p>`;
   if(tab==="regressions")return `<h3>Make It Easier</h3><p>${nl(p.reg||'No regression saved yet.')}</p>`;
-  const points=splitContentLines(p.cp),visible=sidelineState.showAllPoints?points:points.slice(0,3);
+  const points=splitContentLines(p.sessionPrescription?.focus||p.deliveryCues||p.cp),visible=sidelineState.showAllPoints?points:points.slice(0,3);
   return `<h3>Key Coaching Points</h3>${visible.length?`<ol>${visible.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ol>`:'<p>No coaching points saved yet.</p>'}${points.length>3&&!sidelineState.showAllPoints?'<button onclick="showAllSidelinePoints()">Show all coaching points</button>':''}`;
 }
 function setSidelineTab(tab){if(!sidelineState)return;sidelineState.activeTab=tab;sidelineState.showAllPoints=false;renderSidelinePractice()}
@@ -1498,7 +1482,7 @@ function renderSidelineComplete(){
 function toggleSidelineNotes(){if(!sidelineState)return;sidelineState.noteOpen=!sidelineState.noteOpen;renderSidelinePractice()}
 function saveSidelineNote(value){
   if(!sidelineState)return;const p=currentSidelinePractice(),key=`${sidelineState.practiceIndex}:${p.id}`,session=sidelineState.session;if(!session.liveNotes)session.liveNotes={};session.liveNotes[key]=value;
-  localStorage.setItem("nickCoachOSv3",JSON.stringify(db));clearTimeout(sidelineNoteSaveTimer);sidelineNoteSaveTimer=setTimeout(async()=>{if(sidelineState&&sidelineState.dbIndex!==null&&cloudReady&&window.nickCloud&&window.nickCloud.save){try{await window.nickCloud.save(db);updateCloudStatus("Saved to Firebase",new Date().toLocaleString("en-GB"))}catch(e){console.error("Sideline note sync failed",e)}}},800)
+  try{window.NickPersistence.enqueue(db)}catch(error){console.error('Note save failed',error);alert('Note could not be saved. Keep this page open and copy your note.')}
 }
 function startSidelineDictation(){
   const Input=window.SpeechRecognition||window.webkitSpeechRecognition,note=document.getElementById("sidelineNoteInput");if(!note)return;if(!Input){note.focus();return alert("Voice dictation is not available in this browser. Type the note instead.")}
@@ -1516,7 +1500,7 @@ function updateSidelineConnectionStatus(){const el=document.getElementById("side
 function loadSessionToPlanner(i,mode="edit"){
   let s=db.sessions[i];if(!s)return;
   editingSessionId=mode==="edit"?s.id:null;sDate.value=mode==="edit"?(s.date||new Date().toISOString().slice(0,10)):new Date().toISOString().slice(0,10);team.value=s.team||'';sTheme.value=s.theme||'';pickerThemeFilter=s.theme||'';populatePlannerThemeFilter();objective.value=s.objective||'';links.value=s.links||'';cues.value=s.cues||'';plannerDrills=sessionDrillIds(s);plannerDiagramOverrides=Array.isArray(s.diagramOverrides)?s.diagramOverrides.map(item=>item==null?null:JSON.parse(JSON.stringify(item))):plannerDrills.map(()=>null);reflect.value=s.reflect||'';if(document.getElementById("sessionRating"))sessionRating.value=mode==="edit"?(s.rating||''):'';
-  document.querySelector('[data-tab="planner"]').click();showBuildRoute("advanced");updatePlannerSaveControls();renderObjectiveChips();renderPlannerPracticeOptions();renderSessionDrillList();renderPreview();renderVisualPicker();window.scrollTo(0,0)
+  window.NickCoachingLoop?.load?.(s);document.querySelector('[data-tab="planner"]').click();showBuildRoute("advanced");updatePlannerSaveControls();renderObjectiveChips();renderPlannerPracticeOptions();renderSessionDrillList();renderPreview();renderVisualPicker();window.scrollTo(0,0)
 }
 
 function practiceUsageCount(id){if(!id)return 0;return db.sessions.filter(s=>sessionDrillIds(s).includes(id)).length;}
@@ -1526,7 +1510,7 @@ function copyPlannerDiagramOverrides(){
   return plannerDiagramOverrides.map(item=>item==null?null:JSON.parse(JSON.stringify(item)));
 }
 function applyPlannerSessionState(next){plannerDrills=next.drills;plannerDiagramOverrides=next.overrides;}
-function currentPlannerSession(){return {gameModelPlan:window.NickFourPhaseGameModel?.currentPlan?.(),date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,drills:[...plannerDrills],diagramOverrides:copyPlannerDiagramOverrides(),reflect:reflect.value,rating:sessionRating.value};}
+function currentPlannerSession(){return {coaching:window.NickCoachingLoop?.capture?.(),gameModelPlan:window.NickFourPhaseGameModel?.currentPlan?.(),date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,drills:[...plannerDrills],diagramOverrides:copyPlannerDiagramOverrides(),reflect:reflect.value,rating:sessionRating.value};}
 function deleteSession(i){if(!db.sessions[i])return;if(confirm('Delete this session from the archive?')){db.sessions.splice(i,1);store();}}
 
 
@@ -1554,6 +1538,7 @@ function coachingInsightsMarkup(sessions,counts){
 function renderDashboard(){let box=document.getElementById('dashboardContent');if(!box)return;let weeks=Number((document.getElementById('dashRange')||{}).value||8);let teamQ=((document.getElementById('dashTeam')||{}).value||'').toLowerCase();let cutoff=weeks>=9999?null:new Date(Date.now()-weeks*7*24*60*60*1000);let sessions=(db.sessions||[]).filter(s=>(!teamQ||(s.team||'').toLowerCase().includes(teamQ))&&(!cutoff||new Date(s.date||'1970-01-01')>=cutoff));let counts={};themes.forEach(t=>counts[t]=0);sessions.forEach(s=>{if(counts[s.theme]!==undefined)counts[s.theme]++;});let max=Math.max(1,...Object.values(counts));let rated=sessions.filter(s=>Number(s.rating));let avg=rated.length?(rated.reduce((a,s)=>a+Number(s.rating),0)/rated.length).toFixed(1):'—';let most=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];let least=Object.entries(counts).sort((a,b)=>a[1]-b[1])[0];box.innerHTML=`<div class="dashStats"><div class="statBox"><div class="small">Sessions</div><b>${sessions.length}</b></div><div class="statBox"><div class="small">Average rating</div><b>${avg}</b></div><div class="statBox"><div class="small">Most coached</div><b>${most?escapeHtml(most[0]):'—'}</b></div><div class="statBox"><div class="small">Least coached</div><b>${least?escapeHtml(least[0]):'—'}</b></div></div>`+Object.entries(counts).map(([theme,count])=>`<div class="dashBarRow"><div><b>${escapeHtml(theme)}</b></div><div class="dashBarTrack"><div class="dashBarFill" style="width:${Math.round(count/max*100)}%"></div></div><div class="small" style="text-align:right">${count} sessions</div></div>`).join('');box.insertAdjacentHTML('beforeend',coachingInsightsMarkup(sessions,counts));}
 
 function updateCloudStatus(status, when){
+  if(window.NickPersistence)return;
   const cs=document.getElementById("cloudStatus");
   const lu=document.getElementById("lastCloudUpdate");
   if(cs) cs.value=status||"Unknown";
@@ -1614,8 +1599,8 @@ async function restoreSelectedBackup(){
   alert("Backup restored to Firebase.");
 }
 
-function backup(){backupBox.value=JSON.stringify(db,null,2)}
-function restore(){try{db=normaliseDbShape(JSON.parse(backupBox.value));store();alert("Restored")}catch(e){alert("Invalid backup")}}
+function backup(){return window.NickCoachingLoop?.exportBackup?.();}
+function restore(){return window.NickCoachingLoop?.restoreBackup?.();}
 window.addEventListener("online",updateSidelineConnectionStatus);
 window.addEventListener("offline",updateSidelineConnectionStatus);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&sidelineState&&sidelineState.running)requestScreenWake()});
@@ -1632,7 +1617,7 @@ setTimeout(function connectLiveCloud(){
   if (window.nickCloud && window.nickCloud.listen) {
     window.nickCloud.listen(function(cloudDoc){
       cloudReady = !cloudDoc?.pendingRemote;
-      updateCloudStatus(cloudReady?"Firebase connected":"Loading cloud data...", new Date().toLocaleString("en-GB"));
+      if(!window.NickPersistence)updateCloudStatus(cloudReady?"Firebase connected":"Loading cloud data...", new Date().toLocaleString("en-GB"));
 
       if (!cloudDoc || !cloudDoc.data) {
         console.log("No cloud data yet. Using local data until first save.");
@@ -1645,8 +1630,9 @@ setTimeout(function connectLiveCloud(){
       applyingCloudUpdate = true;
       db = normaliseDbShape(cloudDoc.data);
       lastCloudJson = incomingJson;
-      localStorage.setItem("nickCoachOSv3", JSON.stringify(db));
+      if(!window.NickPersistence?.status().blocked)localStorage.setItem("nickCoachOSv3", JSON.stringify(db));
       renderAll();
+      window.dispatchEvent(new Event('coaching:data'));
       applyingCloudUpdate = false;
 
       console.log("Live Firebase update received");
@@ -1702,11 +1688,11 @@ function dsEnsurePlannerOverrides(){
   if(plannerDiagramOverrides.length>plannerDrills.length)plannerDiagramOverrides.length=plannerDrills.length;
 }
 function dsEffectiveSessionPractice(session,index){
-  const ids=sessionDrillIds(session),p=get(ids[index]);if(!p)return null;const ov=Array.isArray(session.diagramOverrides)?session.diagramOverrides[index]:null;
+  const ids=sessionDrillIds(session),p=window.NickCoachingLoop?.effectiveInstance?.(session,index,get(ids[index]))||get(ids[index]);if(!p)return null;const ov=Array.isArray(session.diagramOverrides)?session.diagramOverrides[index]:null;
   return ov?{...p,diagram:dsClone(ov.diagram||p.diagram||[]),pitchMode:ov.pitchMode||p.pitchMode||'full',diagramSteps:dsNormaliseSteps(ov.diagramSteps||[{name:'Setup',pitchMode:ov.pitchMode||p.pitchMode||'full',diagram:ov.diagram||p.diagram||[]}]),sessionDiagramOverride:true}:p;
 }
 function dsCurrentPlannerPractice(index){
-  dsEnsurePlannerOverrides();const p=get(plannerDrills[index]);if(!p)return null;const ov=plannerDiagramOverrides[index];
+  dsEnsurePlannerOverrides();const p=window.NickCoachingLoop?.effectiveInstance?.({drills:plannerDrills,coaching:window.NickCoachingLoop.capture()},index,get(plannerDrills[index]))||get(plannerDrills[index]);if(!p)return null;const ov=plannerDiagramOverrides[index];
   return ov?{...p,diagram:dsClone(ov.diagram||p.diagram||[]),pitchMode:ov.pitchMode||p.pitchMode||'full',diagramSteps:dsNormaliseSteps(ov.diagramSteps),sessionDiagramOverride:true}:p;
 }
 function dsToast(message){let el=document.getElementById('dsToast');if(!el)return;el.textContent=message;el.classList.add('show');clearTimeout(dsToastTimer);dsToastTimer=setTimeout(()=>el.classList.remove('show'),1600)}
@@ -1923,29 +1909,29 @@ normaliseDbShape=function(data){data=dsOriginalNormaliseDbShape(data);data.pract
 db=normaliseDbShape(db);
 
 clearForm=function(){['oldId','pid','pname','players','time','area','desc','prog','reg','cp','condRules'].forEach(id=>document.getElementById(id).value='');diagram=[];pitchMode='full';practiceDiagramStepsDraft=dsNormaliseSteps([{name:'Setup',kind:'setup',pitchMode:'full',diagram:[]}]);selected=null;selectedSet.clear();draw();dsRenderEditorPreview()};
-editPractice=function(id){saveLibraryState();const p=db.practices.find(x=>x.id==id);if(!p)return;document.querySelector('[data-tab="editor"]').click();oldId.value=p.id;pid.value=p.id;pname.value=p.name;theme.value=p.theme;stage.value=p.stage;players.value=p.players||'';time.value=p.time||'';area.value=p.area||'';desc.value=p.desc||'';prog.value=p.prog||'';reg.value=p.reg||'';cp.value=p.cp||'';condRules.value=p.condRules||'';practiceDiagramStepsDraft=dsPracticeSteps(p);diagram=dsClone(practiceDiagramStepsDraft[0].diagram);pitchMode=practiceDiagramStepsDraft[0].pitchMode;selected=null;selectedSet.clear();draw();dsRenderEditorPreview()};
+editPractice=function(id){saveLibraryState();const p=db.practices.find(x=>x.id==id);if(!p)return;document.querySelector('[data-tab="editor"]').click();oldId.value=p.id;pid.value=p.id;pname.value=p.name;window.NickCoachingLoop?.loadPractice?.(p);theme.value=p.theme;stage.value=p.stage;players.value=p.players||'';time.value=p.time||'';area.value=p.area||'';desc.value=p.desc||'';prog.value=p.prog||'';reg.value=p.reg||'';cp.value=p.cp||'';condRules.value=p.condRules||'';practiceDiagramStepsDraft=dsPracticeSteps(p);diagram=dsClone(practiceDiagramStepsDraft[0].diagram);pitchMode=practiceDiagramStepsDraft[0].pitchMode;selected=null;selectedSet.clear();draw();dsRenderEditorPreview()};
 savePractice=async function(){
   const current=db.practices.find(x=>x.id===oldId.value)||db.practices.find(x=>x.id===pid.value.trim());let steps=practiceDiagramStepsDraft.length?dsClone(practiceDiagramStepsDraft):dsNormaliseSteps([{name:'Setup',kind:'setup',pitchMode:pitchMode||'full',diagram:diagram||[]}]);steps[0].diagram=(diagram||[]).map(dsNormaliseObject);steps[0].pitchMode=pitchMode||steps[0].pitchMode||'full';
-  const p={...(current||{}),...(!current?{createdAt:new Date().toISOString()}:{}),id:pid.value.trim(),name:pname.value.trim(),theme:theme.value,stage:stage.value,players:players.value,time:time.value,area:area.value,desc:desc.value,prog:prog.value,reg:reg.value,cp:cp.value,condRules:condRules.value,diagramSteps:steps,diagram:dsClone(steps[0].diagram),pitchMode:steps[0].pitchMode,isFavourite:!!(current&&current.isFavourite)};
-  if(!p.id||!p.name)return alert('Add ID and name.');db.practices=db.practices.filter(x=>x.id!==oldId.value&&x.id!==p.id);db.practices.push(p);oldId.value=p.id;practiceDiagramStepsDraft=dsClone(steps);await store();dsRenderEditorPreview();alert('Saved')
+  const p={...(current||{}),...(window.NickCoachingLoop?.readPractice?.()||{}),...(!current?{createdAt:new Date().toISOString()}:{}),id:pid.value.trim(),name:pname.value.trim(),theme:theme.value,stage:stage.value,players:players.value,time:time.value,area:area.value,desc:desc.value,prog:prog.value,reg:reg.value,cp:cp.value,condRules:condRules.value,diagramSteps:steps,diagram:dsClone(steps[0].diagram),pitchMode:steps[0].pitchMode,isFavourite:!!(current&&current.isFavourite)};
+  if(!p.id||!p.name)return alert('Add ID and name.');window.NickFourPhasePracticeSystem?.tagDraft?.(p);db.practices=db.practices.filter(x=>x.id!==oldId.value&&x.id!==p.id);db.practices.push(p);oldId.value=p.id;practiceDiagramStepsDraft=dsClone(steps);await store();dsRenderEditorPreview();alert('Saved')
 };
 
 const dsOriginalResetSessionPlanner=resetSessionPlanner;
 resetSessionPlanner=function(){plannerDiagramOverrides=[];dsOriginalResetSessionPlanner();plannerDiagramOverrides=[]};
 addPracticeToSession=function(id){if(!id)return;plannerDrills.push(id);plannerDiagramOverrides.push(null);renderSessionDrillList();renderPreview();renderVisualPicker()};
-removeSessionDrill=function(index){plannerDrills.splice(index,1);dsEnsurePlannerOverrides();plannerDiagramOverrides.splice(index,1);renderSessionDrillList();renderPreview();renderVisualPicker()};
-removeAllInstancesFromSession=function(id){dsEnsurePlannerOverrides();const pairs=plannerDrills.map((drill,i)=>({drill,ov:plannerDiagramOverrides[i]})).filter(x=>x.drill!==id);plannerDrills=pairs.map(x=>x.drill);plannerDiagramOverrides=pairs.map(x=>x.ov);renderSessionDrillList();renderPreview();renderVisualPicker()};
-duplicateSessionDrill=function(index){dsEnsurePlannerOverrides();if(index<0||index>=plannerDrills.length)return;plannerDrills.splice(index+1,0,plannerDrills[index]);plannerDiagramOverrides.splice(index+1,0,plannerDiagramOverrides[index]?dsClone(plannerDiagramOverrides[index]):null);renderSessionDrillList();renderPreview();renderVisualPicker()};
-moveSessionDrill=function(index,delta){dsEnsurePlannerOverrides();const target=index+delta;if(target<0||target>=plannerDrills.length)return;[plannerDrills[index],plannerDrills[target]]=[plannerDrills[target],plannerDrills[index]];[plannerDiagramOverrides[index],plannerDiagramOverrides[target]]=[plannerDiagramOverrides[target],plannerDiagramOverrides[index]];renderSessionDrillList();renderPreview()};
-clearSessionDrills=function(){if(!plannerDrills.length)return;if(confirm('Remove all practices from this session?')){plannerDrills=[];plannerDiagramOverrides=[];renderSessionDrillList();renderPreview();renderVisualPicker()}};
+removeSessionDrill=function(index){window.NickCoachingLoop?.change?.('remove',index);plannerDrills.splice(index,1);plannerDiagramOverrides.splice(index,1);dsEnsurePlannerOverrides();renderSessionDrillList();renderPreview();renderVisualPicker()};
+removeAllInstancesFromSession=function(id){window.NickCoachingLoop?.change?.('removeAll',id);dsEnsurePlannerOverrides();const pairs=plannerDrills.map((drill,i)=>({drill,ov:plannerDiagramOverrides[i]})).filter(x=>x.drill!==id);plannerDrills=pairs.map(x=>x.drill);plannerDiagramOverrides=pairs.map(x=>x.ov);renderSessionDrillList();renderPreview();renderVisualPicker()};
+duplicateSessionDrill=function(index){dsEnsurePlannerOverrides();if(index<0||index>=plannerDrills.length)return;window.NickCoachingLoop?.change?.('duplicate',index);plannerDrills.splice(index+1,0,plannerDrills[index]);plannerDiagramOverrides.splice(index+1,0,plannerDiagramOverrides[index]?dsClone(plannerDiagramOverrides[index]):null);renderSessionDrillList();renderPreview();renderVisualPicker()};
+moveSessionDrill=function(index,delta){dsEnsurePlannerOverrides();const target=index+delta;if(target<0||target>=plannerDrills.length)return;window.NickCoachingLoop?.change?.('move',index,target);[plannerDrills[index],plannerDrills[target]]=[plannerDrills[target],plannerDrills[index]];[plannerDiagramOverrides[index],plannerDiagramOverrides[target]]=[plannerDiagramOverrides[target],plannerDiagramOverrides[index]];renderSessionDrillList();renderPreview()};
+clearSessionDrills=function(){if(!plannerDrills.length)return;if(confirm('Remove all practices from this session?')){plannerDrills=[];plannerDiagramOverrides=[];window.NickCoachingLoop?.change?.('clear');renderSessionDrillList();renderPreview();renderVisualPicker()}};
 renderSessionDrillList=function(){
-  dsEnsurePlannerOverrides();const boxes=[document.getElementById('sessionDrillList'),document.getElementById('currentSessionDrawerList')].filter(Boolean);const markup=!plannerDrills.length?'<div class="emptyDrills">No practices added yet. Choose a practice to begin building the session.</div>':plannerDrills.map((id,index)=>{const p=get(id),ov=plannerDiagramOverrides[index];return `<div class="sessionDrillRow"><div class="sessionDrillNumber">${index+1}</div><div><b>${p?(p.id+' · '+p.name):id}</b>${ov?'<span class="sessionDiagramBadge">✎ Session diagram</span>':''}<div><span class="pill">${p?p.stage:'Missing practice'}</span>${p&&p.theme?`<span class="pill">${p.theme}</span>`:''}${p&&p.time?`<span class="pill">${p.time}</span>`:''}</div></div><div class="sessionDrillActions"><button onclick="openSessionDiagramStudio(${index})">Edit Diagram</button>${ov?`<button onclick="resetSessionDiagram(${index})">Reset Diagram</button>`:''}<button onclick="moveSessionDrill(${index},-1)" ${index===0?'disabled':''}>↑</button><button onclick="moveSessionDrill(${index},1)" ${index===plannerDrills.length-1?'disabled':''}>↓</button><button onclick="duplicateSessionDrill(${index})">Duplicate</button><button class="danger" onclick="removeSessionDrill(${index})">Remove</button></div></div>`}).join('');boxes.forEach(box=>box.innerHTML=markup);renderCurrentSessionDock()
+  dsEnsurePlannerOverrides();const boxes=[document.getElementById('sessionDrillList'),document.getElementById('currentSessionDrawerList')].filter(Boolean);const markup=!plannerDrills.length?'<div class="emptyDrills">No practices added yet. Choose a practice to begin building the session.</div>':plannerDrills.map((id,index)=>{const p=get(id),ov=plannerDiagramOverrides[index];return `<div class="sessionDrillRow"><div class="sessionDrillNumber">${index+1}</div><div><b>${escapeHtml(p?(p.id+' · '+p.name):id)}</b>${ov?'<span class="sessionDiagramBadge">✎ Session diagram</span>':''}<div><span class="pill">${escapeHtml(p?p.stage:'Missing practice')}</span>${p&&p.theme?`<span class="pill">${escapeHtml(p.theme)}</span>`:''}${p&&p.time?`<span class="pill">${escapeHtml(p.time)}</span>`:''}</div></div><div class="sessionDrillActions"><button onclick="openSessionDiagramStudio(${index})">Edit Diagram</button>${ov?`<button onclick="resetSessionDiagram(${index})">Reset Diagram</button>`:''}<button onclick="moveSessionDrill(${index},-1)" ${index===0?'disabled':''}>↑</button><button onclick="moveSessionDrill(${index},1)" ${index===plannerDrills.length-1?'disabled':''}>↓</button><button onclick="duplicateSessionDrill(${index})">Duplicate</button><button class="danger" onclick="removeSessionDrill(${index})">Remove</button></div></div>`}).join('');boxes.forEach(box=>box.innerHTML=markup);window.NickCoachingLoop?.renderPrescriptions?.();renderCurrentSessionDock()
 };
-function dsPracticeDetailData(p,index){if(!p)return'';const mid=`sessionmini-${safe(p.id)}-${Math.random().toString(36).slice(2,7)}`;const first=(p.diagramSteps&&p.diagramSteps[0])||{diagram:p.diagram||[],pitchMode:p.pitchMode||'full'};setTimeout(()=>drawMini(mid,first.diagram,first.pitchMode),0);return `<div class="practiceDetail"><div id="${mid}"></div><div><h3>${p.stage}: ${p.id} · ${p.name}${p.sessionDiagramOverride?'<span class="sessionDiagramBadge">Session diagram</span>':''}</h3><span class="pill">${p.theme}</span><span class="pill">${p.players||''}</span><span class="pill">${p.time||''}</span>${p.diagramSteps&&p.diagramSteps.length>1?`<span class="pill">${p.diagramSteps.length} visual steps</span>`:''}<p>${nl(p.desc||'')}</p><div class="practiceCols"><div class="infoBox"><b>Coaching Points</b><br>${nl(p.cp||'—')}</div><div class="infoBox"><b>Progressions</b><br>${nl(p.prog||'—')}</div><div class="infoBox"><b>Regressions</b><br>${nl(p.reg||'—')}</div>${p.condRules?`<div class="infoBox"><b>Conditioned Game Rules</b><br>${nl(p.condRules)}</div>`:''}</div>${Number.isInteger(index)?`<div class="sessionActions"><button onclick="openSessionDiagramStudio(${index})">Edit This Session Diagram</button></div>`:''}</div></div>`}
-renderPreview=function(){dsEnsurePlannerOverrides();preview.innerHTML=`<h2>Session Preview</h2><p><b>Theme:</b> ${sTheme.value||''}</p><p><b>Objective:</b><br>${nl(objective.value)}</p><p><b>Links:</b><br>${nl(links.value)}</p><p><b>Cues:</b><br>${nl(cues.value)}</p>${plannerDrills.map((id,i)=>dsPracticeDetailData(dsCurrentPlannerPractice(i),i)).join('')}`};
-currentPlannerSession=function(){dsEnsurePlannerOverrides();return {gameModelPlan:window.NickFourPhaseGameModel?.currentPlan?.(),date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,drills:[...plannerDrills],diagramOverrides:dsClone(plannerDiagramOverrides),reflect:reflect.value,rating:sessionRating.value}};
-loadSessionToPlanner=function(i,mode='edit'){const s=db.sessions[i];if(!s)return;editingSessionId=mode==='edit'?s.id:null;sDate.value=mode==='edit'?(s.date||new Date().toISOString().slice(0,10)):new Date().toISOString().slice(0,10);team.value=s.team||'';sTheme.value=s.theme||'';pickerThemeFilter=s.theme||'';populatePlannerThemeFilter();objective.value=s.objective||'';links.value=s.links||'';cues.value=s.cues||'';plannerDrills=sessionDrillIds(s);plannerDiagramOverrides=dsClone(s.diagramOverrides||[]);dsEnsurePlannerOverrides();reflect.value=s.reflect||'';if(document.getElementById('sessionRating'))sessionRating.value=mode==='edit'?(s.rating||''):'';document.querySelector('[data-tab="planner"]').click();showBuildRoute('advanced');updatePlannerSaveControls();renderObjectiveChips();renderPlannerPracticeOptions();renderSessionDrillList();renderPreview();renderVisualPicker();window.scrollTo(0,0)};
-saveSession=async function(mode='new'){dsEnsurePlannerOverrides();const base={gameModelPlan:window.NickFourPhaseGameModel?.currentPlan?.(),date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,drills:[...plannerDrills],diagramOverrides:dsClone(plannerDiagramOverrides),reflect:reflect.value,rating:sessionRating.value};if(!base.drills.length)return alert('Add at least one practice before saving the session.');const modelError=window.NickSessionIdentity?.validate(base)||(!base.gameModelPlan?'Choose a phase and principle before saving.':'');if(modelError)return alert(modelError);if(mode==='update'&&editingSessionId){const index=db.sessions.findIndex(s=>s.id===editingSessionId);if(index<0)return alert('The original session could not be found.');db.sessions[index]={...db.sessions[index],...base,id:editingSessionId};await store();resetSessionPlanner();showBuildRoute('home');alert('Existing session updated.');return}db.sessions.push({...base,id:makeLocalId('session')});await store();resetSessionPlanner();showBuildRoute('home');alert('Session saved as a new session.')};
+function dsPracticeDetailData(p,index){if(!p)return'';const mid=`sessionmini-${safe(p.id)}-${Math.random().toString(36).slice(2,7)}`;const first=(p.diagramSteps&&p.diagramSteps[0])||{diagram:p.diagram||[],pitchMode:p.pitchMode||'full'};setTimeout(()=>drawMini(mid,first.diagram,first.pitchMode),0);return `<div class="practiceDetail"><div id="${mid}"></div><div><h3>${escapeHtml(p.stage)}: ${escapeHtml(p.id)} · ${escapeHtml(p.name)}${p.sessionDiagramOverride?'<span class="sessionDiagramBadge">Session diagram</span>':''}</h3><span class="pill">${escapeHtml(p.theme)}</span><span class="pill">${escapeHtml(p.players||'')}</span><span class="pill">${escapeHtml(p.time||'')}</span>${p.diagramSteps&&p.diagramSteps.length>1?`<span class="pill">${p.diagramSteps.length} visual steps</span>`:''}<p>${nl(p.desc||'')}</p><div class="practiceCols"><div class="infoBox"><b>Coaching Points</b><br>${nl(p.cp||'—')}</div><div class="infoBox"><b>Progressions</b><br>${nl(p.prog||'—')}</div><div class="infoBox"><b>Regressions</b><br>${nl(p.reg||'—')}</div>${p.condRules?`<div class="infoBox"><b>Conditioned Game Rules</b><br>${nl(p.condRules)}</div>`:''}</div>${Number.isInteger(index)?`<div class="sessionActions"><button onclick="openSessionDiagramStudio(${index})">Edit This Session Diagram</button></div>`:''}</div></div>`}
+renderPreview=function(){dsEnsurePlannerOverrides();preview.innerHTML=`<h2>Session Preview</h2><p><b>Theme:</b> ${escapeHtml(sTheme.value||'')}</p><p><b>Objective:</b><br>${nl(objective.value)}</p><p><b>Links:</b><br>${nl(links.value)}</p><p><b>Cues:</b><br>${nl(cues.value)}</p>${plannerDrills.map((id,i)=>dsPracticeDetailData(dsCurrentPlannerPractice(i),i)).join('')}`};
+currentPlannerSession=function(){dsEnsurePlannerOverrides();return {coaching:window.NickCoachingLoop?.capture?.(),gameModelPlan:window.NickFourPhaseGameModel?.currentPlan?.(),date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,drills:[...plannerDrills],diagramOverrides:dsClone(plannerDiagramOverrides),reflect:reflect.value,rating:sessionRating.value}};
+loadSessionToPlanner=function(i,mode='edit'){const s=db.sessions[i];if(!s)return;editingSessionId=mode==='edit'?s.id:null;sDate.value=mode==='edit'?(s.date||new Date().toISOString().slice(0,10)):new Date().toISOString().slice(0,10);team.value=s.team||'';sTheme.value=s.theme||'';pickerThemeFilter=s.theme||'';populatePlannerThemeFilter();objective.value=s.objective||'';links.value=s.links||'';cues.value=s.cues||'';plannerDrills=sessionDrillIds(s);plannerDiagramOverrides=dsClone(s.diagramOverrides||[]);dsEnsurePlannerOverrides();reflect.value=s.reflect||'';if(document.getElementById('sessionRating'))sessionRating.value=mode==='edit'?(s.rating||''):'';window.NickCoachingLoop?.load?.(s);document.querySelector('[data-tab="planner"]').click();showBuildRoute('advanced');updatePlannerSaveControls();renderObjectiveChips();renderPlannerPracticeOptions();renderSessionDrillList();renderPreview();renderVisualPicker();window.scrollTo(0,0)};
+saveSession=async function(mode='new'){dsEnsurePlannerOverrides();const base={coaching:window.NickCoachingLoop?.capture?.(),gameModelPlan:window.NickFourPhaseGameModel?.currentPlan?.(),date:sDate.value||new Date().toISOString().slice(0,10),team:team.value,theme:sTheme.value,objective:objective.value,links:links.value,cues:cues.value,drills:[...plannerDrills],diagramOverrides:dsClone(plannerDiagramOverrides),reflect:reflect.value,rating:sessionRating.value};if(!base.drills.length)return alert('Add at least one practice before saving the session.');const modelError=window.NickSessionIdentity?.validate(base)||(!base.gameModelPlan?'Choose a phase and principle before saving.':'');if(modelError)return alert(modelError);if(mode==='update'&&editingSessionId){const index=db.sessions.findIndex(s=>s.id===editingSessionId);if(index<0)return alert('The original session could not be found.');db.sessions[index]={...db.sessions[index],...base,id:editingSessionId};await store();resetSessionPlanner();showBuildRoute('home');alert('Existing session updated.');return}db.sessions.push({...base,id:makeLocalId('session')});await store();resetSessionPlanner();showBuildRoute('home');alert('Session saved as a new session.')};
 
 /* Rich mini diagrams and Sideline steps */
 function dsMiniBase(mode){const m=dsParseMode(mode);let html='<div class="miniHalf"></div><div class="miniCirc"></div>';if(m.core==='thirds')html+='<div style="position:absolute;left:33%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,.4)"></div><div style="position:absolute;left:66%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,.4)"></div>';if(m.core==='central')html+='<div style="position:absolute;left:38%;right:38%;top:0;bottom:0;border-left:1px dashed white;border-right:1px dashed white"></div>';if(m.core==='quarters')html+='<div style="position:absolute;left:50%;top:0;bottom:0;border-left:1px solid white"></div><div style="position:absolute;left:0;right:0;top:50%;border-top:1px solid white"></div>';return html}
@@ -2374,7 +2360,7 @@ setTimeout(()=>{if(!document.getElementById('diagramStudioOverlay'))dsInjectUi()
   window.editPractice=function(id){
     if(typeof saveLibraryState==='function')saveLibraryState();
     const p=db.practices.find(x=>x.id==id);if(!p)return;
-    oldId.value=p.id;pid.value=p.id;pname.value=p.name;theme.value=p.theme;stage.value=p.stage;
+    oldId.value=p.id;pid.value=p.id;pname.value=p.name;window.NickCoachingLoop?.loadPractice?.(p);theme.value=p.theme;stage.value=p.stage;
     players.value=p.players||'';time.value=p.time||'';area.value=p.area||'';desc.value=p.desc||'';
     prog.value=p.prog||'';reg.value=p.reg||'';cp.value=p.cp||'';condRules.value=p.condRules||'';
     practiceDiagramStepsDraft=dsPracticeSteps(p);

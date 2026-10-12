@@ -44,6 +44,6 @@ test('short coach-entered display fields and coaching-point list items are escap
 });
 
 test('Firebase code is extracted from the HTML monolith', () => {
-  assert.match(html, /src="\.\/src\/firebase-cloud\.js"/);
+  assert.match(html, /src="\.\/src\/firebase-cloud\.js(?:\?[^\"]+)?"/);
   assert.ok(fs.existsSync(new URL('../src/firebase-cloud.js', import.meta.url)));
 });

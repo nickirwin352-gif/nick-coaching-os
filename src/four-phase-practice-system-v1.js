@@ -1,3 +1,4 @@
+import {applyFourPhaseDecision} from './four-phase-practice-persistence-v1.js?v=coaching-loop-7';
 import {PASSING_FUNDAMENTALS,passingFundamentals,fundamentalLabel} from './passing-fundamentals.js';
 import {
   GAME_PHASES,
@@ -10,7 +11,7 @@ import {
 } from './game-model-core.js';
 
 export const FOUR_PHASE_PRACTICE_SYSTEM_VERSION = 2;
-export const FOUR_PHASE_FILTER_PAGE_SIZE = 3;
+export const FOUR_PHASE_FILTER_PAGE_SIZE = 9;
 
 export const LEGACY_STAGE_PURPOSE = Object.freeze({
   'Activation':'prepare',
@@ -80,7 +81,7 @@ function esc(value){try{if(typeof escapeHtml==='function')return escapeHtml(Stri
 function uniq(values=[]){return [...new Set((Array.isArray(values)?values:[]).map(String).filter(Boolean))];}
 function purposeById(id=''){return PRACTICE_PURPOSES.find(item=>item.id===String(id||''))||null;}
 function formatById(id=''){return PRACTICE_FORMATS.find(item=>item.id===String(id||''))||null;}
-function practiceText(practice={}){return [practice.id,practice.name,practice.desc,practice.description,practice.cp,practice.coachingPoints,practice.prog,practice.progressions,practice.reg,practice.regressions,practice.rules,practice.condRules,practice.stage,practice.theme].filter(Boolean).join(' ').toLowerCase();}
+function practiceText(practice={}){return [practice.id,practice.name,practice.familyName,practice.variationName,practice.desc,practice.description,practice.cp,practice.coachingPoints,practice.prog,practice.progressions,practice.reg,practice.regressions,practice.rules,practice.condRules,practice.stage,practice.theme].filter(Boolean).join(' ').toLowerCase();}
 
 export function inferPracticePurpose(practice={}){
   if(purposeById(practice.practicePurpose))return practice.practicePurpose;
@@ -96,7 +97,7 @@ export function inferPracticeFormat(practice={}){
   const text=practiceText(practice);
   const name=String(practice.name||'').toLowerCase();
   const stage=String(practice.stage||'').toLowerCase();
-  if(/corner|free.?kick|throw.?in|set play|restart/.test(text))return 'set-play';
+  if(/free[ -]?kick|throw[ -]?in|set[ -]?play|goal[ -]?kick|attacking corner|defending corner|corner kick/.test(name)||practice.theme==='Set Plays')return 'set-play';
   if(/fitness|conditioning|aerobic|anaerobic|speed endurance|repeat sprint|yoyo/.test(text))return 'physical';
   if(/wave|repeated attack|transition wave/.test(text))return 'wave';
   if(/phase of play|phase play/.test(text))return 'phase-play';
@@ -116,6 +117,17 @@ export function inferPracticeFormat(practice={}){
   return 'other';
 }
 
+export function classificationReview(practice={}){
+  const confirmed=practice.classificationConfirmed===true||practice.fourPhaseOrganisationSource==='manual';
+  const suggested=inferPracticeFormat({...practice,practiceFormat:''});
+  return {confirmed,suggested,needsReview:!confirmed,changed:!!practice.practiceFormat&&practice.practiceFormat!==suggested};
+}
+function tagDraft(practice){
+ const draft=editorState();if(!draft)return practice;
+ applyFourPhaseDecision(practice,{...draft,updatedAt:Date.now()});
+ practice.classificationConfirmed=true;
+ return practice;
+}
 const LEGACY_CONTEXT_PHASE = Object.freeze({
   'build-out':'in-possession',
   'progress':'in-possession',
@@ -243,10 +255,11 @@ export function matchesPracticeFilters(practice={},filters=createFilterState()){
   if(filters.formats?.size&&!filters.formats.has(a.format))return false;
   if(filters.fundamentals?.size&&![...filters.fundamentals].every(id=>passingFundamentals(practice).includes(id)))return false;
   if(filters.reviewOnly&&practice.fourPhaseNeedsReview!==true)return false;
+  if(filters.classificationOnly&&!classificationReview(practice).needsReview)return false;
   const q=String(filters.search||'').trim().toLowerCase();
   if(q){
     const text=[
-      practice.id,practice.name,practice.desc,practice.description,...passingFundamentals(practice).map(fundamentalLabel),
+      practice.id,practice.name,practice.familyName,practice.variationName,practice.desc,practice.description,...passingFundamentals(practice).map(fundamentalLabel),
       ...a.phaseIds.map(id=>phaseById(id)?.label),
       ...a.principleIds.map(id=>principleById(id)?.message),
       ...a.subPrincipleIds.map(id=>subPrincipleById(id)?.title),
@@ -263,7 +276,7 @@ export function filterPractices(practices=[],filters=createFilterState()){
 
 export function hasActivePracticeFilters(filters=createFilterState()){
   return ['phases','principles','subPrinciples','purposes','formats','fundamentals'].some(key=>filters[key]?.size>0)
-    || Boolean(String(filters.search||'').trim()) || filters.reviewOnly===true;
+    || Boolean(String(filters.search||'').trim()) || filters.reviewOnly===true || filters.classificationOnly===true;
 }
 
 export function sortWorkbenchPractices(practices=[],filters=createFilterState()){
@@ -328,6 +341,7 @@ function selectedMarkup(filters){
   const values=[];
   ['phases','principles','subPrinciples','purposes','formats','fundamentals'].forEach(kind=>filters[kind].forEach(id=>values.push(labelFor(kind,id))));
   if(filters.reviewOnly)values.push('Needs principle');
+  if(filters.classificationOnly)values.push('Review classifications');
   return values.length?values.map(value=>`<span>${esc(value)}</span>`).join(''):'<span>No filters · showing all practices</span>';
 }
 function cardMarkup(practice,mode,index){
@@ -342,8 +356,9 @@ function cardMarkup(practice,mode,index){
     `<span>${esc(formatById(a.format)?.label||a.format)}</span>`
   ].join('');
   let inSession=false; try{inSession=Array.isArray(plannerDrills)&&plannerDrills.includes(practice.id);}catch(_){}
+  const classification=classificationReview(practice);
   const review=practice.fourPhaseNeedsReview===true?'<span class="sub">Needs principle</span>':'';
-  return `<article class="fpwCard"><div class="fpwPitch" id="${pitchId}"></div><h4>${esc(practice.id)} · ${esc(practice.name||'Practice')}</h4><div class="fpwTags">${tags}${review}${a.noGameModelLink?'<span>No Game Model link</span>':''}</div><div class="fpwActions">${mode==='finder'?`<button type="button" data-fpw-session="${esc(practice.id)}">${inSession?'Remove from session':'Add to session'}</button>`:`<button type="button" data-fpw-edit="${esc(practice.id)}">Edit practice</button>`}${practice.fourPhaseSuggestedPrincipleIds?.length?`<button type="button" data-fpw-edit="${esc(practice.id)}">Review suggestions</button>`:''}</div></article>`;
+  return `<article class="fpwCard"><div class="fpwPitch" id="${pitchId}"></div><h4>${esc(practice.id)} · ${esc(practice.name||'Practice')}</h4><div class="fpwTags">${tags}${review}${!classification.confirmed?'<span>Suggested classification · check in editor</span>':''}${practice.familyName?`<span>${esc(practice.familyName)}${practice.variationName?' · '+esc(practice.variationName):''}</span>`:''}${a.noGameModelLink?'<span>No Game Model link</span>':''}</div><div class="fpwActions">${mode==='finder'?`<button type="button" data-fpw-session="${esc(practice.id)}">${inSession?'Remove from session':'Add to session'}</button>`:`<button type="button" data-fpw-edit="${esc(practice.id)}">Edit practice</button>`}${practice.fourPhaseSuggestedPrincipleIds?.length?`<button type="button" data-fpw-edit="${esc(practice.id)}">Review suggestions</button>`:''}</div></article>`;
 }
 function drawVisible(practices,mode,page){
   practices.forEach((practice,index)=>{
@@ -364,6 +379,7 @@ function refreshChipVisibility(group,filters){
   });
 }
 function renderResults(group,filters){
+  if(group==='finder'&&field('planner')?.classList.contains('hidden'))return;
   const isFinder=group==='finder'; const panel=panelFor(group); if(!panel)return;
   const matches=filterPractices(appDb()?.practices||[],filters);
   const all=isFinder?matches.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))):sortWorkbenchPractices(matches,filters);
@@ -398,12 +414,13 @@ function handlePanelClick(group,filters,event){
 function buildWorkbench(){
   const library=field('library');if(!library||field(WORKBENCH_ID))return;
   const panel=document.createElement('section');panel.id=WORKBENCH_ID;
-  panel.innerHTML=`<div class="fpwHead"><div><h2>Practice Workbench · Four-Phase Model</h2><p>This is strict. Select a Phase and only practices tagged to that phase can appear. Add a Main Principle and the practice must match both. Add a Sub-Principle, Purpose or Format and every selected row continues to stack.</p></div><span class="fpwLogic">OR within a row · AND between rows</span></div>${rowsMarkup('workbench',workbenchFilters)}<div class="fpwControls"><input id="fpwSearch" placeholder="Search inside exact matches..."><button type="button" id="fpwReview">Needs principle</button><button type="button" id="fpwClear">Clear</button></div><div class="fpwSelected" data-fpw-selected></div><div class="fpwStats"><b data-fpw-count></b><span data-fpw-sort>Newest entered first</span></div><div data-fpw-results></div><div class="fpLegacyNote">The old Theme browser underneath is kept only as a legacy fallback. “Needs principle” now means only that no main principle could be resolved; sub-principles are optional detail.</div>`;
+  panel.innerHTML=`<div class="fpwHead"><div><h2>Practice Workbench · Four-Phase Model</h2><p>This is strict. Select a Phase and only practices tagged to that phase can appear. Add a Main Principle and the practice must match both. Add a Sub-Principle, Purpose or Format and every selected row continues to stack.</p></div><span class="fpwLogic">OR within a row · AND between rows</span></div>${rowsMarkup('workbench',workbenchFilters)}<div class="fpwControls"><input id="fpwSearch" placeholder="Search inside exact matches..."><button type="button" id="fpwReview">Needs principle</button><button type="button" id="fpwClassification">Review classifications</button><button type="button" id="fpwClear">Clear</button></div><div class="fpwSelected" data-fpw-selected></div><div class="fpwStats"><b data-fpw-count></b><span data-fpw-sort>Newest entered first</span></div><div data-fpw-results></div><div class="fpLegacyNote">The old Theme browser underneath is kept only as a legacy fallback. “Needs principle” now means only that no main principle could be resolved; sub-principles are optional detail.</div>`;
   library.prepend(panel);
   panel.addEventListener('click',event=>handlePanelClick('workbench',workbenchFilters,event));
-  field('fpwSearch')?.addEventListener('input',event=>{workbenchFilters.search=event.target.value||'';workbenchPage=0;renderResults('workbench',workbenchFilters);});
+  field('fpwSearch')?.addEventListener('input',event=>{workbenchFilters.search=event.target.value||'';workbenchPage=0;clearTimeout(renderResults.searchTimer);renderResults.searchTimer=setTimeout(()=>renderResults('workbench',workbenchFilters),120);});
   field('fpwReview')?.addEventListener('click',event=>{workbenchFilters.reviewOnly=!workbenchFilters.reviewOnly;event.currentTarget.classList.toggle('on',workbenchFilters.reviewOnly);workbenchPage=0;renderResults('workbench',workbenchFilters);});
-  field('fpwClear')?.addEventListener('click',()=>{['phases','principles','subPrinciples','purposes','formats','fundamentals'].forEach(k=>workbenchFilters[k].clear());workbenchFilters.search='';workbenchFilters.reviewOnly=false;field('fpwSearch').value='';field('fpwReview')?.classList.remove('on');workbenchPage=0;renderResults('workbench',workbenchFilters);});
+  field('fpwClassification')?.addEventListener('click',event=>{workbenchFilters.classificationOnly=!workbenchFilters.classificationOnly;event.currentTarget.setAttribute('aria-pressed',String(workbenchFilters.classificationOnly));workbenchPage=0;renderResults('workbench',workbenchFilters);});
+  field('fpwClear')?.addEventListener('click',()=>{['phases','principles','subPrinciples','purposes','formats','fundamentals'].forEach(k=>workbenchFilters[k].clear());workbenchFilters.search='';workbenchFilters.classificationOnly=false;field('fpwClassification')?.setAttribute('aria-pressed','false');workbenchFilters.reviewOnly=false;field('fpwSearch').value='';field('fpwReview')?.classList.remove('on');workbenchPage=0;renderResults('workbench',workbenchFilters);});
   renderResults('workbench',workbenchFilters);
 }
 
@@ -508,6 +525,8 @@ function syncLegacyStageFromPurpose(){
 }
 function loadEditorForPractice(practice={}){
   ensureEditor();editorPracticeId=String(practice.id||'');
+  let note=field('classificationReviewNote');if(!note){note=document.createElement('p');note.id='classificationReviewNote';note.className='small';field(EDITOR_ID)?.prepend(note);}
+  const assessment=classificationReview(practice);note.textContent=assessment.confirmed?'Coach-confirmed organisation.':`Suggested classification. Check the format and fundamentals, then save to confirm.${assessment.changed?' Text suggests '+(formatById(assessment.suggested)?.label||assessment.suggested)+'; your current selection is preserved.':''}`;
   const a=practiceArchitecture(practice);
   const panel=field(EDITOR_ID);if(!panel)return;
   field('fpePurpose').value=a.purpose;
@@ -572,8 +591,7 @@ function wrapPracticeEditor(){
       const target=String(field('pid')?.value||'').trim();
       const legacyStage=legacyStageForPurpose(draft.practicePurpose);
       if(field('stage')&&legacyStage)field('stage').value=legacyStage;
-      const result=saveOriginal.apply(this,args);
-      if(target){setTimeout(()=>persistPracticeTags(target,draft),30);setTimeout(()=>persistPracticeTags(target,draft,true),320);}
+      const result=saveOriginal.apply(this,args); // Tags are captured synchronously inside the canonical save.
       return result;
     };wrapped.__fourPhasePractice=true;try{savePractice=wrapped;}catch(_){}window.savePractice=wrapped;
   }
@@ -600,6 +618,7 @@ function install(){
   document.addEventListener('click',event=>{if(event.target.closest?.('[data-tab="library"],[data-tab="planner"],[data-tab="editor"],[onclick*="showBuildRoute"]'))setTimeout(ensureAll,70);},true);
   window.NickFourPhasePracticeSystem=Object.freeze({
     version:FOUR_PHASE_PRACTICE_SYSTEM_VERSION,
+    tagDraft,editorState,classificationReview,refresh:()=>{renderResults('workbench',workbenchFilters);renderResults('finder',finderFilters);},
     architecture:practiceArchitecture,
     matches:matchesPracticeFilters,
     filter:filterPractices,

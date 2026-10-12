@@ -14,25 +14,18 @@ test('startup polish exposes a versioned clean loading shell', () => {
   assert.match(source,/5000/);
 });
 
-test('global save status shows local and cloud state clearly', () => {
-  assert.match(source,/Saved locally ✓ · Cloud synced ✓/);
-  assert.match(source,/Saved locally ✓ · Cloud waiting/);
-  assert.match(source,/Saved locally ✓ · Local only/);
-  assert.match(source,/Saved locally ✓ · Offline/);
-  assert.match(source,/Cloud still working/);
-  assert.match(source,/Saving…/);
-  assert.match(source,/Syncing…/);
+test('global save status uses the shared queue presentation', () => {
+  assert.match(source,/syncPresentation/);
+  assert.match(source,/subscribe\(refreshSaveStatusFromCloud\)/);
 });
 
-test('save status wraps store and cloud save without replacing app data format', () => {
-  assert.match(source,/function wrapStore/);
-  assert.match(source,/function wrapCloudSave/);
-  assert.match(source,/localStorage\.setItem\('nickCoachOSv3'/);
-  assert.match(source,/normaliseDbShape/);
+test('save status cannot wrap or independently acknowledge writes', () => {
+  assert.doesNotMatch(source,/function wrapStore|function wrapCloudSave/);
+  assert.doesNotMatch(source,/localStorage\.setItem/);
 });
 
 test('startup polish is requested immediately and marked ready after enhancements', () => {
-  const startup = sessionState.indexOf("import('./app-startup-save-status-v1.js?v=coaching-cues-4')");
+  const startup = sessionState.indexOf("import('./app-startup-save-status-v1.js?v=coaching-loop-7')");
   const review = sessionState.indexOf("import('./post-session-review.js')");
   const visualFocus = sessionState.indexOf("import('./advanced-builder-visual-focus-v1.js')");
   const markReady = sessionState.indexOf('markEnhancementsReady');
@@ -50,7 +43,7 @@ test('ready local workspace opens while Firebase is still connecting', async () 
     document:{ getElementById:id=>id==='nickAppStartupOverlayV1'?overlay:id==='nickBootTextV1'?label:null },
     clearTimeout:()=>{}, setTimeout:callback=>callback()
   });
-  vm.runInContext(source.replaceAll('export ', '') + '\nmarkEnhancementsReady();',context);
+  vm.runInContext(source.replace(/^import .*;$/gm,'').replaceAll('export ', '') + '\nmarkEnhancementsReady();',context);
   assert.deepEqual(classes,['leaving']);
   assert.equal(removed,true);
   assert.equal(vm.runInContext('cloudResolved',context),false,'opening local UI must not pretend cloud sync completed');

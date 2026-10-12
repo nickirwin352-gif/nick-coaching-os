@@ -1,22 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-
-import {
-  getFirestore,
-  doc,
-  setDoc,
-  getDoc,
-  onSnapshot,
-  serverTimestamp,
-  collection,
-  addDoc,
-  getDocs,
-  query,
-  orderBy,
-  limit,
-  writeBatch
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-import { buildCollectionState, diffCollection, stableStringify } from "./cloud-sync-delta-v1.js";
-
+import {getFirestore,doc,getDoc,onSnapshot,serverTimestamp,collection,addDoc,getDocs,query,orderBy,limit,runTransaction} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import {mergeRecord,clone} from './sync-engine.js';
+import {enqueue,receive,connect,getEngine} from './persistence-client.js';
 const firebaseConfig = {
   apiKey: "AIzaSyDbBy2QfJZ2y-Mq8cpeqLjDEBgrcIdclYI",
   authDomain: "nick-coaching-os.firebaseapp.com",
@@ -26,332 +11,68 @@ const firebaseConfig = {
   appId: "1:250479748129:web:5b8bd15b91d6a14a7d2f60"
 };
 
-const app = initializeApp(firebaseConfig);
-const firestore = getFirestore(app);
 
-const COLLECTIONS = {
-  practices: "coachingOSPractices",
-  sessions: "coachingOSSessions",
-  templates: "coachingOSSessionBlueprints",
-  wordbanks: "coachingOSWordbanks",
-  meta: "coachingOSMeta",
-  backups: "coachingOSBackups",
-  legacy: "coachingOS"
+if(['localhost','127.0.0.1'].includes(location.hostname)){
+ await import('./local-test-cloud.js');
+}else{
+const firestore=getFirestore(initializeApp(firebaseConfig));
+const COLLECTIONS={practices:'coachingOSPractices',sessions:'coachingOSSessions',sessionTemplates:'coachingOSSessionBlueprints',banks:'coachingOSWordbanks',backups:'coachingOSBackups'};
+const listeners=new Set();
+let latestRemote=null;
+const makeDocId=id=>encodeURIComponent(String(id)).replace(/\./g,'%2E').slice(0,140);
+function payload(snap){if(!snap.exists())return undefined;const value=snap.data();return value.deleted?undefined:clone(value.data||value);}
+function publish(data,source='remote'){
+ const safe=receive(data);
+ listeners.forEach(callback=>callback({data:clone(safe),source}));
+}
+async function writeOperation(op){
+ const ref=doc(firestore,COLLECTIONS[op.collection],makeDocId(op.id));
+ return runTransaction(firestore,async tx=>{
+  const snapshot=await tx.get(ref),remote=payload(snapshot);
+  const result=mergeRecord(op.base,op.local,remote);
+  if(result.conflicts.length)return {...result,remote};
+  const revision=Number(snapshot.data()?.revision||0)+1;
+  tx.set(ref,{data:result.value===undefined?null:result.value,deleted:result.value===undefined,revision,updatedAt:serverTimestamp()});
+  return {...result,revision};
+ });
+}
+connect(writeOperation,data=>listeners.forEach(callback=>callback({data:clone(data),source:'local-ack'})));
+let unsubscribeAll=null;
+function startListening(){
+ if(unsubscribeAll)return;
+ const buckets=new Map(),ready=new Set();let timer;
+ const notify=()=>{
+  clearTimeout(timer);timer=setTimeout(()=>{
+   if(ready.size!==4)return;
+   latestRemote={practices:[...buckets.get('practices').values()],sessions:[...buckets.get('sessions').values()],sessionTemplates:[...buckets.get('sessionTemplates').values()],banks:buckets.get('banks')||{}};
+   publish(latestRemote);
+  },80);
+ };
+ const stops=['practices','sessions','sessionTemplates'].map(key=>{
+  const map=new Map();buckets.set(key,map);
+  return onSnapshot(collection(firestore,COLLECTIONS[key]),snapshot=>{
+   snapshot.docChanges().forEach(change=>{const value=payload(change.doc);if(change.type==='removed'||value===undefined)map.delete(change.doc.id);else map.set(change.doc.id,value);});
+   ready.add(key);notify();
+  },error=>window.dispatchEvent(new CustomEvent('coaching:cloud-error',{detail:error.message})));
+ });
+ stops.push(onSnapshot(doc(firestore,COLLECTIONS.banks,'master'),snapshot=>{buckets.set('banks',payload(snapshot)||{});ready.add('banks');notify();},error=>window.dispatchEvent(new CustomEvent('coaching:cloud-error',{detail:error.message}))));
+ unsubscribeAll=()=>{stops.forEach(stop=>stop());clearTimeout(timer);unsubscribeAll=null;};
+}
+window.nickCloud={
+ version:3,
+ save:async data=>enqueue(data),
+ saveSessions:async sessions=>enqueue({...clone(getEngine().view),sessions:clone(sessions)}),
+ getCurrent:async()=>{
+  const [practices,sessions,templates,bank]=await Promise.all([getDocs(collection(firestore,COLLECTIONS.practices)),getDocs(collection(firestore,COLLECTIONS.sessions)),getDocs(collection(firestore,COLLECTIONS.sessionTemplates)),getDoc(doc(firestore,COLLECTIONS.banks,'master'))]);
+  return receive({practices:practices.docs.map(payload).filter(Boolean),sessions:sessions.docs.map(payload).filter(Boolean),sessionTemplates:templates.docs.map(payload).filter(Boolean),banks:payload(bank)||{}});
+ },
+ listen:callback=>{
+  listeners.add(callback);callback({data:clone(getEngine().view),pendingRemote:!latestRemote,source:'local-cache-fast-start'});
+  startListening();return()=>{listeners.delete(callback);if(!listeners.size)unsubscribeAll?.();};
+ },
+ createBackup:async data=>addDoc(collection(firestore,COLLECTIONS.backups),{data:clone(data),createdAt:serverTimestamp(),label:new Date().toLocaleString('en-GB'),structure:'revision-outbox-v3'}),
+ loadBackups:async()=>{const snapshot=await getDocs(query(collection(firestore,COLLECTIONS.backups),orderBy('createdAt','desc'),limit(25)));return snapshot.docs.map(d=>({id:d.id,...d.data()}));}
 };
+window.dispatchEvent(new Event('coaching:cloud-ready'));
 
-const CLIENT_ID = `web-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
-const syncState = {
-  practices:new Map(),
-  sessions:new Map(),
-  templates:new Map(),
-  banksSignature:'',
-  primed:false
-};
-const protectedSessions = new Map();
-let lastSavedDb = null;
-let localBootDb = null;
-let lastLocalWriteToken = '';
-let saveSequence = 0;
-let saveChain = Promise.resolve();
-
-function clean(data) {
-  return JSON.parse(JSON.stringify(data || {}));
 }
-
-function stripCloudOnlyFields(item) {
-  if (!item || typeof item !== 'object') return item;
-  const { _docId, ...rest } = item;
-  return rest;
-}
-
-function makeDocId(value, fallback) {
-  const raw = String(value || fallback || ("item-" + Date.now()));
-  return encodeURIComponent(raw).replace(/\./g, "%2E").slice(0, 140) || fallback;
-}
-
-function cloudDrillIds(item) {
-  const raw = Array.isArray(item && item.drills)
-    ? item.drills
-    : [item && item.act, item && item.skill, item && item.tact, item && item.cond];
-  return raw.map(d => typeof d === "string" ? d : (d && d.id)).filter(Boolean);
-}
-
-function normaliseCloudDb(data) {
-  const safe = clean(data);
-  safe.practices = Array.isArray(safe.practices) ? safe.practices : [];
-  safe.sessions = Array.isArray(safe.sessions) ? safe.sessions : [];
-  safe.sessionTemplates = Array.isArray(safe.sessionTemplates) ? safe.sessionTemplates : [];
-  safe.banks = safe.banks && typeof safe.banks === "object" ? safe.banks : {};
-
-  safe.practices = safe.practices.map((p, i) => {
-    const item = stripCloudOnlyFields(p || {});
-    const { fav, favorite, ...rest } = item;
-    return {
-      ...rest,
-      id: item.id || ("practice-" + (i + 1)),
-      isFavourite: !!(item.isFavourite ?? fav ?? favorite)
-    };
-  });
-
-  safe.sessions = safe.sessions.map((s, i) => {
-    const item = stripCloudOnlyFields(s || {});
-    return {
-      ...item,
-      id: item.id || makeDocId([item.date, item.team, item.theme, i].join("-"), "session-" + (i + 1)),
-      drills: cloudDrillIds(item)
-    };
-  });
-
-  safe.sessionTemplates = safe.sessionTemplates.map((t, i) => {
-    const item = stripCloudOnlyFields(t || {});
-    const { fav, favorite, ...rest } = item;
-    return {
-      ...rest,
-      id: item.id || makeDocId([item.name, item.theme, i].join("-"), "blueprint-" + (i + 1)),
-      isFavourite: !!(item.isFavourite ?? fav ?? favorite),
-      useCount: Number(item.useCount || 0),
-      drills: cloudDrillIds(item)
-    };
-  });
-
-  return safe;
-}
-
-function collectionState(items, idGetter) {
-  return buildCollectionState(items,idGetter,(value,index)=>makeDocId(value,`item-${index}`));
-}
-
-function mergeProtectedSessions(data) {
-  if (!protectedSessions.size) return data;
-  const safe = normaliseCloudDb(data || {});
-  const byId = new Map(safe.sessions.map(session=>[String(session.id || ''),session]));
-  protectedSessions.forEach((session,id)=>{
-    const remote = byId.get(id);
-    if (session === null) {
-      if (!remote) protectedSessions.delete(id);
-      else byId.delete(id);
-      return;
-    }
-    if (remote && stableStringify(remote) === stableStringify(session)) {
-      protectedSessions.delete(id);
-      return;
-    }
-    byId.set(id,clean(session));
-  });
-  safe.sessions = [...byId.values()];
-  return safe;
-}
-
-function primeSyncState(data) {
-  const safe = normaliseCloudDb(data || {});
-  syncState.practices = collectionState(safe.practices,p=>p.id);
-  syncState.sessions = collectionState(safe.sessions,s=>s.id);
-  syncState.templates = collectionState(safe.sessionTemplates,t=>t.id);
-  syncState.banksSignature = stableStringify(safe.banks || {});
-  syncState.primed = true;
-  lastSavedDb = clean(safe);
-  return safe;
-}
-
-function primeFromLocalCache() {
-  try {
-    const raw = JSON.parse(localStorage.getItem('nickCoachOSv3') || 'null');
-    if (!raw) return null;
-    localBootDb = primeSyncState(raw);
-    return localBootDb;
-  } catch (_) { return null; }
-}
-
-async function loadCollectionDocs(collectionName) {
-  const snap = await getDocs(collection(firestore, collectionName));
-  return snap.docs.map(d => stripCloudOnlyFields(d.data().data || d.data()));
-}
-
-async function saveCollectionDelta(collectionName, items, idGetter, stateKey) {
-  const previous = syncState[stateKey] || new Map();
-  const delta = diffCollection(items,idGetter,previous,(value,index)=>makeDocId(value,`item-${index}`));
-  if (!delta.changed) return { changed:0, upserts:0, deletes:0, upsertIds:[], deleteIds:[] };
-
-  if (stateKey === 'sessions') {
-    delta.upserts.forEach(({id,item})=>protectedSessions.set(id,clean(item)));
-    delta.deletes.forEach(id=>protectedSessions.set(id,null));
-  }
-
-  const batch = writeBatch(firestore);
-  delta.upserts.forEach(({id,item}) => {
-    batch.set(doc(firestore, collectionName, id), {
-      data: clean(item),
-      updatedAt: serverTimestamp()
-    });
-  });
-  delta.deletes.forEach(id => batch.delete(doc(firestore, collectionName, id)));
-  await batch.commit();
-  syncState[stateKey] = delta.nextState;
-  return {
-    changed:delta.changed,
-    upserts:delta.upserts.length,
-    deletes:delta.deletes.length,
-    upsertIds:delta.upserts.map(item=>item.id),
-    deleteIds:[...delta.deletes]
-  };
-}
-
-async function writeMeta(cleanData, changeKind='full') {
-  const writeToken = `${CLIENT_ID}-${Date.now().toString(36)}-${(++saveSequence).toString(36)}`;
-  lastLocalWriteToken = writeToken;
-  await setDoc(doc(firestore, COLLECTIONS.meta, "main"), {
-    updatedAt: serverTimestamp(),
-    structure: "split-collections-v2-delta",
-    practiceCount: cleanData.practices.length,
-    sessionCount: cleanData.sessions.length,
-    templateCount: cleanData.sessionTemplates.length,
-    changeKind,
-    clientId: CLIENT_ID,
-    writeToken
-  });
-}
-
-async function loadStructuredDb() {
-  const [practiceDocs, sessionDocs, templateDocs, bankSnap] = await Promise.all([
-    loadCollectionDocs(COLLECTIONS.practices),
-    loadCollectionDocs(COLLECTIONS.sessions),
-    loadCollectionDocs(COLLECTIONS.templates),
-    getDoc(doc(firestore, COLLECTIONS.wordbanks, "master"))
-  ]);
-
-  let structured = normaliseCloudDb({
-    practices: practiceDocs,
-    sessions: sessionDocs,
-    sessionTemplates: templateDocs,
-    banks: bankSnap.exists() ? (bankSnap.data().data || bankSnap.data() || {}) : {}
-  });
-  structured = mergeProtectedSessions(structured);
-  primeSyncState(structured);
-
-  const hasStructuredData = practiceDocs.length || sessionDocs.length || templateDocs.length || bankSnap.exists();
-  if (hasStructuredData) return structured;
-
-  // Migration fallback: if your old single-document database still exists,
-  // load it once so it can be saved into the new separate collections.
-  const legacySnap = await getDoc(doc(firestore, COLLECTIONS.legacy, "main"));
-  if (legacySnap.exists() && legacySnap.data().data) {
-    const legacyDb = normaliseCloudDb(legacySnap.data().data);
-    await window.nickCloud.save(legacyDb);
-    return legacyDb;
-  }
-
-  return null;
-}
-
-async function saveIncremental(data) {
-  const cleanData = normaliseCloudDb(data);
-  if (!syncState.primed) primeSyncState({ practices:[], sessions:[], sessionTemplates:[], banks:{} });
-
-  const [practiceResult, sessionResult, templateResult] = await Promise.all([
-    saveCollectionDelta(COLLECTIONS.practices, cleanData.practices, p => p.id, 'practices'),
-    saveCollectionDelta(COLLECTIONS.sessions, cleanData.sessions, s => s.id, 'sessions'),
-    saveCollectionDelta(COLLECTIONS.templates, cleanData.sessionTemplates, t => t.id, 'templates')
-  ]);
-
-  let bankChanged = 0;
-  const nextBankSignature = stableStringify(cleanData.banks || {});
-  if (nextBankSignature !== syncState.banksSignature) {
-    await setDoc(doc(firestore, COLLECTIONS.wordbanks, "master"), {
-      data: cleanData.banks,
-      updatedAt: serverTimestamp()
-    });
-    syncState.banksSignature = nextBankSignature;
-    bankChanged = 1;
-  }
-
-  const totalChanged = practiceResult.changed + sessionResult.changed + templateResult.changed + bankChanged;
-  lastSavedDb = clean(cleanData);
-  if (totalChanged) await writeMeta(cleanData,'full-delta');
-
-  return {
-    changed:totalChanged,
-    practices:practiceResult,
-    sessions:sessionResult,
-    templates:templateResult,
-    banks:bankChanged
-  };
-}
-
-async function saveSessionsIncremental(sessions) {
-  const base = lastSavedDb ? normaliseCloudDb(lastSavedDb) : normaliseCloudDb({ practices:[], sessions:[], sessionTemplates:[], banks:{} });
-  const normalisedSessions = normaliseCloudDb({ sessions }).sessions;
-  if (!syncState.primed) {
-    syncState.sessions = collectionState([],s=>s.id);
-    syncState.primed = true;
-  }
-  const sessionResult = await saveCollectionDelta(COLLECTIONS.sessions, normalisedSessions, s => s.id, 'sessions');
-  const nextData = { ...base, sessions:normalisedSessions };
-  lastSavedDb = clean(nextData);
-  if (sessionResult.changed) await writeMeta(nextData,'sessions-delta');
-  return { changed:sessionResult.changed, sessions:sessionResult };
-}
-
-function queueSave(work) {
-  const run = () => work();
-  saveChain = saveChain.then(run,run);
-  return saveChain;
-}
-
-primeFromLocalCache();
-
-window.nickCloud = {
-  save: function(data) {
-    const snapshot = clean(data);
-    return queueSave(() => saveIncremental(snapshot));
-  },
-
-  saveSessions: function(sessions) {
-    const snapshot = clean(Array.isArray(sessions) ? sessions : []);
-    return queueSave(() => saveSessionsIncremental(snapshot));
-  },
-
-  getCurrent: async function() {
-    return await loadStructuredDb();
-  },
-
-  listen: function(callback) {
-    if (localBootDb) {
-      queueMicrotask(()=>callback({ data:clean(localBootDb), source:'local-cache-fast-start', pendingRemote:true }));
-    }
-    return onSnapshot(
-      doc(firestore, COLLECTIONS.meta, "main"),
-      async function(metaSnap) {
-        const meta = metaSnap.exists() ? metaSnap.data() : null;
-        if (meta && meta.clientId === CLIENT_ID && meta.writeToken === lastLocalWriteToken && lastSavedDb) {
-          callback({ data:clean(lastSavedDb), source:'local-delta-save' });
-          return;
-        }
-        const cloudDb = await loadStructuredDb();
-        callback(cloudDb ? { data:cloudDb, source:'remote' } : null);
-      },
-      function(error) {
-        console.error("Firebase listener failed", error);
-      }
-    );
-  },
-
-  createBackup: async function(data) {
-    const cleanData = normaliseCloudDb(data);
-    await addDoc(collection(firestore, COLLECTIONS.backups), {
-      data: cleanData,
-      createdAt: serverTimestamp(),
-      label: new Date().toLocaleString("en-GB"),
-      structure: "split-collections-v2-delta"
-    });
-  },
-
-  loadBackups: async function() {
-    const q = query(
-      collection(firestore, COLLECTIONS.backups),
-      orderBy("createdAt", "desc"),
-      limit(25)
-    );
-    const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  }
-};

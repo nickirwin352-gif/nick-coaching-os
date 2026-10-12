@@ -20,7 +20,7 @@ const practices=[
 ];
 
 test('four-phase workbench keeps the visual choice set focused', () => {
-  assert.equal(FOUR_PHASE_FILTER_PAGE_SIZE,3);
+  assert.equal(FOUR_PHASE_FILTER_PAGE_SIZE,9);
 });
 
 test('workbench is OR within a row and AND between rows', () => {

@@ -2,7 +2,7 @@ import { GAME_MODEL_PRINCIPLES, principleById } from './game-model-core.js';
 import { BANK_KINDS, buildPrincipleWordBanks, resolveBankContext } from './principle-word-bank-data.js?v=coaching-cues-4';
 import { ensureCollapsibleWordBanks } from './practice-editor-collapsible-word-banks-v1.js?v=principle-banks-3';
 
-const BANK_TARGETS={practiceCueChips:['cues','cp','practice'],cpChips:['cp','cp','practice'],progChips:['prog','prog','practice'],regChips:['reg','reg','practice'],condGameChips:['cond','condRules','practice'],objChips:['obj','objective','session'],linkChips:['links','links','session'],cueChips:['cues','cues','session'],reflectChips:['reflect','reflect','session'],gmSuccessChips:['obj','gmSuccessLooksLike','session']};
+const BANK_TARGETS={practiceCueChips:['cues','practiceDeliveryCues','practice'],cpChips:['cp','cp','practice'],progChips:['prog','prog','practice'],regChips:['reg','reg','practice'],condGameChips:['cond','condRules','practice'],objChips:['obj','objective','session'],linkChips:['links','links','session'],cueChips:['cues','cues','session'],reflectChips:['reflect','reflect','session'],gmSuccessChips:['obj','gmSuccessLooksLike','session']};
 const field=id=>document.getElementById(id);
 function appDb(){try{return typeof db!=='undefined'?db:window.db;}catch(_){return window.db;}}
 function selected(selector){return [...document.querySelectorAll(selector)].map(el=>el.value);}
@@ -82,7 +82,7 @@ export function refresh(){
   const cp=field('cp');
   if(cp&&!field('practiceCueChips')){
     const host=document.createElement('div');host.id='practiceCueChips';host.className='chips';
-    cp.before(host);wrapSupportingList(host,'Short delivery cues · add to coaching points');
+    cp.before(host);wrapSupportingList(host,'Short delivery cues');
   }
   ensureSuccessBank();
   for(const id of Object.keys(BANK_TARGETS))renderBank(id);

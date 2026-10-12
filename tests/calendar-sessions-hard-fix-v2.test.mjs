@@ -50,7 +50,7 @@ test('archive rating selector is rebuilt as one to ten with no stars', () => {
 });
 
 test('mutation observers keep behaviour after renders filters and cloud refreshes', () => {
-  assert.match(source, /new MutationObserver/);
+  assert.match(source, /observeRender/);
   assert.match(source, /sessionLibraryResults/);
   assert.match(source, /archiveCalendar/);
   assert.match(source, /archiveList/);

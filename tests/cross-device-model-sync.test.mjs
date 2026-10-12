@@ -30,7 +30,7 @@ test('legacy decisions are not assigned a fabricated fresh timestamp',()=>{
 test('every session save path explicitly includes the selected model and saved cards show it',()=>{
   const index=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
   const speed=fs.readFileSync(new URL('../src/session-library-speed-v2.js',import.meta.url),'utf8');
-  assert.ok(index.includes("const base={gameModelPlan:window.NickFourPhaseGameModel?.currentPlan?.(),"));
+  assert.ok(index.includes("const base={coaching:window.NickCoachingLoop?.capture?.(),gameModelPlan:window.NickFourPhaseGameModel?.currentPlan?.(),"));
   assert.ok(speed.includes('base.gameModelPlan=window.NickFourPhaseGameModel.currentPlan()'));
   assert.ok(speed.includes('phaseById(plan.gamePhase)?.label'));
   assert.ok(speed.includes('principleById(plan.primaryPrincipleId)?.message'));

@@ -128,7 +128,7 @@ export async function flushFourPhaseDecisionsToCloud(){
   if(!data||!window.nickCloud||typeof window.nickCloud.save!=='function')return false;
   cloudFlushBusy=true;
   try{
-    applyStoredFourPhaseDecisions(data);
+    if(window.nickCloud?.version<3)applyStoredFourPhaseDecisions(data);
     saveLocal(data);
     await window.nickCloud.save(clone(data));
     return true;
@@ -149,6 +149,7 @@ function mergeIntoPayload(data){
 }
 function wrapNickCloud(){
   const cloud=window.nickCloud;
+  if(cloud?.version>=3){cloudHydrated=true;return true;}
   if(!cloud||cloud.__fourPhasePracticePersistence)return false;
   const originalSave=typeof cloud.save==='function'?cloud.save.bind(cloud):null;
   const originalListen=typeof cloud.listen==='function'?cloud.listen.bind(cloud):null;
@@ -174,6 +175,7 @@ function wrapNickCloud(){
 
 export function reconcileFourPhaseDecisions(){
   const data=appDb(); if(!data)return 0;
+  if(window.nickCloud?.version>=3)return 0;
   const changed=applyStoredFourPhaseDecisions(data);
   if(changed){saveLocal(data);scheduleCloudFlush(300);}
   return changed;
