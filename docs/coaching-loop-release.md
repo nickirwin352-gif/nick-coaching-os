@@ -25,6 +25,6 @@ The practice editor's **Practice family, variation and delivery cues** section g
 
 ## Validation and limits
 
-237 automated tests pass, including actual adapter transaction behaviour, interrupted/newer edits, conflicts, stale hydration, outbox restart recovery, nested bank edits, session loading, prescriptions, duplicate occurrences, short-cue escaping and retry backoff. All 68 JavaScript modules and inline scripts parse successfully.
+238 automated tests pass, including actual adapter transaction behaviour, interrupted/newer edits, conflicts, stale hydration, outbox restart recovery, nested bank edits, session loading, prescriptions, duplicate occurrences, short-cue escaping and retry backoff. All 68 JavaScript modules and inline scripts parse successfully.
 
 Automated tests use fixtures; no production coaching records are changed for testing. Physical phone/laptop concurrent editing remains a real-device acceptance check. Firestore access rules and authentication are unchanged by this release. Escaping rendering paths is not a replacement for server access control.

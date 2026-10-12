@@ -46,3 +46,8 @@ test('remote updates do not bypass cloud retry backoff',async()=>{
  vm.createContext(ctx);vm.runInContext(source.replace(/^import .*;$/gm,'').replaceAll('export ','')+'\nwindow.test={connect,receive,enqueue,flush};',ctx);
  const a=ctx.window.test,base={practices:[],sessions:[],sessionTemplates:[],banks:{}};a.receive(base);a.connect(async()=>{throw Error('Unavailable');});a.enqueue({...base,sessions:[{id:'s1'}]});await a.flush();assert.equal(timers.at(-1),3000);a.receive(base);assert.equal(timers.at(-1),3000);
 });
+
+test('coaching pathway is mounted outside the hidden diagram studio',()=>{
+ assert.match(loop,/document\.body\.append\(view\)/);
+ assert.doesNotMatch(loop,/document\.querySelector\('main'\)/);
+});
