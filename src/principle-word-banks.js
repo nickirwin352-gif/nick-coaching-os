@@ -157,6 +157,7 @@ function installManager(){
   };
   const loadSubs=()=>{sub.replaceChildren(option('','Whole principle'));principleById(main.value).subPrinciples.forEach(item=>sub.append(option(item.id,item.title)));load();};
   main.addEventListener('change',loadSubs);sub.addEventListener('change',load);loadSubs();
+  window.addEventListener('coaching:data',()=>{if(!drafts.get(activeScope))load();refresh();});
   field('savePrincipleBanks').addEventListener('click',async()=>{
     const data=appDb();if(!data)return;
     const savedScope=activeScope;const savedDraft=values();

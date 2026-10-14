@@ -9,13 +9,15 @@ function scopeDetail(main,sub){
  const base=principleDelivery(main,saved);
  return sub?{...base,action:(PERSONAL_POINTS[sub]||[]).join(' · '),...(saved[`sub:${sub}`]||{})}:base;
 }
+const editors=new Map();
 function makeEditor(host,mainId,subId=''){
+ editors.set(host,{mainId,subId});host.dataset.edited='false';
  host.replaceChildren();
  const key=subId?`sub:${subId}`:mainId;
  const note=element('p','Personal draft from your answers. Edit each part to describe one coherent decision. Saved edits take priority.');note.className='small';host.append(note);
  const inputs={};const draft=scopeDetail(mainId,subId);
  for(const [name,label] of Object.entries(DELIVERY_FIELDS)){
-  const wrapper=element('label',label);const input=element('textarea');input.rows=3;input.value=draft[name]||'';input.setAttribute('aria-label',label);wrapper.append(input);host.append(wrapper);inputs[name]=input;
+  const wrapper=element('label',label);const input=element('textarea');input.rows=3;input.value=draft[name]||'';input.addEventListener('input',()=>host.dataset.edited='true');input.setAttribute('aria-label',label);wrapper.append(input);host.append(wrapper);inputs[name]=input;
  }
  const status=element('p');status.setAttribute('role','status');
  const save=element('button','Save this decision');save.type='button';
@@ -39,10 +41,11 @@ function install(){
  const editor=element('div');panel.append(main,sub,editor);
  const load=()=>makeEditor(editor,main.value,sub.value);
  const loadSubs=()=>{sub.replaceChildren();const all=element('option','Whole principle');all.value='';sub.append(all);for(const s of principleById(main.value).subPrinciples){const o=element('option',s.title);o.value=s.id;sub.append(o);}load();};
+ window.addEventListener('coaching:data',()=>{for(const [host,scope]of editors){if(host.isConnected&&host.dataset.edited!=='true')makeEditor(host,scope.mainId,scope.subId);}});
  // Keep unsaved text for each selection without writing it to the cloud.
  const drafts=new Map();let scope='';
  const remember=()=>{if(scope)drafts.set(scope,[...editor.querySelectorAll('textarea')].map(x=>x.value));};
- const restore=()=>{scope=main.value+':'+sub.value;const saved=drafts.get(scope);if(saved)[...editor.querySelectorAll('textarea')].forEach((x,i)=>x.value=saved[i]);};
+ const restore=()=>{scope=main.value+':'+sub.value;const saved=drafts.get(scope);if(saved){[...editor.querySelectorAll('textarea')].forEach((x,i)=>x.value=saved[i]);editor.dataset.edited='true';}};
  main.onchange=()=>{remember();loadSubs();restore();};sub.onchange=()=>{remember();load();restore();};loadSubs();restore();view.prepend(panel);
  const definitions=element('details');definitions.className='principleCompactList';definitions.append(element('summary','Shared meanings & decisions still to test'));
  for(const text of [
