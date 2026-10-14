@@ -14,11 +14,12 @@ function sub(id,title,description) {
   return Object.freeze({ id, title, message:title, description });
 }
 
-function principle({id,number,phaseId,message,summary,subPrinciples,keywords=[]}) {
+function principle({id,number,phaseId,phaseIds=[phaseId],message,summary,subPrinciples,keywords=[]}) {
   return Object.freeze({
     id,
     number,
     phaseId,
+    phaseIds:Object.freeze(phaseIds),
     title:message,
     principle:message,
     message,
@@ -28,7 +29,7 @@ function principle({id,number,phaseId,message,summary,subPrinciples,keywords=[]}
     good:subPrinciples.map(item => item.description).join(' '),
     bad:'',
     questions:Object.freeze([]),
-    moments:Object.freeze([phaseId]),
+    moments:Object.freeze(phaseIds),
     themes:Object.freeze([]),
     practiceKeywords:Object.freeze(keywords),
     subPrinciples:Object.freeze(subPrinciples)
@@ -69,7 +70,7 @@ export const GAME_MODEL_PRINCIPLES = Object.freeze([
     message:'Combine, Commit, Cover',
     summary:'Connect the attack, commit players beyond the ball and keep enough security behind the attack.',
     subPrinciples:[
-      sub('connect-the-attack','Connect the Attack','Join the back/midfield unit to the forwards through combinations, bounce passes and third-player actions.'),
+      sub('connect-the-attack','Connect the Attack','Join the back/midfield unit to the forwards through combinations, bounce passes and third-man actions.'),
       sub('commit-bodies-beyond','Commit Bodies Beyond','Someone must take the risk and threaten beyond, attack the last line or enter the box.'),
       sub('cover-the-commitment','Cover the Commitment','Maintain depth and security behind the attack so others have freedom to go.')
     ],
@@ -104,6 +105,7 @@ export const GAME_MODEL_PRINCIPLES = Object.freeze([
   principle({
     id:'stretch-supply-strike',
     number:6,
+    phaseIds:['in-possession','attacking-transition'],
     phaseId:'attacking-transition',
     message:'Stretch, Supply, Strike',
     summary:'Stretch the back line, deliver into the space the movement creates and finish before the defence can reset.',
@@ -159,7 +161,8 @@ export const GAME_SUB_PRINCIPLES = Object.freeze(
   GAME_MODEL_PRINCIPLES.flatMap(main => main.subPrinciples.map(item => Object.freeze({
     ...item,
     principleId:main.id,
-    phaseId:main.phaseId
+    phaseId:main.phaseId,
+    phaseIds:main.phaseIds
   })))
 );
 
@@ -201,7 +204,7 @@ export function subPrincipleById(id='') {
 }
 
 export function principlesForPhase(phaseId='') {
-  return GAME_MODEL_PRINCIPLES.filter(item => item.phaseId === String(phaseId || ''));
+  return GAME_MODEL_PRINCIPLES.filter(item => item.phaseIds.includes(String(phaseId || '')));
 }
 
 export function subPrinciplesForPrinciple(principleId='') {

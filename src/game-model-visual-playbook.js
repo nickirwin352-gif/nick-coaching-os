@@ -4,7 +4,7 @@ import {
   principleById,
   normaliseGameModelPlan,
   linkedPracticesForPrinciple
-} from './game-model-core.js';
+} from './game-model-core.js?v=personal-model-1';
 
 const STYLE_ID = 'gameModelVisualPlaybookStyles';
 const TABS_ID = 'gmVisualMomentTabs';

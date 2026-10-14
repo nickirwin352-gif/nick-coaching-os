@@ -1,5 +1,5 @@
 import {applyFourPhaseDecision} from './four-phase-practice-persistence-v1.js?v=coaching-loop-7';
-import {PASSING_FUNDAMENTALS,passingFundamentals,fundamentalLabel} from './passing-fundamentals.js';
+import {PASSING_FUNDAMENTALS,passingFundamentals,fundamentalLabel} from './passing-fundamentals.js?v=personal-model-1';
 import {
   GAME_PHASES,
   GAME_MODEL_PRINCIPLES,
@@ -8,7 +8,7 @@ import {
   principleById,
   subPrincipleById,
   principlesForPhase
-} from './game-model-core.js';
+} from './game-model-core.js?v=personal-model-1';
 
 export const FOUR_PHASE_PRACTICE_SYSTEM_VERSION = 2;
 export const FOUR_PHASE_FILTER_PAGE_SIZE = 9;
@@ -192,7 +192,7 @@ export function migratePracticeToFourPhase(practice={}){
       principles=uniq(old.map(id=>SAFE_LEGACY_PRINCIPLE_MAP[id]).filter(Boolean));
       if(principles.length)changed=true;
     }
-    principles.forEach(id=>{const phase=principleById(id)?.phaseId;if(phase&&!phases.includes(phase))phases.push(phase);});
+    principles.forEach(id=>{const main=principleById(id);if(main&&!main.phaseIds.some(p=>phases.includes(p)))phases.push(main.phaseId);});
     practice.gameModelPhaseIds=phases;
     practice.gameModelPrincipleIds=principles;
     practice.gameModelSubPrincipleIds=uniq(practice.gameModelSubPrincipleIds).filter(id=>subPrincipleById(id));
@@ -220,8 +220,7 @@ export function practiceArchitecture(practice={}){
   ]).filter(id=>principleById(id));
   const phaseIds=noLink?[]:uniq([
     ...(Array.isArray(practice.gameModelPhaseIds)?practice.gameModelPhaseIds:[]),
-    ...principleIds.map(id=>principleById(id)?.phaseId),
-    ...subIds.map(id=>subPrincipleById(id)?.phaseId)
+    ...principleIds.filter(id=>!principleById(id)?.phaseIds.some(p=>(practice.gameModelPhaseIds||[]).includes(p))).map(id=>principleById(id)?.phaseId)
   ]).filter(id=>phaseById(id));
   return {
     phaseIds,
@@ -460,7 +459,7 @@ function editorState(){
   const principles=noLink?[]:[...panel.querySelectorAll('[data-fpe-principle] input:checked')].map(input=>input.value);
   const subs=noLink?[]:[...panel.querySelectorAll('[data-fpe-sub] input:checked')].map(input=>input.value);
   const derivedPrinciples=uniq([...principles,...subs.map(id=>subPrincipleById(id)?.principleId).filter(Boolean)]);
-  const derivedPhases=uniq([...phases,...derivedPrinciples.map(id=>principleById(id)?.phaseId).filter(Boolean)]);
+  const derivedPhases=uniq([...phases,...derivedPrinciples.filter(id=>!principleById(id)?.phaseIds.some(p=>phases.includes(p))).map(id=>principleById(id)?.phaseId).filter(Boolean)]);
   return {
     phaseIds:derivedPhases,
     principleIds:derivedPrinciples,
@@ -477,7 +476,7 @@ function editorChip(item,kind,checked=false){
 function renderEditorPrinciples(selected=[],phaseIds=[]){
   const wrap=field('fpePrinciples');if(!wrap)return;
   const active=new Set(phaseIds);
-  const items=active.size?GAME_MODEL_PRINCIPLES.filter(item=>active.has(item.phaseId)):GAME_MODEL_PRINCIPLES;
+  const items=active.size?GAME_MODEL_PRINCIPLES.filter(item=>item.phaseIds.some(id=>active.has(id))):GAME_MODEL_PRINCIPLES;
   wrap.innerHTML=items.map(item=>editorChip(item,'principle',selected.includes(item.id))).join('');
   bindEditorChecks();
 }
@@ -496,7 +495,7 @@ function bindEditorChecks(){
       const phases=[...panel.querySelectorAll('[data-fpe-phase] input:checked')].map(x=>x.value);
       const selectedPrinciples=[...panel.querySelectorAll('[data-fpe-principle] input:checked')].map(x=>x.value);
       renderEditorPrinciples(selectedPrinciples,phases);
-      renderEditorSubs([],selectedPrinciples.filter(id=>!phases.length||phases.includes(principleById(id)?.phaseId)));
+      renderEditorSubs([],selectedPrinciples.filter(id=>!phases.length||principleById(id)?.phaseIds.some(phase=>phases.includes(phase))));
     }else if(event.target.closest('[data-fpe-principle]')){
       const principles=[...panel.querySelectorAll('[data-fpe-principle] input:checked')].map(x=>x.value);
       const selectedSubs=[...panel.querySelectorAll('[data-fpe-sub] input:checked')].map(x=>x.value);

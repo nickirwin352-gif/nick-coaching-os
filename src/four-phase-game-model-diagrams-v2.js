@@ -1,4 +1,4 @@
-import { GAME_MODEL_PRINCIPLES, subPrincipleById } from './game-model-core.js';
+import { GAME_MODEL_PRINCIPLES, subPrincipleById } from './game-model-core.js?v=personal-model-1';
 
 export const FOUR_PHASE_GAME_MODEL_VISUAL_VERSION = 2;
 

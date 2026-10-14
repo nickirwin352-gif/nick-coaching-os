@@ -1,5 +1,5 @@
-import {sessionTitle,sessionModelError} from './session-identity.js';
-import { phaseById, principleById, subPrincipleById } from './game-model-core.js';
+import {sessionTitle,sessionModelError} from './session-identity.js?v=personal-model-1';
+import { phaseById, principleById, subPrincipleById } from './game-model-core.js?v=personal-model-1';
 export function filterSessions(sessions = [], { search = '', team = '', theme = '' } = {}, practiceLookup = () => null) {
   const q = String(search || '').trim().toLowerCase();
   return [...sessions]

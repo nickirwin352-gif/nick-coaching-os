@@ -266,44 +266,10 @@ function ensureBanks(data) {
   return b;
 }
 
+// Source banks are now scoped by phase/principle/sub-principle. Reading suggestions
+// must never mutate the database or schedule a stale background cloud save.
 function enrichBanks(data) {
-  const b = ensureBanks(data); if (!b) return { changed:false, personal:buildPersonalLanguage({}) };
-  const personal = buildPersonalLanguage(data);
-  const before = JSON.stringify(b);
-  b.cp = mergeCoachingPhrases(personal.cp,b.cp,CURATED.cp);
-  b.prog = mergeCoachingPhrases(personal.prog,b.prog,CURATED.prog);
-  b.reg = mergeCoachingPhrases(personal.reg,b.reg,CURATED.reg);
-  b.obj = mergeCoachingPhrases(personal.obj,b.obj,CURATED.obj);
-  b.links = mergeCoachingPhrases(personal.links,b.links,CURATED.links);
-  b.cues = mergeCoachingPhrases(personal.cues,b.cues,CURATED.cues);
-  b.reflect = mergeCoachingPhrases(b.reflect,CURATED.reflect);
-
-  const allThemes = new Set([
-    ...Object.keys(CURATED.cpByTheme),...Object.keys(CURATED.objByTheme),...Object.keys(CURATED.condByTheme),
-    ...Object.keys(b.cpByTheme),...Object.keys(b.objByTheme),...Object.keys(b.condByTheme),
-    ...Object.keys(personal.cpByTheme),...Object.keys(personal.objByTheme),...Object.keys(personal.condByTheme)
-  ]);
-  allThemes.forEach(theme => {
-    b.cpByTheme[theme] = mergeCoachingPhrases(personal.cpByTheme[theme] || [],b.cpByTheme[theme] || [],CURATED.cpByTheme[theme] || []);
-    b.objByTheme[theme] = mergeCoachingPhrases(personal.objByTheme[theme] || [],b.objByTheme[theme] || [],CURATED.objByTheme[theme] || []);
-    b.condByTheme[theme] = mergeCoachingPhrases(personal.condByTheme[theme] || [],b.condByTheme[theme] || [],CURATED.condByTheme[theme] || []);
-  });
-  b.coachingPersonalisationVersion = VERSION;
-  return { changed:before !== JSON.stringify(b), personal };
-}
-
-let cloudSaveTimer = 0;
-function persistQuietly(data) {
-  try { localStorage.setItem('nickCoachOSv3',JSON.stringify(data)); } catch (_) {}
-  clearTimeout(cloudSaveTimer);
-  cloudSaveTimer = setTimeout(async () => {
-    try {
-      if (!window.nickCloud || typeof window.nickCloud.save !== 'function') return;
-      await window.nickCloud.save(JSON.parse(JSON.stringify(data)));
-    } catch (error) {
-      console.warn('Personalised word-bank cloud sync will retry on the next normal save',error);
-    }
-  },1200);
+  return {changed:false,personal:buildPersonalLanguage(data || {})};
 }
 
 function addStyles() {
@@ -370,29 +336,14 @@ let lastPersonal = null;
 function refreshPersonalisation({ persist = true } = {}) {
   const data = appDb(); if (!data) return null;
   const result = enrichBanks(data); lastPersonal = result.personal;
-  if (result.changed && persist) persistQuietly(data);
+
   refreshVisibleChips(); syncHiddenWordBankFields(); renderPersonalLanguageCard();
   return result;
 }
 
 function renderPersonalLanguageCard() {
-  const section = document.getElementById('wordbank'); if (!section) return;
-  let card = document.getElementById('personalLanguageCard');
-  if (!card) {
-    card = document.createElement('div'); card.id = 'personalLanguageCard'; card.className = 'card personalLanguageCard';
-    const first = section.querySelector('.grid') || section.firstElementChild; section.insertBefore(card,first || null);
-  }
-  const personal = lastPersonal || buildPersonalLanguage(appDb() || {});
-  const groups = [
-    ['My coaching points',personal.cp,'bankCP'],['My objectives',personal.obj,'bankObj'],['My review language',personal.review,'']
-  ];
-  const learned = new Set([...personal.cp,...personal.prog,...personal.reg,...personal.obj,...personal.links,...personal.cues,...personal.review].map(x => x.toLocaleLowerCase())).size;
-  card.innerHTML = `<h2>My Coaching Language</h2><p class="small">Automatically learned from your saved practices, sessions and review reasoning. Your most-used wording is promoted ahead of generic suggestions. <b>${learned}</b> personal phrases recognised.</p><div class="personalLanguageGroups">${groups.map(([title,items,target]) => `<div class="personalLanguageGroup"><b>${title}</b><div class="personalLanguageChips">${items.slice(0,8).map(item => `<button type="button" data-personal-phrase="${escapeAttr(item)}" data-bank-target="${target}">${escapeText(item)}</button>`).join('') || '<span class="small">This will build as you use the app.</span>'}</div></div>`).join('')}</div>`;
-  card.querySelectorAll('[data-personal-phrase]').forEach(button => button.addEventListener('click',() => {
-    const target = button.dataset.bankTarget && document.getElementById(button.dataset.bankTarget);
-    if (target) { appendPhrase(target,button.dataset.personalPhrase); toast('Added to this word bank'); }
-    else { try { navigator.clipboard?.writeText(button.dataset.personalPhrase); toast('Review phrase copied'); } catch (_) {} }
-  }));
+  // Historical language is ranked in the active contextual banks, not a global dump.
+  document.getElementById('personalLanguageCard')?.remove();
 }
 
 function escapeText(value) {
@@ -412,15 +363,7 @@ function installPracticeSmartFill() {
       toast(changed?'Blank details filled from your selected principles':'Choose a principle, or keep the details already entered');
       return;
     }
-    refreshPersonalisation({ persist:false });
-    const data = appDb(), selectedTheme = theme.value, b = data?.banks || {};
-    let changed = 0;
-    if (setIfBlank(document.getElementById('cp'),b.cpByTheme?.[selectedTheme] || b.cp || [],4)) changed++;
-    if (setIfBlank(document.getElementById('prog'),mergeCoachingPhrases(lastPersonal?.prog || [],b.prog || []),2)) changed++;
-    if (setIfBlank(document.getElementById('reg'),mergeCoachingPhrases(lastPersonal?.reg || [],b.reg || []),2)) changed++;
-    if (document.getElementById('stage')?.value === 'Conditioned Game' && setIfBlank(document.getElementById('condRules'),b.condByTheme?.[selectedTheme] || [],2)) changed++;
-    try { if (typeof renderPreview === 'function') renderPreview(); } catch (_) {}
-    toast(changed ? 'Blank coaching detail filled' : 'Nothing overwritten — those fields already have detail');
+    toast('Principle banks are still loading. Please try again.');
   });
 }
 
@@ -435,13 +378,7 @@ function installSessionSmartFill() {
       toast(changed?'Blank details filled from your selected principles':'Choose a principle, or keep the details already entered');
       return;
     }
-    refreshPersonalisation({ persist:false });
-    const data = appDb(), selectedTheme = theme.value, b = data?.banks || {}; let changed = 0;
-    if (setIfBlank(document.getElementById('objective'),b.objByTheme?.[selectedTheme] || b.obj || [],1)) changed++;
-    if (setIfBlank(document.getElementById('links'),mergeCoachingPhrases(THEME_LINKS[selectedTheme] || [],lastPersonal?.links || [],b.links || []),4)) changed++;
-    if (setIfBlank(document.getElementById('cues'),mergeCoachingPhrases(THEME_CUES[selectedTheme] || [],lastPersonal?.cues || [],b.cues || []),4)) changed++;
-    try { if (typeof renderPreview === 'function') renderPreview(); } catch (_) {}
-    toast(changed ? 'Blank session details filled' : 'Nothing overwritten — session details already contain text');
+    toast('Principle banks are still loading. Please try again.');
   });
 }
 

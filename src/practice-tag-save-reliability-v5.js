@@ -1,5 +1,5 @@
-import { principleById } from './game-model-core.js';
-import { GAME_CONTEXTS, PRACTICE_PURPOSES_V3, PRACTICE_FORMATS } from './game-context-practice-system-v3.js';
+import { principleById } from './game-model-core.js?v=personal-model-1';
+import { GAME_CONTEXTS, PRACTICE_PURPOSES_V3, PRACTICE_FORMATS } from './game-context-practice-system-v3.js?v=personal-model-1';
 
 export const PRACTICE_TAG_SAVE_VERSION = 6;
 

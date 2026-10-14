@@ -1,5 +1,6 @@
-import { GAME_MODEL_PRINCIPLES, principleById } from './game-model-core.js';
-import { BANK_KINDS, buildPrincipleWordBanks, resolveBankContext } from './principle-word-bank-data.js?v=coaching-cues-4';
+import {TECHNICAL_TOPICS} from './personal-coaching-model.js';
+import { GAME_MODEL_PRINCIPLES, principleById } from './game-model-core.js?v=personal-model-1';
+import { BANK_KINDS, buildPrincipleWordBanks, resolveBankContext } from './principle-word-bank-data.js?v=personal-model-1';
 import { ensureCollapsibleWordBanks } from './practice-editor-collapsible-word-banks-v1.js?v=principle-banks-3';
 
 const BANK_TARGETS={practiceCueChips:['cues','practiceDeliveryCues','practice'],cpChips:['cp','cp','practice'],progChips:['prog','prog','practice'],regChips:['reg','reg','practice'],condGameChips:['cond','condRules','practice'],objChips:['obj','objective','session'],linkChips:['links','links','session'],cueChips:['cues','cues','session'],reflectChips:['reflect','reflect','session'],gmSuccessChips:['obj','gmSuccessLooksLike','session']};
@@ -11,7 +12,9 @@ function contextFor(scope){
     principleIds:selected('#fourPhasePracticeEditor [data-fpe-principle] input:checked'),
     subPrincipleIds:selected('#fourPhasePracticeEditor [data-fpe-sub] input:checked'),
     phaseIds:selected('#fourPhasePracticeEditor [data-fpe-phase] input:checked'),
-    noGameModelLink:field('fpeNoLink')?.checked===true
+    noGameModelLink:field('fpeNoLink')?.checked===true,
+    practicePurpose:field('fpePurpose')?.value,practiceFormat:field('fpeFormat')?.value,technicalTopic:field('technicalBankTopic')?.value,
+    passingFundamentals:selected('#fourPhasePracticeEditor [data-fpe-fundamental] input:checked')
   };
   const plan=window.NickFourPhaseGameModel?.currentPlan?.()||{};
   return {principleIds:[plan.primaryPrincipleId].filter(Boolean),subPrincipleIds:plan.subPrincipleIds||[],phaseIds:[plan.gamePhase].filter(Boolean)};
@@ -25,7 +28,7 @@ export function renderBank(id){
   const host=field(id);if(!host)return true;
   const [kind,target,scope]=spec;
   const context=contextFor(scope);
-  const values=buildPrincipleWordBanks(context,appDb()?.banks?.principleWordBanks||{})[kind];
+  const values=buildPrincipleWordBanks(context,appDb()?.banks?.principleWordBanks||{},[...(appDb()?.practices||[]),...(appDb()?.sessions||[]).map(s=>({...s,gameModelPhaseIds:[s.gameModelPlan?.gamePhase].filter(Boolean),gameModelPrincipleIds:[s.gameModelPlan?.primaryPrincipleId].filter(Boolean),gameModelSubPrincipleIds:s.gameModelPlan?.subPrincipleIds||[],deliveryCues:s.cues}))])[kind];
   const resolved=resolveBankContext(context);
   const names=resolved.subs.length?resolved.subs.map(x=>x.title):resolved.principles.map(x=>x.message);
   const input=field(target);
@@ -35,7 +38,7 @@ export function renderBank(id){
   host.dataset.principleBankSignature=signature;
   host.replaceChildren();
   const note=document.createElement('p');note.className='small principleBankContext';
-  note.textContent=names.length?names.join(' · '):context.noGameModelLink?'No Game Model link selected — write your own suggestions below.':'Choose a main principle above to see relevant suggestions.';
+  note.textContent=names.length?names.join(' · '):context.noGameModelLink?'Technical bank · '+(TECHNICAL_TOPICS[context.technicalTopic]?.label||'matched to your practice format'):'Choose a phase or principle above to see relevant suggestions.';
   host.appendChild(note);
   for(const text of values){
     const button=document.createElement('button');button.type='button';button.className='chip';button.textContent=text;
@@ -84,6 +87,15 @@ export function refresh(){
     const host=document.createElement('div');host.id='practiceCueChips';host.className='chips';
     cp.before(host);wrapSupportingList(host,'Short delivery cues');
   }
+  const editor=field('fourPhasePracticeEditor');
+  if(editor&&!field('technicalBankTopic')){
+    const box=document.createElement('div');box.id='technicalBankChoice';
+    const label=document.createElement('label');label.htmlFor='technicalBankTopic';label.textContent='Technical word bank';
+    const select=document.createElement('select');select.id='technicalBankTopic';select.append(option('','Match practice format'));
+    Object.entries(TECHNICAL_TOPICS).forEach(([id,t])=>select.append(option(id,t.label)));
+    box.append(label,select);editor.append(box);
+  }
+  if(field('technicalBankChoice'))field('technicalBankChoice').hidden=!field('fpeNoLink')?.checked;
   ensureSuccessBank();
   for(const id of Object.keys(BANK_TARGETS))renderBank(id);
   const rules=field('condRulesBlock');if(rules)rules.style.display='block';
@@ -114,7 +126,7 @@ export function createBankDrafts(){
 function installManager(){
   const view=field('wordbank');if(!view||field('principleBankManager'))return;
   const legacy=view.querySelector('.grid.three');
-  wrapSupportingList(legacy,'Previous theme banks (reference only)');
+  if(legacy)legacy.hidden=true; // Retired fallback UI; saved historical data remains intact.
   const panel=document.createElement('div');panel.className='card';panel.id='principleBankManager';
   panel.innerHTML='<h2>Principle Word Banks</h2><p class="small">Choose a principle, then optionally a sub-principle. Suggestions follow these choices in the practice editor and session builder. Edit one suggestion per line.</p><label for="principleBankMain">Main principle</label><select id="principleBankMain"></select><label for="principleBankSub">Sub-principle</label><select id="principleBankSub"></select><div id="principleBankFields"></div><button type="button" id="savePrincipleBanks">Save these word banks</button><p id="principleBankSaveStatus" role="status"></p>';
   view.prepend(panel);
@@ -171,6 +183,7 @@ function install(){
   `;document.head.appendChild(style);
   window.NickPrincipleWordBanks=Object.freeze({refresh,renderBank,ensureSupportingLists,fillBlank});
   installManager();refresh();
+  document.addEventListener('change',event=>{if(event.target.closest?.('#fourPhasePracticeEditor'))refresh();});
   document.addEventListener('input',event=>{for(const [id,[,target]] of Object.entries(BANK_TARGETS))if(event.target.id===target)renderBank(id);});
   // No DOM observers: refresh only after explicit selection, rendering or navigation.
   document.addEventListener('click',event=>{if(event.target.closest?.('.tab,[onclick*="showBuildRoute"]'))setTimeout(refresh,0);});

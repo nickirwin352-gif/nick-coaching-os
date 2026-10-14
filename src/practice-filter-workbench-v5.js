@@ -1,5 +1,5 @@
-import { GAME_MODEL_PRINCIPLES, principleById } from './game-model-core.js';
-import { GAME_CONTEXTS, PRACTICE_PURPOSES_V3, PRACTICE_FORMATS, inferGameContext, inferPurposeV3, inferFormatV3 } from './game-context-practice-system-v3.js';
+import { GAME_MODEL_PRINCIPLES, principleById } from './game-model-core.js?v=personal-model-1';
+import { GAME_CONTEXTS, PRACTICE_PURPOSES_V3, PRACTICE_FORMATS, inferGameContext, inferPurposeV3, inferFormatV3 } from './game-context-practice-system-v3.js?v=personal-model-1';
 
 export const PRACTICE_FILTER_WORKBENCH_VERSION = 5;
 export const PRACTICE_FILTER_PAGE_SIZE = 6;

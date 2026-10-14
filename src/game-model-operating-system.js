@@ -10,7 +10,7 @@ import {
   principleById,
   normaliseGameModelPlan,
   standardClarityForPrinciple
-} from './game-model-core.js';
+} from './game-model-core.js?v=personal-model-1';
 
 const STYLE_ID = 'gameModelOperatingSystemStyles';
 const VIEW_ID = 'gameModel';

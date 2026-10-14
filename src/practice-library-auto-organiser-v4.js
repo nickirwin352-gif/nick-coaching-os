@@ -1,4 +1,4 @@
-import { GAME_MODEL_PRINCIPLES, principleById, LEARNING_EMPHASES } from './game-model-core.js';
+import { GAME_MODEL_PRINCIPLES, principleById, LEARNING_EMPHASES } from './game-model-core.js?v=personal-model-1';
 import {
   GAME_CONTEXTS,
   PRACTICE_PURPOSES_V3,
@@ -7,7 +7,7 @@ import {
   inferPurposeV3,
   inferFormatV3,
   practiceArchitecture
-} from './game-context-practice-system-v3.js';
+} from './game-context-practice-system-v3.js?v=personal-model-1';
 
 export const AUTO_ORGANISATION_VERSION = 4;
 

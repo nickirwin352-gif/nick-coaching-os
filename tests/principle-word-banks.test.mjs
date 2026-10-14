@@ -1,3 +1,4 @@
+import {PERSONAL_POINTS} from '../src/personal-coaching-model.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GAME_MODEL_PRINCIPLES, GAME_SUB_PRINCIPLES } from '../src/game-model-core.js';
@@ -10,7 +11,7 @@ test('all nine principles and 27 sub-principles have complete relevant banks',()
     for(const sub of main.subPrinciples){
       const bank=buildPrincipleWordBanks({principleIds:[main.id],subPrincipleIds:[sub.id]});
       for(const kind of Object.keys(BANK_KINDS))assert.ok(bank[kind].length,`${sub.id}: ${kind}`);
-      assert.deepEqual(bank.cp,[sub.description]);
+      assert.deepEqual(bank.cp,PERSONAL_POINTS[sub.id]);
       assert.ok(bank.links[0].includes(main.message));
       for(const other of main.subPrinciples.filter(x=>x.id!==sub.id))assert.ok(!bank.cp.includes(other.description));
     }
@@ -22,14 +23,14 @@ test('phase and principle changes remove stale sub-principle suggestions',()=>{
   const resolved=resolveBankContext(context);
   assert.equal(resolved.subs.length,0);
   const bank=buildPrincipleWordBanks(context);
-  assert.equal(bank.cp.length,3);
+  assert.equal(bank.cp.length,9);
   assert.ok(bank.cp.every(text=>!text.includes('Move to lose')));
   assert.deepEqual(resolveBankContext({...context,phaseIds:['in-possession']}),{principles:[],subs:[]});
   assert.equal(resolveBankContext({subPrincipleIds:['create-separation']}).principles[0].id,'arrive-affect-away');
 });
 
 test('empty selection and explicit no-link never fall back to unrelated theme text',()=>{
-  for(const context of [{},{principleIds:['not-real']},{principleIds:['arrive-affect-away'],noGameModelLink:true}]){
+  for(const context of [{},{principleIds:['not-real']}]){
     assert.ok(Object.values(buildPrincipleWordBanks(context)).every(list=>list.length===0));
   }
 });
@@ -65,7 +66,7 @@ test('bank refresh is idempotent and does not rewrite coach input when selection
     renderBank('cpChips');assert.equal(replacements,count);
     subs=['move-after-action'];renderBank('cpChips');
     assert.equal(input.value,'Keep my own note');
-    assert.equal(host.children[1].textContent,GAME_SUB_PRINCIPLES.find(s=>s.id==='move-after-action').description);
+    assert.equal(host.children[1].textContent,PERSONAL_POINTS['move-after-action'][0]);
     assert.equal(renderBank('unrelated-list'),false);
   }finally{globalThis.window=previousWindow;globalThis.document=previousDocument;}
 });

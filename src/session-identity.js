@@ -1,4 +1,4 @@
-import {phaseById,principleById} from './game-model-core.js';
+import {phaseById,principleById} from './game-model-core.js?v=personal-model-1';
 export function sessionTitle(session={}){
   const plan=session.gameModelPlan||{};
   const principle=principleById(plan.primaryPrincipleId);

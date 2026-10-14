@@ -1,4 +1,4 @@
-import { GAME_MODEL_PRINCIPLES, principleById, scorePracticeForPrinciple } from './game-model-core.js';
+import { GAME_MODEL_PRINCIPLES, principleById, scorePracticeForPrinciple } from './game-model-core.js?v=personal-model-1';
 
 export const PRACTICE_PURPOSES = Object.freeze([
   Object.freeze({ id:'technical-repetition', label:'Technical / Repetition', description:'Bank touches, repeat a skill, or sharpen execution without forcing a tactical picture.' }),

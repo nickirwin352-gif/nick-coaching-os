@@ -1,10 +1,11 @@
-import { GAME_MODEL_PRINCIPLES, principleById, subPrincipleById } from './game-model-core.js';
+import {PERSONAL_POINTS, FUNDAMENTAL_POINTS, technicalBank, PURPOSE_SUPPORT, contextualPhrases} from './personal-coaching-model.js';
+import { GAME_MODEL_PRINCIPLES, principleById, subPrincipleById } from './game-model-core.js?v=personal-model-1';
 
 export const BANK_KINDS=Object.freeze({cp:'Coaching points',prog:'Progressions',reg:'Regressions',cond:'Rules / constraints',obj:'Learning objectives',links:'Game model links',cues:'Short delivery cues',reflect:'Reflection prompts'});
 
 export const SUB_DELIVERY_CUES=Object.freeze({
   'create-separation':['Separate','Disguise','Explode'],
-  'arrive-to-affect':['Arrive','Open','Forward'],
+  'arrive-to-affect':['Arrive','Connect','Forward'],
   'move-after-action':['Move','Reoffer','Clear'],
   'movement-triggers-movement':['Trigger','Rotate','Respond'],
   'replace-the-threat':['Replace','Balance','Occupy'],
@@ -27,7 +28,7 @@ export const SUB_DELIVERY_CUES=Object.freeze({
   'keep-the-spare':['Spare','Cover','Balance'],
   'step-with-security':['Check','Step','Secure'],
   'smother-the-receiver':['Close','Aggressive','Contain'],
-  'react-immediately':['React','Fast','Press'],
+  'react-immediately':['React','Affect','Screen'],
   'recover-danger-first':['Recover','Inside','Goal-side'],
   'reconnect-the-team':['Reconnect','Compact','Together']
 });
@@ -40,7 +41,7 @@ export const SUB_PRACTICE_SUGGESTIONS=Object.freeze({
   'movement-triggers-movement':['Allow defenders to track or exchange runners so the second movement must adapt.','Walk through paired movements before adding opposition.','Reward a connected second movement that responds to the first runner.'],
   'replace-the-threat':['Remove fixed positions and ask players to recognise which threat needs replacing.','Mark width and depth reference zones to guide replacement.','Keep a threat in the space a teammate vacates during a rotation.'],
   'release-the-rotation':['Add a recovering defender to shorten the release window.','Use an overload so the passing lane stays open for longer.','Reward using the free player before the defence resets after a rotation.'],
-  'connect-the-attack':['Add a defender who can screen the link player or follow the third runner.','Add a linking neutral between units.','Reward a bounce or third-player combination that connects the units.'],
+  'connect-the-attack':['Add a defender who can screen the link player or follow the third runner.','Add a linking neutral between units.','Reward a bounce or third-man combination that connects the units.'],
   'commit-bodies-beyond':['Introduce a tracking defender and vary which player runs beyond.','Use an overload and a clearly marked finishing zone.','Reward a well-timed run beyond the ball that creates a threat.'],
   'cover-the-commitment':['Let the opposition counter immediately through either of two outlets.','Pause after the forward run to identify the covering positions.','Attacks only earn the bonus when cover is in place behind the committed runners.'],
   'spot-the-picture':['Vary the defender’s position so the available lane changes each repetition.','Freeze the picture and ask the receiver to identify the open lane.','Before receiving, scan for the space or runner that could be used next.'],
@@ -68,21 +69,28 @@ export function resolveBankContext({principleIds=[],subPrincipleIds=[],phaseIds=
   if(noGameModelLink)return {principles:[],subs:[]};
   const phases=new Set(phaseIds.filter(Boolean));
   const requested=unique(principleIds).map(principleById).filter(Boolean);
-  const mains=requested.filter(p=>!phases.size||phases.has(p.phaseId));
+  const candidates=principleIds.length||subPrincipleIds.length?requested:GAME_MODEL_PRINCIPLES.filter(p=>phases.size&&p.phaseIds.some(id=>phases.has(id)));
+  const mains=candidates.filter(p=>!phases.size||p.phaseIds.some(id=>phases.has(id)));
   const allowed=new Set(mains.map(p=>p.id));
-  const subs=unique(subPrincipleIds).map(subPrincipleById).filter(s=>s&&(!phases.size||phases.has(s.phaseId))&&(!requested.length||allowed.has(s.principleId)));
+  const subs=unique(subPrincipleIds).map(subPrincipleById).filter(s=>s&&(!phases.size||s.phaseIds.some(id=>phases.has(id)))&&(!requested.length||allowed.has(s.principleId)));
   return {principles:unique([...mains.map(p=>p.id),...subs.map(s=>s.principleId)]).map(principleById),subs};
 }
 export function defaultSubBank(sub){
   const [progression,regression,condition]=SUB_PRACTICE_SUGGESTIONS[sub.id]||[];
   const main=principleById(sub.principleId)||GAME_MODEL_PRINCIPLES.find(p=>p.subPrinciples.some(s=>s.id===sub.id));
   return {
-    cp:[sub.description],prog:[progression],reg:[regression],cond:[condition],
+    cp:PERSONAL_POINTS[sub.id]||[sub.description],prog:[progression],reg:[regression],cond:[condition],
     obj:[`${sub.title}: ${sub.description}`],links:[`${main.message} → ${sub.title}`],
-    cues:SUB_DELIVERY_CUES[sub.id]||[sub.title],reflect:[`${sub.title}: what did players recognise and do?`,`What helped or prevented ${sub.title.toLowerCase()}?`]
+    cues:SUB_DELIVERY_CUES[sub.id]||[sub.title],reflect:[`${sub.title}: the setup exposed the intended picture.`,`${sub.title}: my intervention helped players recognise it.`,`${sub.title}: adjust support and repeat across sessions.`,`${sub.title}: no relevant opportunity observed yet.`]
   };
 }
-export function buildPrincipleWordBanks(context={},custom={}){
+export function buildPrincipleWordBanks(context={},custom={},records=[]){
+  if(context.noGameModelLink){
+    const bank=technicalBank(context);
+    const overrides=custom[`technical:${context.technicalTopic||({finishing:"finishing",duel:"defending",physical:"physical","set-play":"restarts"}[context.practiceFormat])||"passing"}`]||{};
+    for(const kind of Object.keys(bank))bank[kind]=Array.isArray(overrides[kind])?overrides[kind]:unique([...contextualPhrases(context,kind,records),...bank[kind]]);
+    return bank;
+  }
   const {principles,subs}=resolveBankContext(context);
   const output=Object.fromEntries(Object.keys(BANK_KINDS).map(key=>[key,[]]));
   for(const main of principles){
@@ -95,6 +103,15 @@ export function buildPrincipleWordBanks(context={},custom={}){
         const override=custom[`sub:${detail.id}`]?.[kind];
         output[kind].push(...(Array.isArray(override)?override:defaultSubBank(detail)[kind]));
       }
+    }
+  }
+  for(const key of Object.keys(output)){
+    const isCustom=subs.length?subs.some(s=>Array.isArray(custom[`sub:${s.id}`]?.[key])):principles.some(p=>Array.isArray(custom[`principle:${p.id}`]?.[key]));
+    if(principles.length&&!isCustom){
+      const support=PURPOSE_SUPPORT[context.practicePurpose]?.[key]||[];
+      const technical=context.practiceFormat==='passing-activation'&&['cp','cues'].includes(key)?(context.passingFundamentals||[]).flatMap(id=>FUNDAMENTAL_POINTS[id]||[]):[];
+      const base=context.practiceFormat==='passing-activation'&&support.length?support:[...support,...output[key]];
+      output[key]=[...contextualPhrases(context,key,records),...technical,...base];
     }
   }
   for(const key of Object.keys(output))output[key]=unique(output[key].filter(x=>typeof x==='string').map(x=>x.trim()));

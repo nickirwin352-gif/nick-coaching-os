@@ -1,13 +1,15 @@
+import {principleDelivery, decisionForSelection, DELIVERY_FIELDS} from './personal-coaching-model.js';
 import {clone} from './sync-engine.js';
 import {uid,alignInstances,changeInstances,effectiveInstance,nextActions,validateBackup} from './coaching-domain.js';
-import {GAME_MODEL_PRINCIPLES,principleById} from './game-model-core.js';
+import {GAME_MODEL_PRINCIPLES,principleById} from './game-model-core.js?v=personal-model-1';
 
 const field=id=>document.getElementById(id);
 const dbNow=()=>{try{return db;}catch{return window.db;}};
 const ids=()=>{try{return [...plannerDrills];}catch{return [];}};
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const value=id=>field(id)?.value.trim()||'';
-const PLAN_FIELDS={evidence:'Evidence behind this objective',observe:'What will you observe?',trigger:'Trigger · what do players recognise?',roles:'Roles · who does what?',alternative:'Alternative · when is another option better?',individualFocus:'Individual / unit focus',transferTask:'Transfer · what will you look for in a game?'};
+const autoDecisionDrafts=new Map();
+const PLAN_FIELDS={evidence:'Evidence behind this objective',observe:'What will you observe?',trigger:'Trigger · what do players recognise?',action:'Preferred action · what do players do?',roles:'Roles · who does what?',alternative:'Alternative · when is another option better?',individualFocus:'Individual / unit focus',transferTask:'Transfer · what will you look for in a game?'};
 const SETUP_FIELDS={players:'Players / goalkeepers',area:'Area / dimensions',minutes:'Duration',rotation:'Work, rest and rotations',equipment:'Equipment',focus:'Today’s focus / cues',delivered:'Delivered changes / notes'};
 let draft={version:1,instances:[]},reviewSession=null,practiceDraft={};
 function input(id,label,text='',type='textarea'){
@@ -23,6 +25,7 @@ export function capture(){
  return clone(draft);
 }
 function load(session={}){
+ autoDecisionDrafts.clear();
  draft=clone(session.coaching||{version:1,instances:[]});
  draft.instances=alignInstances(session.drills||[],draft.instances,dbNow()?.practices);
  for(const key of Object.keys(PLAN_FIELDS))if(field(`learning-${key}`))field(`learning-${key}`).value=draft[key]||'';
@@ -46,6 +49,17 @@ function setupSummary(){
  const missing=draft.instances.filter(x=>!['players','area','minutes'].every(key=>String(x.prescription?.[key]||'').trim())).length;
  const el=field('sessionSetupSummary');if(el)el.textContent=missing?`${missing} practice setup${missing===1?'':'s'} still need numbers, area or duration. You can save a draft.`:'Session setups complete.';
 }
+function draftDecision(){
+ const plan=window.NickFourPhaseGameModel?.currentPlan?.()||{};
+ const detail=decisionForSelection(plan.primaryPrincipleId,plan.subPrincipleIds,dbNow()?.banks?.principleDelivery);
+ for(const key of Object.keys(DELIVERY_FIELDS)){
+  const input=field(`learning-${key}`);if(!input)continue;
+  if(!input.value.trim()||input.value===autoDecisionDrafts.get(key)){
+   input.value=detail[key]||'';autoDecisionDrafts.set(key,input.value);
+  }
+ }
+ capture();rememberDraft();
+}
 function ensurePlanner(){
  const parent=field('fourPhaseSessionPlan');if(!parent||field('learningPlan'))return;
  const section=document.createElement('section');section.id='learningPlan';section.className='learningSection';
@@ -54,8 +68,8 @@ function ensurePlanner(){
  section.querySelectorAll('textarea').forEach(el=>el.addEventListener('input',()=>{capture();rememberDraft();}));
  field('useModelDetail').onclick=()=>{
   const id=window.NickFourPhaseGameModel?.currentPlan?.().primaryPrincipleId;
-  const detail=dbNow()?.banks?.principleDelivery?.[id]||{};
-  for(const key of ['trigger','roles','alternative','observe'])if(!value(`learning-${key}`))field(`learning-${key}`).value=detail[key]||'';
+  const detail=principleDelivery(id,dbNow()?.banks?.principleDelivery);
+  for(const key of Object.keys(DELIVERY_FIELDS))if(!value(`learning-${key}`))field(`learning-${key}`).value=detail[key]||'';
   capture();rememberDraft();
  };
  if(localStorage.getItem('nickCoachLearningDraftV1')){
@@ -87,11 +101,11 @@ function ensurePractice(){
 }
 function loadPractice(practice={}){
  ensurePractice();practiceDraft=clone(practice);
- for(const [id,key] of [['practiceFamily','familyName'],['practiceVariation','variationName'],['practiceDeliveryCues','deliveryCues'],['practiceReadiness','readiness']])if(field(id))field(id).value=practice[key]||(key==='readiness'?'draft':'');
+ for(const [id,key] of [['technicalBankTopic','technicalBankTopic'],['practiceFamily','familyName'],['practiceVariation','variationName'],['practiceDeliveryCues','deliveryCues'],['practiceReadiness','readiness']])if(field(id))field(id).value=practice[key]||(key==='readiness'?'draft':'');
 }
 function readPractice(){
  const familyName=value('practiceFamily'),relative=(dbNow()?.practices||[]).find(p=>p.familyName?.toLowerCase()===familyName.toLowerCase());
- return {familyName,familyId:familyName?(relative?.familyId||practiceDraft.familyId||uid('family')):'',variationName:value('practiceVariation'),deliveryCues:value('practiceDeliveryCues'),readiness:value('practiceReadiness')||'draft'};
+ return {technicalBankTopic:value('technicalBankTopic'),familyName,familyId:familyName?(relative?.familyId||practiceDraft.familyId||uid('family')):'',variationName:value('practiceVariation'),deliveryCues:value('practiceDeliveryCues'),readiness:value('practiceReadiness')||'draft'};
 }
 function openReview(session){
  reviewSession=session;const parent=field('reviewBody');if(!parent)return;
@@ -143,14 +157,14 @@ function ensurePathway(){
  const nav=document.querySelector('nav');if(!nav||field('coachingPathway'))return;
  const button=document.createElement('button');button.type='button';button.className='tab';button.textContent='Coaching pathway';button.dataset.tab='coachingPathway';nav.append(button);
  const view=document.createElement('section');view.id='coachingPathway';view.className='view hidden';
- view.innerHTML=`<div class="card"><h2>Coaching pathway</h2><p>Use evidence from sessions and matches to decide what comes next.</p><details open><summary>Next actions</summary><div id="coachingActions"></div><details><summary>Add an action</summary>${input('newAction','Next action')}${input('newActionDue','Revisit by','','date')}<button id="addCoachingAction">Add action</button></details></details><details><summary>Completed actions</summary><div id="completedCoachingActions"></div></details><details><summary>Individual / unit development</summary><p class="small">Use initials, a role or a unit. Record football learning only; avoid health or sensitive personal details.</p><div id="developmentGoals"></div><details><summary>Add a development goal</summary>${input('goalPlayer','Player initials / role / unit','','text')}${input('goalTarget','Learning goal')}<label for="goalPrinciple">Related principle</label><select id="goalPrinciple"><option value="">General development</option>${GAME_MODEL_PRINCIPLES.map(p=>`<option value="${p.id}">${esc(p.message)}</option>`).join('')}</select>${input('goalDue','Revisit by','','date')}<button id="addDevelopmentGoal">Add goal</button></details></details><details><summary>Principle delivery detail</summary><label for="deliveryPrinciple">Principle</label><select id="deliveryPrinciple">${GAME_MODEL_PRINCIPLES.map(p=>`<option value="${p.id}">${esc(p.message)}</option>`).join('')}</select><div id="deliveryFields"></div><button id="saveDeliveryDetail">Save principle detail</button></details></div>`;
+ view.innerHTML=`<div class="card"><h2>Coaching pathway</h2><p>Use evidence from sessions and matches to decide what comes next.</p><details open><summary>Next actions</summary><div id="coachingActions"></div><details><summary>Add an action</summary>${input('newAction','Next action')}${input('newActionDue','Revisit by','','date')}<button id="addCoachingAction">Add action</button></details></details><details><summary>Completed actions</summary><div id="completedCoachingActions"></div></details><details><summary>Unit development / optional individual focus</summary><p class="small">Use initials, a role or a unit. Record football learning only; avoid health or sensitive personal details.</p><div id="developmentGoals"></div><details><summary>Add a development goal</summary>${input('goalPlayer','Player initials / role / unit','','text')}${input('goalTarget','Learning goal')}<label for="goalPrinciple">Related principle</label><select id="goalPrinciple"><option value="">General development</option>${GAME_MODEL_PRINCIPLES.map(p=>`<option value="${p.id}">${esc(p.message)}</option>`).join('')}</select>${input('goalDue','Revisit by','','date')}<button id="addDevelopmentGoal">Add goal</button></details></details><details><summary>Principle delivery detail</summary><label for="deliveryPrinciple">Principle</label><select id="deliveryPrinciple">${GAME_MODEL_PRINCIPLES.map(p=>`<option value="${p.id}">${esc(p.message)}</option>`).join('')}</select><div id="deliveryFields"></div><button id="saveDeliveryDetail">Save principle detail</button></details></div>`;
  document.body.append(view);
  button.onclick=()=>{document.querySelectorAll('.view').forEach(v=>v.classList.add('hidden'));view.classList.remove('hidden');document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b===button));renderPathway();};
  field('addCoachingAction').onclick=()=>{if(!value('newAction'))return;const data=dbNow();data.banks.coachingActions||={};const id=uid('action');data.banks.coachingActions[id]={id,title:value('newAction'),due:value('newActionDue'),status:'open'};persist();field('newAction').value='';};
  field('addDevelopmentGoal').onclick=()=>{if(!value('goalPlayer')||!value('goalTarget'))return;const data=dbNow();data.banks.developmentGoals||={};const id=uid('goal');data.banks.developmentGoals[id]={id,player:value('goalPlayer'),goal:value('goalTarget'),principle:value('goalPrinciple'),due:value('goalDue'),status:'active'};persist();field('goalPlayer').value='';field('goalTarget').value='';};
- const loadDelivery=()=>{const saved=dbNow()?.banks?.principleDelivery?.[value('deliveryPrinciple')]||{};field('deliveryFields').innerHTML=['trigger','roles','alternative','observe'].map(key=>input(`delivery-${key}`,PLAN_FIELDS[key],saved[key])).join('');};
+ const loadDelivery=()=>{const saved=principleDelivery(value('deliveryPrinciple'),dbNow()?.banks?.principleDelivery);field('deliveryFields').innerHTML=Object.keys(DELIVERY_FIELDS).map(key=>input(`delivery-${key}`,PLAN_FIELDS[key],saved[key])).join('');};
  field('deliveryPrinciple').onchange=loadDelivery;loadDelivery();
- field('saveDeliveryDetail').onclick=()=>{const data=dbNow();data.banks.principleDelivery||={};data.banks.principleDelivery[value('deliveryPrinciple')]=Object.fromEntries(['trigger','roles','alternative','observe'].map(key=>[key,value(`delivery-${key}`)]));persist();};
+ field('saveDeliveryDetail').onclick=()=>{const data=dbNow();data.banks.principleDelivery||={};data.banks.principleDelivery[value('deliveryPrinciple')]=Object.fromEntries(Object.keys(DELIVERY_FIELDS).map(key=>[key,value(`delivery-${key}`)]));persist();};
  renderPathway();
 }
 function renderConflicts(){
@@ -189,6 +203,7 @@ function install(){
  if(field('practiceCueChips'))delete field('practiceCueChips').dataset.principleBankSignature;
  window.NickPrincipleWordBanks?.refresh?.();
  window.NickCoachingLoop={capture,load,reset,change,renderPrescriptions,loadPractice,readPractice,openReview,readReview,detail,effectiveInstance,renderPathway,exportBackup,restoreBackup};
+ document.addEventListener('change',event=>{if(event.target.closest?.('#fourPhaseSessionPlan'))draftDecision();});
  document.addEventListener('click',event=>{if(event.target.closest?.('[data-tab="planner"]'))renderPrescriptions();});
  window.addEventListener('coaching:data',()=>{renderPathway();renderConflicts();});
 }

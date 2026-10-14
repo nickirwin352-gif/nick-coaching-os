@@ -1,4 +1,4 @@
-import { GAME_MODEL_PRINCIPLES, principleById, scorePracticeForPrinciple, LEARNING_EMPHASES } from './game-model-core.js';
+import { GAME_MODEL_PRINCIPLES, principleById, scorePracticeForPrinciple, LEARNING_EMPHASES } from './game-model-core.js?v=personal-model-1';
 
 export const GAME_CONTEXTS = Object.freeze([
   Object.freeze({ id:'build-out', label:'Build Out', moment:'with-ball', legacyTheme:'Build Up', description:'Starting attacks and creating the route out from our first line.' }),

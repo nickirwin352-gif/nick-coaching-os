@@ -9,7 +9,7 @@ import {
   subPrincipleById,
   principlesForPhase,
   normaliseGameModelPlan
-} from './game-model-core.js';
+} from './game-model-core.js?v=personal-model-1';
 
 export const FOUR_PHASE_GAME_MODEL_OS_VERSION = 1;
 
@@ -170,7 +170,7 @@ function ensurePlannerPanel(){
   });
   field(IDS.principle)?.addEventListener('change',()=>{
     const main=principleById(field(IDS.principle).value);
-    if(main && field(IDS.phase).value!==main.phaseId) field(IDS.phase).value=main.phaseId;
+    if(main && !main.phaseIds.includes(field(IDS.phase).value)) field(IDS.phase).value=main.phaseId;
     renderSubPicker([]);
     updatePlanSummary();
     refreshFinderFromSession();
@@ -185,7 +185,7 @@ function ensurePlannerPanel(){
 
 function phaseSection(phase){
   const principles=principlesForPhase(phase.id);
-  return `<section class="fpPhaseSection" id="fp-phase-${esc(phase.id)}"><div class="fpPhaseHead"><div><h3>${esc(phase.label)}</h3><p>${esc(phase.description)}</p></div><span class="fpPhaseCount">${principles.length} main ${principles.length===1?'principle':'principles'}</span></div><div class="fpPrincipleGrid">${principles.map(main=>`<article class="fpPrincipleCard" id="fp-principle-${esc(main.id)}"><div class="fpPrincipleTop"><span class="fpPrincipleNum">${main.number}</span><h4>${esc(main.message)}</h4></div><p class="fpPrincipleSummary">${esc(main.meaning)}</p><div class="fpSubList">${main.subPrinciples.map(detail=>`<div class="fpSubItem"><b>${esc(detail.title)}</b><span>${esc(detail.description)}</span></div>`).join('')}</div></article>`).join('')}</div></section>`;
+  return `<section class="fpPhaseSection" id="fp-phase-${esc(phase.id)}"><div class="fpPhaseHead"><div><h3>${esc(phase.label)}</h3><p>${esc(phase.description)}</p></div><span class="fpPhaseCount">${principles.length} main ${principles.length===1?'principle':'principles'}</span></div><div class="fpPrincipleGrid">${principles.map(main=>`<article class="fpPrincipleCard" id="fp-principle-${esc(main.id)}${phase.id===main.phaseId?'':'-'+esc(phase.id)}" data-delivery-principle="${esc(main.id)}"><div class="fpPrincipleTop"><span class="fpPrincipleNum">${main.number}</span><h4>${esc(main.message)}</h4></div><p class="fpPrincipleSummary">${esc(main.meaning)}</p><div class="fpSubList">${main.subPrinciples.map(detail=>`<div class="fpSubItem"><b>${esc(detail.title)}</b><span>${esc(detail.description)}</span></div>`).join('')}</div></article>`).join('')}</div></section>`;
 }
 
 function ensureGameModelView(){

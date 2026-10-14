@@ -72,10 +72,8 @@ test('review suggestions lead with personal history and include theme-specific f
 });
 
 test('module covers every existing word bank and adds review suggestion tools', () => {
-  for (const token of ['b.cp =','b.prog =','b.reg =','b.obj =','b.links =','b.cues =','b.reflect =','b.cpByTheme','b.objByTheme','b.condByTheme']) {
-    assert.ok(source.includes(token),`missing ${token}`);
-  }
-  assert.match(source,/My Coaching Language/);
+  assert.doesNotMatch(source,/b\.cp = mergeCoachingPhrases/);
+  assert.doesNotMatch(source,/nickCloud\.save/);
   assert.match(source,/Suggested reasoning/);
   assert.match(source,/Fill coaching detail/);
   assert.match(source,/Fill principle details/);
@@ -89,6 +87,6 @@ test('review hook observes only overlay open-close state to avoid mutation loops
 
 test('personalisation module is loaded after the existing review and calendar passes', () => {
   const calendar = sessionState.indexOf("import('./session-calendar-navigation-rating.js')");
-  const personal = sessionState.indexOf("import('./coaching-personalisation-automation.js?v=principle-banks-3')");
+  const personal = sessionState.indexOf("import('./coaching-personalisation-automation.js?v=personal-model-1')");
   assert.ok(calendar >= 0 && personal > calendar);
 });
