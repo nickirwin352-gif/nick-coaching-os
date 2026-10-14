@@ -58,3 +58,14 @@ test('background suggestion reads cannot schedule cloud writes',()=>{
  const source=readFileSync(new URL('../src/coaching-personalisation-automation.js',import.meta.url),'utf8');
  assert.doesNotMatch(source,/nickCloud\.save|persistQuietly|b\.cp = merge/);
 });
+
+test('partial cloud bank records render without mutating defaults or throwing',()=>{
+ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ const body=html.slice(html.indexOf('function renderBanks(){'),html.indexOf('function renderPracticeCpChips()'));
+ const db={banks:{principleWordBanks:{}}};const fields=Array.from({length:7},()=>({value:'old'}));
+ const noop=()=>{};
+ const run=new Function('db','bankCP','bankProg','bankReg','bankObj','bankLinks','bankCues','bankReflect','renderPracticeCpChips','renderConditionedGameChips','renderChipBox','renderObjectiveChips','loadThemeObjectives','loadThemeConditionedRules','toggleConditionedRulesBlock',body+';renderBanks();');
+ run(db,...fields,...Array(7).fill(noop));
+ assert.deepEqual(db,{banks:{principleWordBanks:{}}});assert.ok(fields.every(f=>f.value===''));
+ assert.match(html,/<div class="grid three" hidden style="display:none!important">/);
+});

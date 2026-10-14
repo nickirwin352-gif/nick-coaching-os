@@ -720,7 +720,7 @@ body.sessionDrawerOpen{overflow:hidden}
 </section>
 
 <section id="wordbank" class="view hidden">
-<div class="grid three">
+<div class="grid three" hidden style="display:none!important">
 <div class="card"><h2>Practice Coaching Points</h2><textarea id="bankCP"></textarea><button onclick="saveBanks()">Save Bank</button></div>
 <div class="card"><h2>Practice Progressions</h2><textarea id="bankProg"></textarea><button onclick="saveBanks()">Save Bank</button></div>
 <div class="card"><h2>Practice Regressions</h2><textarea id="bankReg"></textarea><button onclick="saveBanks()">Save Bank</button></div>
@@ -954,9 +954,7 @@ if(document.getElementById("filterFav"))document.getElementById("filterFav").oni
 if(document.getElementById("theme"))theme.oninput=()=>{renderPracticeCpChips();renderConditionedGameChips();toggleConditionedRulesBlock()};
 if(document.getElementById("stage"))stage.oninput=()=>{toggleConditionedRulesBlock();renderConditionedGameChips()};
 function renderBanks(){
-if(!db.banks.cpByTheme)db.banks.cpByTheme=defaultBanks.cpByTheme;
-if(!db.banks.condByTheme)db.banks.condByTheme=defaultBanks.condByTheme;
-bankCP.value=db.banks.cp.join("\n");bankProg.value=db.banks.prog.join("\n");bankReg.value=db.banks.reg.join("\n");bankObj.value=db.banks.obj.join("\n");bankLinks.value=db.banks.links.join("\n");bankCues.value=db.banks.cues.join("\n");bankReflect.value=db.banks.reflect.join("\n");
+bankCP.value=(Array.isArray(db.banks.cp)?db.banks.cp:[]).join("\n");bankProg.value=(Array.isArray(db.banks.prog)?db.banks.prog:[]).join("\n");bankReg.value=(Array.isArray(db.banks.reg)?db.banks.reg:[]).join("\n");bankObj.value=(Array.isArray(db.banks.obj)?db.banks.obj:[]).join("\n");bankLinks.value=(Array.isArray(db.banks.links)?db.banks.links:[]).join("\n");bankCues.value=(Array.isArray(db.banks.cues)?db.banks.cues:[]).join("\n");bankReflect.value=(Array.isArray(db.banks.reflect)?db.banks.reflect:[]).join("\n");
 renderPracticeCpChips();renderConditionedGameChips();renderChipBox("progChips",db.banks.prog,"prog");renderChipBox("regChips",db.banks.reg,"reg");renderObjectiveChips();renderChipBox("linkChips",db.banks.links,"links");renderChipBox("cueChips",db.banks.cues,"cues");renderChipBox("reflectChips",db.banks.reflect,"reflect");loadThemeObjectives(false);loadThemeConditionedRules(false);toggleConditionedRulesBlock();}
 function renderPracticeCpChips(){let t=(document.getElementById("theme")||{}).value;let arr=(db.banks.cpByTheme&&db.banks.cpByTheme[t])?db.banks.cpByTheme[t]:db.banks.cp;renderChipBox("cpChips",arr,"cp")}
 function renderConditionedGameChips(){let t=(document.getElementById("theme")||{}).value;let arr=(db.banks.condByTheme&&db.banks.condByTheme[t])?db.banks.condByTheme[t]:[];renderChipBox("condGameChips",arr,"condRules")}
@@ -982,7 +980,7 @@ let themeVal=(document.getElementById("sTheme")||{}).value;
 let arr=(db.banks.objByTheme&&db.banks.objByTheme[themeVal])?db.banks.objByTheme[themeVal]:db.banks.obj;
 renderChipBox("objChips",arr,"objective");
 }
-function renderChipBox(id,arr,target){if(window.NickPrincipleWordBanks?.renderBank(id))return;let box=document.getElementById(id);if(!box)return;box.innerHTML="";let ta=document.getElementById(target);let chosen=(ta&&ta.value?ta.value.split("\n").filter(Boolean):[]);arr.forEach(t=>{let c=document.createElement("span");c.className="chip"+(chosen.includes(t)?" on":"");c.textContent=t;c.onclick=()=>toggleText(target,t,c);box.appendChild(c)})}
+function renderChipBox(id,arr,target){if(window.NickPrincipleWordBanks?.renderBank(id))return;let box=document.getElementById(id);if(!box)return;box.innerHTML="";let ta=document.getElementById(target);let chosen=(ta&&ta.value?ta.value.split("\n").filter(Boolean):[]);(Array.isArray(arr)?arr:[]).forEach(t=>{let c=document.createElement("span");c.className="chip"+(chosen.includes(t)?" on":"");c.textContent=t;c.onclick=()=>toggleText(target,t,c);box.appendChild(c)})}
 function toggleText(targetId,text,chip){let ta=document.getElementById(targetId);let lines=ta.value.split("\n").filter(Boolean);if(lines.includes(text)){lines=lines.filter(x=>x!==text);chip.classList.remove("on")}else{lines.push(text);chip.classList.add("on")}ta.value=lines.join("\n");renderPreview()}
 function saveBanks(){db.banks.cp=bankCP.value.split("\n").filter(Boolean);if(!db.banks.cpByTheme)db.banks.cpByTheme=defaultBanks.cpByTheme;if(!db.banks.condByTheme)db.banks.condByTheme=defaultBanks.condByTheme;db.banks.prog=bankProg.value.split("\n").filter(Boolean);db.banks.reg=bankReg.value.split("\n").filter(Boolean);db.banks.obj=bankObj.value.split("\n").filter(Boolean);db.banks.links=bankLinks.value.split("\n").filter(Boolean);db.banks.cues=bankCues.value.split("\n").filter(Boolean);db.banks.reflect=bankReflect.value.split("\n").filter(Boolean);store();alert("Word banks saved")}
 function newPractice(){saveLibraryState();clearForm();window.NickCoachingLoop?.loadPractice?.({});document.querySelector('[data-tab="editor"]').click();setTimeout(()=>dsOpenPracticeStudio(),0)}
