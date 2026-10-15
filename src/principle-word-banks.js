@@ -1,7 +1,7 @@
 import {TECHNICAL_TOPICS} from './personal-coaching-model.js?v=bank-fix-1';
 import { GAME_MODEL_PRINCIPLES, principleById } from './game-model-core.js?v=personal-model-1';
 import { BANK_KINDS, buildPrincipleWordBanks, resolveBankContext } from './principle-word-bank-data.js?v=bank-fix-1';
-import { ensureCollapsibleWordBanks } from './practice-editor-collapsible-word-banks-v1.js?v=principle-banks-3';
+import { ensureCollapsibleWordBanks, wrapWordBank } from './practice-editor-collapsible-word-banks-v1.js?v=ios-banks-1';
 
 const BANK_TARGETS={practiceCueChips:['cues','practiceDeliveryCues','practice'],cpChips:['cp','cp','practice'],progChips:['prog','prog','practice'],regChips:['reg','reg','practice'],condGameChips:['cond','condRules','practice'],objChips:['obj','objective','session'],linkChips:['links','links','session'],cueChips:['cues','cues','session'],reflectChips:['reflect','reflect','session'],gmSuccessChips:['obj','gmSuccessLooksLike','session']};
 const field=id=>document.getElementById(id);
@@ -98,7 +98,7 @@ export function refresh(){
   const cueInput=field('practiceDeliveryCues');
   if(cueInput&&!field('practiceCueChips')){
     const host=document.createElement('div');host.id='practiceCueChips';host.className='chips';
-    cueInput.before(host);wrapSupportingList(host,'Short delivery cue suggestions');
+    cueInput.before(host);wrapWordBank({chipsId:'practiceCueChips',label:'Short delivery cues',summary:'Short delivery cue suggestions'});
   }
   const editor=field('fourPhasePracticeEditor');
   if(editor&&!field('technicalBankTopic')){

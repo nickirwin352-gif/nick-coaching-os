@@ -1,4 +1,4 @@
-export const COLLAPSIBLE_WORD_BANKS_VERSION = 2;
+export const COLLAPSIBLE_WORD_BANKS_VERSION = 3;
 
 export const COLLAPSIBLE_WORD_BANKS = Object.freeze([
   Object.freeze({ chipsId:'cpChips', label:'Coaching Points Word Bank', summary:'Coaching points word bank' }),
@@ -18,20 +18,26 @@ function field(id) { return document.getElementById(id); }
 
 function addStyles() {
   if (field(STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = STYLE_ID;
-  style.textContent = `
+  const style=document.createElement('style');style.id=STYLE_ID;
+  style.textContent=`
     .${DETAILS_CLASS}{margin:7px 0 5px;border:1px solid var(--border-soft);border-radius:10px;background:rgba(4,13,22,.24);overflow:hidden}
-    .${DETAILS_CLASS}>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:38px;padding:8px 10px;cursor:pointer;list-style:none;font-size:10px;font-weight:800;color:var(--text-dim);user-select:none;-webkit-tap-highlight-color:transparent}
-    .${DETAILS_CLASS}>summary::-webkit-details-marker{display:none}
-    .${DETAILS_CLASS}>summary::after{content:'Open';font-size:8.5px;font-weight:700;color:var(--text-faint);border:1px solid var(--border-soft);border-radius:999px;padding:3px 6px}
-    .${DETAILS_CLASS}[open]>summary{border-bottom:1px solid var(--border-soft);color:var(--text)}
-    .${DETAILS_CLASS}[open]>summary::after{content:'Close'}
-    .${DETAILS_CLASS}>label{display:none!important}
-    .${DETAILS_CLASS}>.chips{padding:8px 9px 9px;margin:0!important}
-    @media(max-width:620px){.${DETAILS_CLASS}>summary{min-height:42px;font-size:10.5px}}
-  `;
-  document.head.appendChild(style);
+    .bankDisclosureButton{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:44px;padding:10px;border:0;border-radius:0;background:transparent;color:var(--text);text-align:left;font-size:12px;font-weight:800;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+    .bankDisclosureButton::after{content:'Open';font-size:10px;color:var(--text-dim)}
+    .bankDisclosureButton[aria-expanded="true"]::after{content:'Close'}
+    .bankDisclosureButton:focus-visible{outline:2px solid var(--turf);outline-offset:-3px}
+    .bankDisclosurePanel[hidden]{display:none!important}
+    .bankDisclosurePanel:not([hidden]){display:block!important}
+    .bankDisclosurePanel>.chips{padding:8px 9px 9px;margin:0!important}
+    .bankDisclosurePanel>label{display:none!important}
+  `;document.head.appendChild(style);
+}
+
+export function setBankExpanded(wrapper,expanded){
+  const button=wrapper?.querySelector('.bankDisclosureButton');
+  const panel=wrapper?.querySelector('.bankDisclosurePanel');
+  if(!button||!panel)return false;
+  button.setAttribute('aria-expanded',String(expanded));panel.hidden=!expanded;
+  return true;
 }
 
 function associatedLabel(chips, expectedText='') {
@@ -43,28 +49,23 @@ function associatedLabel(chips, expectedText='') {
 }
 
 export function wrapWordBank(spec) {
-  if (typeof document === 'undefined') return false;
-  const chips = field(spec?.chipsId);
-  if (!chips) return false;
-  const existing = chips.closest(`details.${DETAILS_CLASS}`);
-  if (existing) return true;
-
-  const label = associatedLabel(chips,spec?.label || '');
-  const details = document.createElement('details');
-  details.className = DETAILS_CLASS;
-  details.dataset.wordBank = spec?.chipsId || '';
-  details.open = false;
-  if (chips.classList.contains('fourPhaseLegacyHidden')) details.classList.add('fourPhaseLegacyHidden');
-
-  const summary = document.createElement('summary');
-  summary.textContent = spec?.summary || spec?.label || 'Word bank';
-  summary.setAttribute('aria-label', `${summary.textContent}. Tap to open or close suggestions.`);
-  details.appendChild(summary);
-
-  const anchor = label || chips;
-  anchor.parentNode?.insertBefore(details,anchor);
-  if (label) details.appendChild(label);
-  details.appendChild(chips);
+  if(typeof document==='undefined')return false;
+  const chips=field(spec?.chipsId);if(!chips)return false;
+  if(chips.closest(`.${DETAILS_CLASS}`))return true;
+  const label=associatedLabel(chips,spec?.label||'');
+  const wrapper=document.createElement('div');wrapper.className=DETAILS_CLASS;
+  wrapper.dataset.wordBank=spec.chipsId;
+  if(chips.classList.contains('fourPhaseLegacyHidden'))wrapper.classList.add('fourPhaseLegacyHidden');
+  const button=document.createElement('button');button.type='button';button.className='bankDisclosureButton';
+  button.textContent=spec.summary||spec.label||'Word bank';
+  const panel=document.createElement('div');panel.id=`${spec.chipsId}Panel`;panel.className='bankDisclosurePanel';
+  button.setAttribute('aria-controls',panel.id);button.setAttribute('aria-expanded','false');panel.hidden=true;
+  button.addEventListener('click',event=>{
+    event.preventDefault();
+    setBankExpanded(wrapper,button.getAttribute('aria-expanded')!=='true');
+  });
+  const anchor=label||chips;anchor.parentNode?.insertBefore(wrapper,anchor);
+  wrapper.append(button,panel);if(label)panel.appendChild(label);panel.appendChild(chips);
   return true;
 }
 
@@ -74,19 +75,18 @@ export function ensureCollapsibleWordBanks() {
   return COLLAPSIBLE_WORD_BANKS.reduce((count,spec) => count + (wrapWordBank(spec) ? 1 : 0),0);
 }
 
-export function collapsePracticeWordBanks() {
-  if (typeof document === 'undefined') return 0;
-  let count = 0;
-  document.querySelectorAll(`details.${DETAILS_CLASS}`).forEach(details => {
-    if (details.open) count += 1;
-    details.open = false;
-  });
-  return count;
+export function collapsePracticeWordBanks(){
+  if(typeof document==='undefined')return 0;
+  let count=0;
+  document.querySelectorAll(`.${DETAILS_CLASS}`).forEach(wrapper=>{
+    if(wrapper.querySelector('.bankDisclosureButton')?.getAttribute('aria-expanded')==='true')count++;
+    setBankExpanded(wrapper,false);
+  });return count;
 }
 
-function resetSoon() {
-  setTimeout(()=>{ ensureCollapsibleWordBanks(); collapsePracticeWordBanks(); },0);
-  setTimeout(()=>{ ensureCollapsibleWordBanks(); collapsePracticeWordBanks(); },120);
+function resetBanks(){
+  // Reset once, synchronously when a practice changes. Never close after a tap.
+  ensureCollapsibleWordBanks();collapsePracticeWordBanks();
 }
 
 function installEditorHooks() {
@@ -95,7 +95,7 @@ function installEditorHooks() {
   if (typeof editOriginal === 'function' && !editOriginal.__collapsibleWordBanksV1) {
     const wrapped = function(...args) {
       const result = editOriginal.apply(this,args);
-      resetSoon();
+      resetBanks();
       return result;
     };
     wrapped.__collapsibleWordBanksV1 = true;
@@ -108,7 +108,7 @@ function installEditorHooks() {
   if (typeof newOriginal === 'function' && !newOriginal.__collapsibleWordBanksV1) {
     const wrapped = function(...args) {
       const result = newOriginal.apply(this,args);
-      resetSoon();
+      resetBanks();
       return result;
     };
     wrapped.__collapsibleWordBanksV1 = true;
@@ -121,7 +121,7 @@ function install() {
   ensureCollapsibleWordBanks();
   collapsePracticeWordBanks();
   installEditorHooks();
-  setTimeout(()=>{ ensureCollapsibleWordBanks(); installEditorHooks(); collapsePracticeWordBanks(); },300);
+  setTimeout(()=>{ ensureCollapsibleWordBanks(); installEditorHooks(); },300);
   setTimeout(()=>{ ensureCollapsibleWordBanks(); installEditorHooks(); },1200);
 }
 
