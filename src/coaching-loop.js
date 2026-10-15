@@ -1,4 +1,4 @@
-import {principleDelivery, decisionForSelection, DELIVERY_FIELDS} from './personal-coaching-model.js';
+import {principleDelivery, decisionForSelection, DELIVERY_FIELDS} from './personal-coaching-model.js?v=bank-fix-1';
 import {clone} from './sync-engine.js';
 import {uid,alignInstances,changeInstances,effectiveInstance,nextActions,validateBackup} from './coaching-domain.js';
 import {GAME_MODEL_PRINCIPLES,principleById} from './game-model-core.js?v=personal-model-1';

@@ -23,7 +23,7 @@ test('phase and principle changes remove stale sub-principle suggestions',()=>{
   const resolved=resolveBankContext(context);
   assert.equal(resolved.subs.length,0);
   const bank=buildPrincipleWordBanks(context);
-  assert.equal(bank.cp.length,9);
+  assert.equal(bank.cp.length,18);
   assert.ok(bank.cp.every(text=>!text.includes('Move to lose')));
   assert.deepEqual(resolveBankContext({...context,phaseIds:['in-possession']}),{principles:[],subs:[]});
   assert.equal(resolveBankContext({subPrincipleIds:['create-separation']}).principles[0].id,'arrive-affect-away');
@@ -77,4 +77,19 @@ test('supporting wrappers preserve open state and exclude the browsing tools',()
   assert.equal(wrapSupportingList({closest:()=>details},'Again'),false);
   assert.equal(details.open,true);
   assert.equal(wrapSupportingList({closest:()=>null,matches:()=>true},'Workbench'),false);
+});
+
+test('suggestion clicks update the current textbox even after its node is replaced',()=>{
+ const oldDocument=globalThis.document,oldWindow=globalThis.window;
+ let input={value:'Original',hasAttribute:()=>true,dispatchEvent(){}};
+ const original=input;const host={dataset:{},children:[],replaceChildren(){this.children=[];},appendChild(x){this.children.push(x);}};
+ const element=()=>({classList:{toggle(){}},setAttribute(){},addEventListener(type,fn){this[type]=fn;}});
+ globalThis.window={db:{banks:{}}};
+ globalThis.document={createElement:element,getElementById:id=>({cpChips:host,cp:input,fpeNoLink:{checked:false}}[id]),querySelectorAll:q=>(q.includes('data-fpe-principle')?['arrive-affect-away']:q.includes('data-fpe-sub')?['create-separation']:q.includes('data-fpe-phase')?['in-possession']:[]).map(value=>({value}))};
+ try{
+  renderBank('cpChips');const click=host.children[1].click;
+  const events=[];input={value:'My own text',hasAttribute:()=>true,dispatchEvent:e=>events.push(e.type)};
+  click();assert.equal(input.value,'My own text\nLose the marker');assert.equal(original.value,'Original');assert.deepEqual(events,['input','change']);
+  host.children[1].click();assert.equal(input.value,'My own text');
+ }finally{globalThis.document=oldDocument;globalThis.window=oldWindow;}
 });

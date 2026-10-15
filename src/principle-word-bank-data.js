@@ -1,36 +1,225 @@
-import {PERSONAL_POINTS, FUNDAMENTAL_POINTS, technicalBank, PURPOSE_SUPPORT, contextualPhrases} from './personal-coaching-model.js';
+import {PERSONAL_POINTS, FUNDAMENTAL_POINTS, technicalBank, PURPOSE_SUPPORT, contextualPhrases} from './personal-coaching-model.js?v=bank-fix-1';
 import { GAME_MODEL_PRINCIPLES, principleById, subPrincipleById } from './game-model-core.js?v=personal-model-1';
 
 export const BANK_KINDS=Object.freeze({cp:'Coaching points',prog:'Progressions',reg:'Regressions',cond:'Rules / constraints',obj:'Learning objectives',links:'Game model links',cues:'Short delivery cues',reflect:'Reflection prompts'});
 
 export const SUB_DELIVERY_CUES=Object.freeze({
-  'create-separation':['Separate','Disguise','Explode'],
-  'arrive-to-affect':['Arrive','Connect','Forward'],
-  'move-after-action':['Move','Reoffer','Clear'],
-  'movement-triggers-movement':['Trigger','Rotate','Respond'],
-  'replace-the-threat':['Replace','Balance','Occupy'],
-  'release-the-rotation':['Release','Find','Connect'],
-  'connect-the-attack':['Link','Bounce','Combine'],
-  'commit-bodies-beyond':['Commit','Beyond','Arrive'],
-  'cover-the-commitment':['Cover','Balance','Secure'],
-  'spot-the-picture':['Scan','Check','Aware'],
-  'sense-the-moment':['Sense','Time','Anticipate'],
-  'seize-the-window':['Decisive','Quick','Go'],
-  'see-forward-early':['Scan','Forward','Early'],
-  'send-into-space':['Penetrate','Drive','Release'],
-  'sprint-to-support':['Sprint','Support','Beyond'],
-  'stretch-the-line':['Wide','Deep','Stretch'],
-  'supply-the-space':['Look','Deliver','Weight'],
-  'strike-it-early':['Set','Strike','Follow'],
-  'screen-the-centre':['Screen','Inside','Protect'],
-  'shuffle-together':['Shift','Together','Compact'],
-  'squeeze-the-space':['Squeeze','Step','Together'],
-  'keep-the-spare':['Spare','Cover','Balance'],
-  'step-with-security':['Check','Step','Secure'],
-  'smother-the-receiver':['Close','Aggressive','Contain'],
-  'react-immediately':['React','Affect','Screen'],
-  'recover-danger-first':['Recover','Inside','Goal-side'],
-  'reconnect-the-team':['Reconnect','Compact','Together']
+  "create-separation": [
+    "Separate",
+    "Disguise",
+    "Explode",
+    "Blind side",
+    "Check away",
+    "Arrive free"
+  ],
+  "arrive-to-affect": [
+    "Arrive",
+    "Connect",
+    "Forward",
+    "Scan first",
+    "Safe side",
+    "Set to release"
+  ],
+  "move-after-action": [
+    "Reoffer",
+    "Clear space",
+    "Move away",
+    "New angle",
+    "Support beneath",
+    "Go beyond"
+  ],
+  "movement-triggers-movement": [
+    "Trigger",
+    "Rotate",
+    "Respond",
+    "Read the runner",
+    "Opposite movement",
+    "Move together"
+  ],
+  "replace-the-threat": [
+    "Replace",
+    "Hold width",
+    "Keep height",
+    "Support beneath",
+    "Fill the gap",
+    "Stay connected"
+  ],
+  "release-the-rotation": [
+    "Release",
+    "Find free",
+    "Play the space",
+    "Before reset",
+    "Runner ready",
+    "Recycle if shut"
+  ],
+  "connect-the-attack": [
+    "Soft set",
+    "Bounce",
+    "Third man",
+    "Link units",
+    "Show an angle",
+    "Draw pressure"
+  ],
+  "commit-bodies-beyond": [
+    "Beyond",
+    "Overlap",
+    "Underlap",
+    "Late arrival",
+    "Threaten behind",
+    "Time the run"
+  ],
+  "cover-the-commitment": [
+    "Cover",
+    "Protect inside",
+    "Shift across",
+    "Stay beneath",
+    "Track the outlet",
+    "Secure behind"
+  ],
+  "spot-the-picture": [
+    "Scan",
+    "Next layer",
+    "Read the line",
+    "Find the gap",
+    "Check pressure",
+    "See the runner"
+  ],
+  "sense-the-moment": [
+    "Time it",
+    "Wait",
+    "Read the touch",
+    "Runner arriving",
+    "Window opening",
+    "Before recovery"
+  ],
+  "seize-the-window": [
+    "Punched in",
+    "Release now",
+    "Into the path",
+    "Carry through",
+    "Furthest available",
+    "Recycle if shut"
+  ],
+  "see-forward-early": [
+    "Eyes ahead",
+    "Green grass",
+    "Find the runner",
+    "Read recovery",
+    "First look",
+    "Space or feet"
+  ],
+  "send-into-space": [
+    "One pass through",
+    "Into the path",
+    "Carry the grass",
+    "Commit defender",
+    "Release runner",
+    "Secure if shut"
+  ],
+  "sprint-to-support": [
+    "Sprint to connect",
+    "Support wide",
+    "Beyond and beneath",
+    "New angle",
+    "Far-side run",
+    "Stay available"
+  ],
+  "stretch-the-line": [
+    "Hold width",
+    "Threaten height",
+    "Overlap",
+    "Pin the line",
+    "Far-side threat",
+    "Depth beneath"
+  ],
+  "supply-the-space": [
+    "Cutback",
+    "Clip far post",
+    "Across and behind",
+    "Find the runner",
+    "Lift your eyes",
+    "Recycle if blocked"
+  ],
+  "strike-it-early": [
+    "Arrive ready",
+    "Adjust feet",
+    "Strike early",
+    "Attack far post",
+    "Across keeper",
+    "Follow in"
+  ],
+  "screen-the-centre": [
+    "Nothing inside",
+    "Screen the lane",
+    "See both",
+    "Inside shoulder",
+    "Force outside",
+    "Stay goal-side"
+  ],
+  "shuffle-together": [
+    "Travel together",
+    "Close the gap",
+    "Far side in",
+    "Match the ball",
+    "Stay connected",
+    "Stop the switch"
+  ],
+  "squeeze-the-space": [
+    "Pressure first",
+    "Step together",
+    "Compress",
+    "Lock the exits",
+    "Read behind",
+    "Beaten? Drop"
+  ],
+  "keep-the-spare": [
+    "Find the spare",
+    "Cover behind",
+    "Read the runner",
+    "See both",
+    "Protect depth",
+    "Talk early"
+  ],
+  "step-with-security": [
+    "Check then step",
+    "Connected cover",
+    "Arrive controlled",
+    "Read the pass",
+    "Hold if exposed",
+    "Protect behind"
+  ],
+  "smother-the-receiver": [
+    "Close early",
+    "Deny the turn",
+    "Win from front",
+    "Strong and fair",
+    "Read the bounce",
+    "Secure regain"
+  ],
+  "react-immediately": [
+    "Nearest affects",
+    "Screen inside",
+    "Connected pressure",
+    "Deny the exit",
+    "Read the loss",
+    "Delay if beaten"
+  ],
+  "recover-danger-first": [
+    "Centre first",
+    "Recover goal-side",
+    "Delay the runner",
+    "Track danger",
+    "Protect depth",
+    "Cover across"
+  ],
+  "reconnect-the-team": [
+    "Tuck in",
+    "Reconnect units",
+    "Close distances",
+    "Find your line",
+    "Talk across",
+    "Move together"
+  ]
 });
 
 // Each sub-principle has its own challenge, support and game condition.
@@ -84,11 +273,18 @@ export function defaultSubBank(sub){
     cues:SUB_DELIVERY_CUES[sub.id]||[sub.title],reflect:[`${sub.title}: the setup exposed the intended picture.`,`${sub.title}: my intervention helped players recognise it.`,`${sub.title}: adjust support and repeat across sessions.`,`${sub.title}: no relevant opportunity observed yet.`]
   };
 }
+// Reject known attacking carry-over in defensive banks, including old saved overrides.
+export function relevantBankPhrase(text,kind,context={}){
+  if(!['cp','cues'].includes(kind)||context.noGameModelLink)return true;
+  const {principles}=resolveBankContext(context);
+  const defensive=principles.length&&principles.every(p=>['out-of-possession','defensive-transition'].includes(p.phaseId));
+  return !defensive||! /^(attack with (pace|speed)|attack quickly|finish across (the )?goalkeeper|cut it back|run beyond|fill the box)[.!]?$/i.test(String(text).trim());
+}
 export function buildPrincipleWordBanks(context={},custom={},records=[]){
   if(context.noGameModelLink){
     const bank=technicalBank(context);
     const overrides=custom[`technical:${context.technicalTopic||({finishing:"finishing",duel:"defending",physical:"physical","set-play":"restarts"}[context.practiceFormat])||"passing"}`]||{};
-    for(const kind of Object.keys(bank))bank[kind]=Array.isArray(overrides[kind])?overrides[kind]:unique([...contextualPhrases(context,kind,records),...bank[kind]]);
+    for(const kind of Object.keys(bank))bank[kind]=Array.isArray(overrides[kind])?overrides[kind]:unique([...contextualPhrases(context,kind,records,bank[kind]),...bank[kind]]);
     return bank;
   }
   const {principles,subs}=resolveBankContext(context);
@@ -111,9 +307,9 @@ export function buildPrincipleWordBanks(context={},custom={},records=[]){
       const support=PURPOSE_SUPPORT[context.practicePurpose]?.[key]||[];
       const technical=context.practiceFormat==='passing-activation'&&['cp','cues'].includes(key)?(context.passingFundamentals||[]).flatMap(id=>FUNDAMENTAL_POINTS[id]||[]):[];
       const base=context.practiceFormat==='passing-activation'&&support.length?support:[...support,...output[key]];
-      output[key]=[...contextualPhrases(context,key,records),...technical,...base];
+      output[key]=[...contextualPhrases(context,key,records,[...technical,...base]),...technical,...base];
     }
   }
-  for(const key of Object.keys(output))output[key]=unique(output[key].filter(x=>typeof x==='string').map(x=>x.trim()));
+  for(const key of Object.keys(output))output[key]=unique(output[key].filter(x=>typeof x==='string'&&relevantBankPhrase(x,key,context)).map(x=>x.trim()));
   return output;
 }

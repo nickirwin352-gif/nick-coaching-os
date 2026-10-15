@@ -1,6 +1,6 @@
-import {TECHNICAL_TOPICS} from './personal-coaching-model.js';
+import {TECHNICAL_TOPICS} from './personal-coaching-model.js?v=bank-fix-1';
 import { GAME_MODEL_PRINCIPLES, principleById } from './game-model-core.js?v=personal-model-1';
-import { BANK_KINDS, buildPrincipleWordBanks, resolveBankContext } from './principle-word-bank-data.js?v=personal-model-1';
+import { BANK_KINDS, buildPrincipleWordBanks, resolveBankContext } from './principle-word-bank-data.js?v=bank-fix-1';
 import { ensureCollapsibleWordBanks } from './practice-editor-collapsible-word-banks-v1.js?v=principle-banks-3';
 
 const BANK_TARGETS={practiceCueChips:['cues','practiceDeliveryCues','practice'],cpChips:['cp','cp','practice'],progChips:['prog','prog','practice'],regChips:['reg','reg','practice'],condGameChips:['cond','condRules','practice'],objChips:['obj','objective','session'],linkChips:['links','links','session'],cueChips:['cues','cues','session'],reflectChips:['reflect','reflect','session'],gmSuccessChips:['obj','gmSuccessLooksLike','session']};
@@ -23,6 +23,14 @@ export function toggleSuggestion(value,text){
   const lines=String(value||'').split('\n');
   return lines.some(line=>line.trim()===text)?lines.filter(line=>line.trim()!==text).join('\n'):[value,text].filter(Boolean).join('\n');
 }
+export function applySuggestion(target,text){
+  // Editors can replace their fields: resolve the live node at click time.
+  const input=field(target);if(!input)return false;
+  input.value=toggleSuggestion(input.value,text);
+  input.dispatchEvent(new Event('input',{bubbles:true}));
+  input.dispatchEvent(new Event('change',{bubbles:true}));
+  return true;
+}
 export function renderBank(id){
   const spec=BANK_TARGETS[id];if(!spec)return false;
   const host=field(id);if(!host)return true;
@@ -36,23 +44,28 @@ export function renderBank(id){
   const signature=JSON.stringify([values,names,input?.value||'',context.noGameModelLink]);
   if(host.dataset.principleBankSignature===signature)return true;
   host.dataset.principleBankSignature=signature;
+  const moreOpen=host.querySelector?.('details.bankMore')?.open||false;
   host.replaceChildren();
   const note=document.createElement('p');note.className='small principleBankContext';
   note.textContent=names.length?names.join(' · '):context.noGameModelLink?'Technical bank · '+(TECHNICAL_TOPICS[context.technicalTopic]?.label||'matched to your practice format'):'Choose a phase or principle above to see relevant suggestions.';
   host.appendChild(note);
-  for(const text of values){
+  let more;
+  if(values.length>8){
+    more=document.createElement('details');more.className='bankMore';more.open=moreOpen;
+    const summary=document.createElement('summary');summary.textContent=`More suggestions (${values.length-8})`;more.appendChild(summary);
+  }
+  for(const [index,text] of values.entries()){
     const button=document.createElement('button');button.type='button';button.className='chip';button.textContent=text;
     const chosen=String(input?.value||'').split('\n').some(line=>line.trim()===text);
     button.setAttribute('aria-pressed',String(chosen));button.classList.toggle('on',chosen);
     button.addEventListener('click',()=>{
-      if(!input)return;
-      input.value=toggleSuggestion(input.value,text);
-      input.dispatchEvent(new Event('input',{bubbles:true}));
+      if(!applySuggestion(target,text))return;
       renderBank(id);
       if(scope==='session')window.renderPreview?.();
     });
-    host.appendChild(button);
+    (index<8?host:more).appendChild(button);
   }
+  if(more)host.appendChild(more);
   return true;
 }
 
@@ -82,10 +95,10 @@ function ensureSuccessBank(){
   wrapSupportingList(host,'Learning objective suggestions');
 }
 export function refresh(){
-  const cp=field('cp');
-  if(cp&&!field('practiceCueChips')){
+  const cueInput=field('practiceDeliveryCues');
+  if(cueInput&&!field('practiceCueChips')){
     const host=document.createElement('div');host.id='practiceCueChips';host.className='chips';
-    cp.before(host);wrapSupportingList(host,'Short delivery cues');
+    cueInput.before(host);wrapSupportingList(host,'Short delivery cue suggestions');
   }
   const editor=field('fourPhasePracticeEditor');
   if(editor&&!field('technicalBankTopic')){

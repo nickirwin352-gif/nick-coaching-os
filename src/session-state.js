@@ -117,9 +117,9 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./practice-editor-collapsible-word-banks-v1.js?v=principle-banks-3'))
     .then(() => import('./advanced-builder-visual-focus-v1.js'))
     .then(() => import('./four-phase-builder-clarity-v2.js'))
-    .then(() => import('./principle-word-banks.js?v=personal-model-2'))
-    .then(() => import('./coaching-loop.js?v=personal-model-1'))
-    .then(() => import('./personal-coaching-ui.js?v=personal-model-2'))
+    .then(() => import('./principle-word-banks.js?v=bank-fix-1'))
+    .then(() => import('./coaching-loop.js?v=bank-fix-1'))
+    .then(() => import('./personal-coaching-ui.js?v=bank-fix-1'))
     .then(() => startupPolishReady)
     .then(() => { window.NickStartupPolish?.markEnhancementsReady?.(); })
     .catch(error => {

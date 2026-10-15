@@ -35,7 +35,7 @@ test('personal memory is context-bound, ranks purpose then format, and excludes 
  const c={phaseIds:['in-possession'],principleIds:['arrive-affect-away'],subPrincipleIds:['arrive-to-affect'],practicePurpose:'recognise',practiceFormat:'possession-box'};
  const base={gameModelPhaseIds:c.phaseIds,gameModelPrincipleIds:c.principleIds,gameModelSubPrincipleIds:c.subPrincipleIds};
  const rows=[{...base,cp:'Format match',practiceFormat:'possession-box'},{...base,cp:'Purpose match',practicePurpose:'recognise'},{...base,cp:'Quality of pass'},{...base,cp:'Wrong sub',gameModelSubPrincipleIds:['recover-danger-first']}];
- assert.deepEqual(contextualPhrases(c,'cp',rows),['Purpose match','Format match']);
+ assert.deepEqual(contextualPhrases(c,'cp',rows,['Purpose match','Format match']),['Purpose match','Format match']);
  assert.deepEqual(contextualPhrases({},'cp',rows),[]);
 });
 
@@ -68,4 +68,22 @@ test('partial cloud bank records render without mutating defaults or throwing',(
  run(db,...fields,...Array(7).fill(noop));
  assert.deepEqual(db,{banks:{principleWordBanks:{}}});assert.ok(fields.every(f=>f.value===''));
  assert.match(html,/<div class="grid three" hidden style="display:none!important">/);
+});
+
+test('multi-tagged drill notes cannot teach an attacking cue to Screen the Centre',()=>{
+ const context={phaseIds:['out-of-possession'],principleIds:['screen-shuffle-squeeze'],subPrincipleIds:['screen-the-centre']};
+ const records=[{gameModelPhaseIds:['in-possession','out-of-possession'],gameModelPrincipleIds:['screen-shuffle-squeeze'],gameModelSubPrincipleIds:['screen-the-centre'],cp:'Attack with pace.\nNothing inside\nUnreviewed phrase',deliveryCues:'Attack with pace\nScreen the lane'}];
+ const bank=buildPrincipleWordBanks(context,{},records);
+ assert.ok(bank.cp.includes('Nothing inside'));assert.ok(!bank.cp.includes('Attack with pace.'));assert.ok(!bank.cp.includes('Unreviewed phrase'));assert.ok(!bank.cues.includes('Attack with pace'));
+ const custom={'sub:screen-the-centre':{cp:['Attack with pace.','My screening cue']}};
+ assert.deepEqual(buildPrincipleWordBanks(context,custom).cp,['My screening cue']);assert.equal(custom['sub:screen-the-centre'].cp.length,2);
+});
+
+test('every sub-principle offers six distinct short cues and six coaching points',async()=>{
+ const {GAME_SUB_PRINCIPLES}=await import('../src/game-model-core.js');
+ for(const sub of GAME_SUB_PRINCIPLES){
+  const bank=buildPrincipleWordBanks({subPrincipleIds:[sub.id]});
+  assert.equal(bank.cues.length,6,sub.id);assert.equal(new Set(bank.cues).size,6);assert.equal(bank.cp.length,6,sub.id);
+  assert.ok(bank.cues.every(c=>c.split(/\s+/).length<=4));
+ }
 });

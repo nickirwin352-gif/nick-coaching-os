@@ -21,8 +21,8 @@ test('all sub-principles have brief, scoped delivery cues',()=>{
   for(const sub of GAME_SUB_PRINCIPLES){
     const cues=buildPrincipleWordBanks({subPrincipleIds:[sub.id]}).cues;
     assert.deepEqual(cues,SUB_DELIVERY_CUES[sub.id]);
-    assert.ok(cues.length>=3);
-    assert.ok(cues.every(cue=>cue.split(/\s+/).length<=2&&cue.length<20));
+    assert.equal(cues.length,6);
+    assert.ok(cues.every(cue=>cue.split(/\s+/).length<=3&&cue.length<=22));
     assert.ok(!cues.includes(sub.description));
   }
 });

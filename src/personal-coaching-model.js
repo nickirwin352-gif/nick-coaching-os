@@ -14,7 +14,7 @@ export const PRINCIPLE_DELIVERY=Object.freeze({
  'react-recover-reconnect':detail('At loss, read whether nearby support can affect the ball and protect the centre, or whether the opponent is already running through.','Nearest player affects the ball; others screen inside. Counterpress a reachable central loss with connected support.','Recover immediately when the opponent escapes the pressure and runs at the back line/final block. Delay and deny the centre if a regain is unavailable.','Nearest presses; second screens or supports pressure; third protects the next lane; far side tucks in; back line seeks +1; goalkeeper covers behind. Reconnect into 4-4-2 or 4-2-3-1.','Either regain with central cover intact, or slow the attack and restore connected distances. No fixed countdown is assumed.')
 });
 export function principleDelivery(id,saved={}){return {...(PRINCIPLE_DELIVERY[id]||{}),...(saved[id]||{})};}
-export const PERSONAL_POINTS=Object.freeze({
+const CORE_PERSONAL_POINTS=Object.freeze({
  'create-separation':['Lose the marker','Hold if free','Drag to free'],
  'arrive-to-affect':['Arrive connected','Know the next pass','Set to go forward'],
  'move-after-action':['Away if marked','Reoffer beneath','Clear their space'],
@@ -43,6 +43,8 @@ export const PERSONAL_POINTS=Object.freeze({
  'recover-danger-first':['Protect centre first','Delay the runner','Recover goal-side'],
  'reconnect-the-team':['Tuck in','Reconnect the units','Restore the distances']
 });
+const EXTRA_PERSONAL_POINTS={"create-separation": ["Check away then arrive", "Start on the blind side", "Change speed to escape"], "arrive-to-affect": ["Scan before asking", "Safe side under pressure", "Touch for the next action"], "move-after-action": ["Offer a new angle", "Connect beyond the pass", "Leave room for the next arrival"], "movement-triggers-movement": ["Read who follows", "Opposite movement frees space", "Move when the teammate moves"], "replace-the-threat": ["Fill the vacated lane", "Keep support beneath", "Stay connected through rotation"], "release-the-rotation": ["Match pass to runner", "Play into the new angle", "Recycle when the lane shuts"], "connect-the-attack": ["Show the passing angle", "One beyond, one beneath", "Set into the runner’s path"], "commit-bodies-beyond": ["Underlap the open lane", "Time the run with the pass", "Threaten behind the defender"], "cover-the-commitment": ["Stay beneath the attack", "Read their counter outlet", "Keep a recycle pass"], "spot-the-picture": ["Read pressure before receiving", "See runner and defender", "Know the next pass"], "sense-the-moment": ["Read the defender’s touch", "Release as the runner arrives", "Wait without losing the opening"], "seize-the-window": ["Pass into the runner’s path", "Carry through the open lane", "Release before recovery"], "see-forward-early": ["Read the recovering defender", "Find the furthest available pass", "See space as well as feet"], "send-into-space": ["Commit then release", "Match weight to the run", "Secure if the route closes"], "sprint-to-support": ["Create the next angle", "Far side joins the threat", "Stay available after the first pass"], "stretch-the-line": ["Pin the last line", "Far side stays a threat", "Keep depth beneath the attack"], "supply-the-space": ["Read the arriving runner", "Look before delivery", "Recycle when the lane closes"], "strike-it-early": ["Adjust feet to the delivery", "Finish across when available", "Arrive with the ball"], "screen-the-centre": ["See ball and central player", "Own the inside shoulder", "Stay goal-side of danger"], "shuffle-together": ["Far side tucks in", "Match the speed of the ball", "Keep distances between units"], "squeeze-the-space": ["Close exits around pressure", "Read the runner behind", "Hold if pressure is absent"], "keep-the-spare": ["See ball and runner", "Keep depth to intervene", "Communicate the handover"], "step-with-security": ["Read the pass before jumping", "Arrive under control", "Protect the runner behind"], "smother-the-receiver": ["Deny the first turn", "Midfielder attacks from the front", "Read the bounce and reconnect"], "react-immediately": ["Close the nearest exit", "Read whether support can arrive", "Delay if a regain is unavailable"], "recover-danger-first": ["Track the most dangerous run", "Protect the space behind", "Cover across the break"], "reconnect-the-team": ["Find the unit line", "Talk across the block", "Move together after recovery"]};
+export const PERSONAL_POINTS=Object.freeze(Object.fromEntries(Object.entries(CORE_PERSONAL_POINTS).map(([id,items])=>[id,Object.freeze([...items,...EXTRA_PERSONAL_POINTS[id]])])));
 export const FUNDAMENTAL_POINTS=Object.freeze({
  scanning:['Scan pressure and next pass','Use what you see'],
  'back-foot':['Back foot to release','Control then opposite foot'],
@@ -84,7 +86,11 @@ export const PURPOSE_SUPPORT=Object.freeze({
  transfer:{prog:['Remove prompts and conditions for the final 5–10 minutes.'],reg:['Briefly restore support, then test again without prompts.'],cond:['Observe whether the behaviour survives open play; record when no relevant opportunity occurs.']}
 });
 // Only compatible records are eligible. Sorting is lexicographic in Nick's priority order.
-export function contextualPhrases(context,kind,records=[]){
+export function contextualPhrases(context,kind,records=[],approved=[]){
+ const normalise=text=>String(text).toLowerCase().replace(/[.!?]+$/g,'').trim();
+ const approvedText=new Map(approved.map(text=>[normalise(text),text]));
+ const allowed=new Set(approvedText.keys());
+ if(!allowed.size)return [];
  const keys=[['phaseIds','gameModelPhaseIds'],['principleIds','gameModelPrincipleIds'],['subPrincipleIds','gameModelSubPrincipleIds']];
  const field={cp:'cp',prog:'prog',reg:'reg',cond:'condRules',cues:'deliveryCues',obj:'objective',links:'links',reflect:'reflect'}[kind];
  const selected=keys.some(([k])=>context[k]?.length);
@@ -97,7 +103,7 @@ export function contextualPhrases(context,kind,records=[]){
   rows.push({score,text:String(record[field]||''),date:String(record.updatedAt||record.createdAt||'')});
  }
  rows.sort((a,b)=>{for(let i=0;i<a.score.length;i++){if(a.score[i]!==b.score[i])return b.score[i]-a.score[i];}return b.date.localeCompare(a.date);});
- return [...new Set(rows.flatMap(r=>r.text.split('\n')).map(x=>x.trim()).filter(x=>x&&!RETIRED_PHRASES.has(x.toLowerCase())))].slice(0,8);
+ return [...new Set(rows.flatMap(r=>r.text.split('\n')).map(x=>x.trim()).filter(x=>x&&allowed.has(normalise(x))&&!RETIRED_PHRASES.has(x.toLowerCase())).map(x=>approvedText.get(normalise(x))))].slice(0,8);
 }
 
 export function decisionForSelection(id,subIds=[],saved={}){

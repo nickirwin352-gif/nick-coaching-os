@@ -1,6 +1,6 @@
 import {GAME_MODEL_PRINCIPLES,principleById,subPrincipleById} from './game-model-core.js?v=personal-model-1';
-import {DELIVERY_FIELDS,principleDelivery,PERSONAL_POINTS,TECHNICAL_TOPICS} from './personal-coaching-model.js';
-import {BANK_KINDS,buildPrincipleWordBanks} from './principle-word-bank-data.js?v=personal-model-1';
+import {DELIVERY_FIELDS,principleDelivery,PERSONAL_POINTS,TECHNICAL_TOPICS} from './personal-coaching-model.js?v=bank-fix-1';
+import {BANK_KINDS,buildPrincipleWordBanks} from './principle-word-bank-data.js?v=bank-fix-1';
 const field=id=>document.getElementById(id);
 const data=()=>{try{return db;}catch{return window.db;}};
 function element(tag,text){const el=document.createElement(tag);if(text)el.textContent=text;return el;}
