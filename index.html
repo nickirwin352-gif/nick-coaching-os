@@ -524,21 +524,22 @@ body.sessionDrawerOpen{overflow:hidden}
   #diagramStudioInlineHost .diagramStudioOverlay.streamlinedInline{height:68dvh;min-height:540px}
 }
 </style>
+<link rel="stylesheet" href="./src/visual-refresh-v1.css?v=1">
 <script type="module" src="./src/session-state.js?v=ios-banks-1"></script>
 </head>
 <body>
 <header>
-<h1><span class="logoMark">⚽</span> Nick's Coaching OS</h1>
+<div class="brandIdentity"><div><h1><span class="logoMark" aria-hidden="true">⚽</span><span>Nick's <em>Coaching OS</em></span></h1><div class="brandCaption">FOOTBALL COACHING WORKSPACE</div></div></div>
 <div class="cloudPill" id="cloudPillTop"><span class="dot"></span><span class="label" id="cloudPillLabel">Connecting…</span></div>
 </header>
-<nav>
-<button class="tab active" data-tab="library">Practice Library</button>
-<button class="tab" data-tab="planner">Build</button>
-<button class="tab" data-tab="archive">Session Archive</button>
-<button class="tab" data-tab="editor">Add / Edit Practice</button>
-<button class="tab" data-tab="dashboard">Theme Dashboard</button>
+<nav aria-label="Primary navigation">
+<button class="tab active" data-tab="library">Library</button>
+<button class="tab" data-tab="planner">Session Builder</button>
+<button class="tab" data-tab="archive">Sessions</button>
+<button class="tab" data-tab="editor">Practice Editor</button>
+<button class="tab" data-tab="dashboard">Insights</button>
 <button class="tab" data-tab="wordbank">Word Banks</button>
-<button class="tab" data-tab="backup">Cloud / Backups</button>
+<button class="tab" data-tab="backup">Backups</button>
 </nav>
 
 <div class="moreSheet noPrint" id="moreSheet">
@@ -555,8 +556,27 @@ body.sessionDrawerOpen{overflow:hidden}
 </div>
 
 <section id="library" class="view">
+<div class="workspaceHero">
+  <div class="heroCopy">
+    <span class="heroEyebrow"><span class="heroStatusDot" aria-hidden="true"></span> YOUR COACHING WORKSPACE</span>
+    <h2>Better sessions start <span>here.</span></h2>
+    <p>Find the right practice, build purposeful sessions and keep every coaching idea in one place.</p>
+    <div class="heroActions">
+      <button type="button" class="primary" onclick="document.querySelector('nav [data-tab=planner]').click()">Build a session &nbsp;↗</button>
+      <button type="button" class="heroSecondary" onclick="newPractice()">+ Add a practice</button>
+    </div>
+  </div>
+  <div class="heroGraphic" aria-hidden="true">
+    <span class="heroGraphicTitle">YOUR TACTICAL BOARD</span>
+    <div class="heroPitch">
+      <span class="heroBox left"></span><span class="heroBox right"></span>
+      <span class="heroDot a"></span><span class="heroDot b"></span><span class="heroDot c"></span><span class="heroDot d"></span>
+    </div>
+    <span class="heroGraphicFooter">PREPARE &nbsp; / &nbsp; COACH &nbsp; / &nbsp; REFLECT</span>
+  </div>
+</div>
 <div class="grid two">
-<div class="card"><h2>Filters</h2><label>Search</label><input id="search"><label>Theme</label><select id="filterTheme"></select><label>Stage</label><select id="filterStage"></select><label><input id="filterFav" type="checkbox" style="width:auto;margin-right:6px" oninput="renderList()"> Favourites only</label><button onclick="newPractice()">+ New Practice</button><button onclick="importQualityPracticeLibrary()">Import Quality Practice Library</button><h3>⭐ Favourites</h3><div id="favList" class="favGrid"></div></div>
+<div class="card"><h2>Filters</h2><label>Search</label><input id="search"><label>Theme</label><select id="filterTheme"></select><label>Stage</label><select id="filterStage"></select><label><input id="filterFav" type="checkbox" style="width:auto;margin-right:6px" oninput="renderList()"> Favourites only</label><button class="primary createPracticeButton" onclick="newPractice()">+ New Practice</button><button onclick="importQualityPracticeLibrary()">Import Quality Practice Library</button><h3>⭐ Favourites</h3><div id="favList" class="favGrid"></div></div>
 <div class="card"><h2>Practice Library</h2><p class="small">Tap a practice or View to open its diagram and description. Use Edit when you want to change it.</p><div id="practiceList"></div></div>
 </div>
 </section>
@@ -574,7 +594,7 @@ body.sessionDrawerOpen{overflow:hidden}
 <label>Progressions Word Bank</label><div id="progChips" class="chips"></div><textarea id="prog"></textarea>
 <label>Regressions Word Bank</label><div id="regChips" class="chips"></div><textarea id="reg"></textarea>
 <div id="condRulesBlock"><label>Conditioned Game Rules / Constraints Word Bank</label><div id="condGameChips" class="chips"></div><textarea id="condRules" placeholder="Use for conditioned games: scoring rules, constraints, bonus points, transition rules..."></textarea></div>
-<div class="row"><button onclick="savePractice()">Save</button><button onclick="duplicatePractice()">Duplicate Practice</button><button class="danger" onclick="deletePractice()">Delete</button></div>
+<div class="row"><button class="primary" onclick="savePractice()">Save Practice</button><button onclick="duplicatePractice()">Duplicate Practice</button><button class="danger" onclick="deletePractice()">Delete</button></div>
 <p class="small">Select an object on the pitch, then resize/rotate it below. Double-click players/text to edit label.</p>
 </div>
 <div class="card">
