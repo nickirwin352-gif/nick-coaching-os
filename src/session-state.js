@@ -120,6 +120,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     .then(() => import('./principle-word-banks.js?v=ios-banks-1'))
     .then(() => import('./coaching-loop.js?v=bank-fix-1'))
     .then(() => import('./personal-coaching-ui.js?v=bank-fix-1'))
+    .then(() => import('./coaching-memory-workflow-v1.js'))
     .then(() => startupPolishReady)
     .then(() => { window.NickStartupPolish?.markEnhancementsReady?.(); })
     .catch(error => {

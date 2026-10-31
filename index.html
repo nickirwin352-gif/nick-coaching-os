@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#0a111c"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="./manifest.webmanifest"><link rel="icon" type="image/svg+xml" href="./icons/coaching-mark.svg">
 <title>Nick's Coaching OS · Unlimited Session Practices</title>
 <!-- Fetch enhancements together; session-state.js still installs them in dependency order. -->
 <link rel="modulepreload" href="./src/cloud-save-feedback.js">
@@ -525,6 +527,7 @@ body.sessionDrawerOpen{overflow:hidden}
 }
 </style>
 <link rel="stylesheet" href="./src/visual-refresh-v1.css?v=1">
+<script type="module" src="./src/offline-install-v1.js"></script>
 <script type="module" src="./src/session-state.js?v=ios-banks-1"></script>
 </head>
 <body>
@@ -942,13 +945,18 @@ function toggleMoreSheet(force){const el=document.getElementById("moreSheet");if
 function closeMoreSheet(){toggleMoreSheet(false)}
 document.addEventListener("click",e=>{const sheet=document.getElementById("moreSheet");if(!sheet||!sheet.classList.contains("open"))return;if(e.target.closest("#moreSheet")||e.target.closest('[onclick="toggleMoreSheet()"]'))return;closeMoreSheet()});
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{let active=document.querySelector(".tab.active");if(active&&active.dataset.tab==="library")saveLibraryState();document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));document.querySelectorAll(`.tab[data-tab="${b.dataset.tab}"]`).forEach(x=>x.classList.add("active"));document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));document.getElementById(b.dataset.tab).classList.remove("hidden");if(b.dataset.tab==="library")restoreLibraryState();if(b.dataset.tab==="planner")showBuildRoute("home");closeMoreSheet();window.scrollTo(0,0)})
+function sortDisplayedPractices(items,filtered=false){
+  const rank=p=>({Activation:0,'Skill Practice':1,'Tactical Practice':2,'Conditioned Game':3})[p.stage]??4;
+  const time=p=>{const t=Date.parse(p.createdAt||p.addedAt||'');return Number.isFinite(t)?t:0};
+  return [...items].sort((a,b)=>(filtered?rank(a)-rank(b):0)||time(b)-time(a)||db.practices.indexOf(b)-db.practices.indexOf(a));
+}
 function renderList(){
   let q=search.value.toLowerCase(),ft=filterTheme.value,fs=filterStage.value,ff=(document.getElementById("filterFav")||{}).checked;
   practiceList.innerHTML="";if(document.getElementById("favList"))favList.innerHTML="";
-  let favs=db.practices.filter(p=>p.isFavourite);
+  let favs=sortDisplayedPractices(db.practices.filter(p=>p.isFavourite));
   favs.forEach(p=>{let f=document.createElement("div");f.className="favCard";f.onclick=()=>editPractice(p.id);f.innerHTML=`<b>⭐ ${escapeHtml(p.id)}</b><br><span class="small">${escapeHtml(p.name)}</span><br><span class="pill">${escapeHtml(p.theme)}</span>`;favList&&favList.appendChild(f)});
   if(favList && !favs.length)favList.innerHTML='<p class="small">No favourites yet. Star your core practices.</p>';
-  db.practices.filter(p=>(!ft||p.theme==ft)&&(!fs||p.stage==fs)&&(!ff||p.isFavourite)&&JSON.stringify(p).toLowerCase().includes(q)).forEach(p=>{
+  sortDisplayedPractices(db.practices.filter(p=>(!ft||p.theme==ft)&&(!fs||p.stage==fs)&&(!ff||p.isFavourite)&&JSON.stringify(p).toLowerCase().includes(q)),Boolean(q||ft||fs||ff)).forEach(p=>{
     let d=document.createElement("div"), escapedId=escapeHtml(escapeJsSingleQuoted(p.id));
     d.className="item";d.dataset.practiceId=p.id;d.onclick=ev=>togglePracticePreview(ev,p.id);
     d.innerHTML=`<div class="row" style="align-items:center"><div><strong>${escapeHtml(p.id)} · ${escapeHtml(p.name)}</strong><span class="pill">${escapeHtml(p.theme)}</span><span class="pill">${escapeHtml(p.stage)}</span><div class="small">${escapeHtml(p.players||"Players not set")} · ${escapeHtml(p.time||"Time not set")} · Used ${practiceUsageCount(p.id)} times</div></div><div class="row" style="flex:none;gap:6px"><button onclick="togglePracticePreview(event,'${escapedId}')">View</button><button onclick="editPracticeFromList(event,'${escapedId}')">Edit</button><button class="starBtn ${p.isFavourite?'starred':''}" onclick="toggleFav(event,'${escapedId}')">${p.isFavourite?'★':'☆'}</button></div></div><div class="practicePreview" id="practice-preview-${safe(p.id)}"><div id="mini-${safe(p.id)}"></div><div><h3>${escapeHtml(p.name)}</h3><p>${nl(p.desc||'No setup description yet.')}</p><div class="practiceCols"><div class="infoBox"><b>Coaching Points</b>${nl(p.cp||'—')}</div><div class="infoBox"><b>Progressions</b>${nl(p.prog||'—')}</div><div class="infoBox"><b>Regressions</b>${nl(p.reg||'—')}</div></div><div class="practicePreviewActions"><button class="primary" onclick="editPracticeFromList(event,'${escapedId}')">Edit Practice</button><button onclick="addPracticeFromLibrary(event,'${escapedId}')">Add to Session Draft</button></div></div></div>`;
@@ -1186,7 +1194,7 @@ function renderPlannerPracticeOptions(){
   const stageSel=document.getElementById("plannerStage"),practiceSel=document.getElementById("plannerPractice");if(!stageSel||!practiceSel)return;
   const previous=practiceSel.value,stage=stageSel.value||pickStage||"Activation",themeValue=(document.getElementById("sTheme")||{}).value||"";
   pickStage=stage;
-  const practices=db.practices.filter(p=>p.stage===stage).sort((a,b)=>Number(b.theme===themeValue)-Number(a.theme===themeValue)||(a.theme||"").localeCompare(b.theme||"")||(a.name||"").localeCompare(b.name||""));
+  const practices=sortDisplayedPractices(db.practices.filter(p=>p.stage===stage),Boolean(themeValue)).sort((a,b)=>Number(b.theme===themeValue)-Number(a.theme===themeValue));
   practiceSel.innerHTML='<option value="">Choose a practice...</option>'+practices.map(p=>`<option value="${escapeHtml(p.id)}">${escapeHtml(p.id)} · ${escapeHtml(p.name)} (${escapeHtml(p.theme)})</option>`).join("");
   if(practices.some(p=>p.id===previous))practiceSel.value=previous;
 }
@@ -1239,24 +1247,8 @@ function renderVisualPicker(){
     setTimeout(()=>drawMini(`vmini-${safe(p.id)}`,p.diagram||[],p.pitchMode||"full"),0);
   }
 
-  if(pickerThemeFilter){
-    // single theme already chosen — flat list, current session theme practices bubble up naturally since all share the theme
-    practices.sort((a,b)=>(a.name||"").localeCompare(b.name||""));
-    practices.forEach(renderCard);
-  } else {
-    // group by theme, with the session's active theme (if any) shown first
-    let byTheme={};
-    practices.forEach(p=>{(byTheme[p.theme||"Unassigned"]=byTheme[p.theme||"Unassigned"]||[]).push(p)});
-    let themeOrder=Object.keys(byTheme).sort((a,b)=>Number(b===themeValue)-Number(a===themeValue)||a.localeCompare(b));
-    themeOrder.forEach(t=>{
-      let group=byTheme[t].sort((a,b)=>(a.name||"").localeCompare(b.name||""));
-      let header=document.createElement("div");
-      header.className="themeGroupHeader";
-      header.innerHTML=`<h4>${escapeHtml(t)}${t===themeValue?' <span class="pill" style="margin-left:6px">Session theme</span>':''}<span class="small" style="font-weight:400;text-transform:none;letter-spacing:0"> · ${group.length} ${group.length===1?"practice":"practices"}</span></h4>`;
-      visualPicker.appendChild(header);
-      group.forEach(renderCard);
-    });
-  }
+  // Stage is selected above. Show newest first; selected filters keep the stage grouping.
+  sortDisplayedPractices(practices,Boolean(pickerThemeFilter||searchQ)).forEach(renderCard);
   if(!visualPicker.innerHTML)visualPicker.innerHTML='<p class="small">No practices match this stage yet.</p>';
 }
 function togglePracticeInSession(id){

@@ -1,3 +1,4 @@
+import {sortPracticesForDisplay} from './practice-display-order.js';
 import {applyFourPhaseDecision} from './four-phase-practice-persistence-v1.js?v=coaching-loop-7';
 import {PASSING_FUNDAMENTALS,passingFundamentals,fundamentalLabel} from './passing-fundamentals.js?v=personal-model-1';
 import {
@@ -279,24 +280,7 @@ export function hasActivePracticeFilters(filters=createFilterState()){
 }
 
 export function sortWorkbenchPractices(practices=[],filters=createFilterState()){
-  const byPurpose=hasActivePracticeFilters(filters);
-  const purposeOrder=new Map(PRACTICE_PURPOSES.map((purpose,index)=>[purpose.id,index]));
-  const enteredAt=practice=>{
-    const value=practice.createdAt||practice.addedAt;
-    const time=typeof value==='number'?value:Date.parse(value||'');
-    return Number.isFinite(time)?time:0;
-  };
-  // Legacy drills have no creation date; use their existing library position as
-  // the fallback. Never mutate the underlying library or use edit timestamps.
-  return practices.map((practice,index)=>({practice,index,time:enteredAt(practice)}))
-    .sort((a,b)=>{
-      if(byPurpose){
-        const rank=practice=>purposeOrder.get(inferPracticePurpose(practice))??PRACTICE_PURPOSES.length;
-        const difference=rank(a.practice)-rank(b.practice);
-        if(difference)return difference;
-      }
-      return b.time-a.time || b.index-a.index;
-    }).map(item=>item.practice);
+  return sortPracticesForDisplay(practices,hasActivePracticeFilters(filters));
 }
 
 function addStyles(){
@@ -381,7 +365,7 @@ function renderResults(group,filters){
   if(group==='finder'&&field('planner')?.classList.contains('hidden'))return;
   const isFinder=group==='finder'; const panel=panelFor(group); if(!panel)return;
   const matches=filterPractices(appDb()?.practices||[],filters);
-  const all=isFinder?matches.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))):sortWorkbenchPractices(matches,filters);
+  const all=sortWorkbenchPractices(matches,filters);
   let page=isFinder?finderPage:workbenchPage;
   const pages=Math.max(1,Math.ceil(all.length/FOUR_PHASE_FILTER_PAGE_SIZE));
   if(page>=pages)page=pages-1;
@@ -390,7 +374,7 @@ function renderResults(group,filters){
   panel.querySelector('[data-fpw-selected]').innerHTML=selectedMarkup(filters);
   panel.querySelector('[data-fpw-count]').textContent=`${all.length} exact ${all.length===1?'match':'matches'}`;
   const orderLabel=panel.querySelector('[data-fpw-sort]');
-  if(orderLabel)orderLabel.textContent=hasActivePracticeFilters(filters)?'Prepare → Recognise → Execute → Transfer':'Newest entered first';
+  if(orderLabel)orderLabel.textContent=hasActivePracticeFilters(filters)?'Activation → Skill → Tactical → Conditioned':'Newest entered first';
   const results=panel.querySelector('[data-fpw-results]');
   results.innerHTML=visible.length?`<div class="fpwGrid">${visible.map((practice,index)=>cardMarkup(practice,isFinder?'finder':'workbench',page*FOUR_PHASE_FILTER_PAGE_SIZE+index)).join('')}</div>${pages>1?`<div class="fpwPager"><button type="button" data-fpw-page="prev" ${page===0?'disabled':''}>← Previous</button><span>Page ${page+1} of ${pages}</span><button type="button" data-fpw-page="next" ${page>=pages-1?'disabled':''}>Next →</button></div>`:''}`:'<div class="fpwEmpty"><b>No exact matches.</b><br>No saved practice currently satisfies every selected row. Remove a filter or edit the practice tags — the finder will not leak in near-matches.</div>';
   requestAnimationFrame(()=>drawVisible(visible,isFinder?'finder':'workbench',page));

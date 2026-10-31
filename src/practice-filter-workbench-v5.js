@@ -1,3 +1,4 @@
+import {sortPracticesForDisplay} from './practice-display-order.js';
 import { GAME_MODEL_PRINCIPLES, principleById } from './game-model-core.js?v=personal-model-1';
 import { GAME_CONTEXTS, PRACTICE_PURPOSES_V3, PRACTICE_FORMATS, inferGameContext, inferPurposeV3, inferFormatV3 } from './game-context-practice-system-v3.js?v=personal-model-1';
 
@@ -137,7 +138,7 @@ function renderResults(group,filters) {
   const isFinder = group==='finder';
   const panel = field(isFinder?FINDER_ID:WORKBENCH_ID);
   if (!panel) return;
-  const all = filterPracticesStrict(appDb()?.practices||[],filters).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+  const all = sortPracticesForDisplay(filterPracticesStrict(appDb()?.practices||[],filters),filters);
   let page = isFinder ? finderPage : workbenchPage;
   const pages = Math.max(1,Math.ceil(all.length/PRACTICE_FILTER_PAGE_SIZE));
   if (page >= pages) page = pages-1;

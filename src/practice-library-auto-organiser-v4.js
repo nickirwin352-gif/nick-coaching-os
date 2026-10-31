@@ -1,3 +1,4 @@
+import {sortPracticesForDisplay} from './practice-display-order.js';
 import { GAME_MODEL_PRINCIPLES, principleById, LEARNING_EMPHASES } from './game-model-core.js?v=personal-model-1';
 import {sessionTitle} from './session-identity.js?v=personal-model-1';
 import {
@@ -382,7 +383,7 @@ function renderPracticeLibraryV4() {
   const panel = field(LIBRARY_ID);
   const results = field('practiceMultiFilterResultsV4');
   if (!panel || !results) return;
-  const practices = (appDb()?.practices || []).filter(p=>matchMultiFilter(p,libraryFilters));
+  const practices = sortPracticesForDisplay((appDb()?.practices || []).filter(p=>matchMultiFilter(p,libraryFilters)),libraryFilters);
   const reviewCount = (appDb()?.practices || []).filter(p=>p.organisationNeedsReview).length;
   const shown = practices.slice(0,72);
   field('practiceMultiFilterSelectedV4').innerHTML = selectedSummaryMarkup(libraryFilters);
@@ -500,7 +501,7 @@ function renderFinderV4() {
   ensureFilterChipVisuals(panel,finderFilters,'finder');
   panel.querySelectorAll('[data-v4-filter-kind="finder-context"]').forEach(chip=>chip.classList.toggle('seed',chip.dataset.v4FilterValue===finderSeedContext));
   panel.querySelectorAll('[data-v4-filter-kind="finder-principle"]').forEach(chip=>chip.classList.toggle('seed',chip.dataset.v4FilterValue===finderSeedPrinciple));
-  const rows = (appDb()?.practices || []).filter(p=>matchMultiFilter(p,finderFilters)).sort((a,b)=>finderScore(b)-finderScore(a) || String(a.name||'').localeCompare(String(b.name||''))).slice(0,30);
+  const rows = sortPracticesForDisplay((appDb()?.practices || []).filter(p=>matchMultiFilter(p,finderFilters)),finderFilters).slice(0,30);
   field('practiceMultiFilterFinderSelectedV4').innerHTML = selectedSummaryMarkup(finderFilters);
   field('practiceMultiFilterFinderCountV4').textContent = `${rows.length} best matches shown`;
   results.innerHTML = rows.length ? `<div class="gmV4FinderGrid">${rows.map(finderCardMarkup).join('')}</div>` : '<div class="small" style="margin-top:8px">No practices match that exact combination. Remove one chip or edit practice tags.</div>';

@@ -306,6 +306,7 @@ function saveReviewInstant(openDashboard) {
   session.review = review; session.rating = review.rating; session.reflect = summariseReview(review);
   const index = (data.sessions || []).findIndex(item => item === session || (item.id && session.id && item.id === session.id));
   if (index >= 0) data.sessions[index] = session;
+  try { window.NickCoachingMemory?.captureReview?.(session,data); } catch(error) { console.warn('Word-bank capture failed',error); }
   try { queueCloud(data); showToast('Review saved on this device'); } catch(error) { showToast('Review not saved: device storage unavailable'); return false; }
   closeReviewNow();
   try { window.renderSessionLibrary?.(); } catch (_) {}
