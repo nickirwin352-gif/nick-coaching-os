@@ -1,9 +1,16 @@
-import {phaseById,principleById} from './game-model-core.js?v=personal-model-1';
+import {phaseById,principleById,normaliseGameModelPlan} from './game-model-core.js?v=personal-model-1';
+
+/* One canonical title for archived and saved sessions.
+   Existing reviews may contain model choices absent from the original plan.
+   Never treat an old practice-theme name as a coaching phase. */
 export function sessionTitle(session={}){
-  const plan=session.gameModelPlan||{};
-  const principle=principleById(plan.primaryPrincipleId);
-  const phase=phaseById(plan.gamePhase||principle?.phaseId);
-  return [phase?.label,principle?.message].filter(Boolean).join(' · ')||'Session · phase / principle not recorded';
+  const plan=normaliseGameModelPlan(session?.gameModelPlan||{});
+  const reviewed=normaliseGameModelPlan(session?.review?.gameModelV2||{});
+  const principle=principleById(plan.primaryPrincipleId||reviewed.primaryPrincipleId);
+  const phase=phaseById(plan.gamePhase||reviewed.gamePhase||principle?.phaseId);
+  if(!phase&&!principle)return 'Session · phase / principle not recorded';
+  const main=principle&&(!phase||principle.phaseIds.includes(phase.id))?principle.message:'Main principle not recorded';
+  return [phase?.label||'Phase not recorded',main].join(' · ');
 }
 export function sessionModelError(session={}){
   const plan=session.gameModelPlan||{};

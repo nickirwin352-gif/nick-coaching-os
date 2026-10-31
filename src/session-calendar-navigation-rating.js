@@ -1,3 +1,4 @@
+import {sessionTitle} from './session-identity.js?v=personal-model-1';
 const STYLE_ID = 'sessionCalendarNavigationRatingStyles';
 const HIGHLIGHT_CLASS = 'calendarJumpTarget';
 let archiveWrapped = false;
@@ -227,7 +228,7 @@ function decorateCalendarNavigation() {
       }
       dot.dataset.sessionJumpKey = sessionJumpKey(item.session,item.index);
       dot.dataset.sessionIndex = String(item.index);
-      dot.title = `View ${item.session.theme || 'session'} · ${item.session.date || ''}${sessionScoreOutOfTen(item.session) ? ` · ${sessionScoreOutOfTen(item.session)}/10` : ''}`;
+      dot.title = `View ${sessionTitle(item.session)} · ${item.session.date || ''}${sessionScoreOutOfTen(item.session) ? ` · ${sessionScoreOutOfTen(item.session)}/10` : ''}`;
     });
   });
 }

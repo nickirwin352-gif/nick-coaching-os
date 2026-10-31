@@ -1,3 +1,4 @@
+import {sessionTitle} from './session-identity.js?v=personal-model-1';
 const STYLE_ID = 'sessionIntelligenceV2Styles';
 const SUBTITLE_WRAP_ID = 'sessionSubtitleField';
 const TOAST_ID = 'instantReviewSaveToast';
@@ -523,7 +524,7 @@ function decorateCalendar() {
       const score = scoreOutOfTen(session);
       dot.classList.toggle('sessionQualityDot',!!score);
       if (score) dot.style.setProperty('--quality-hue',String(trafficHue(score)));
-      dot.innerHTML = `<span class="calSessionTitle">${escapeText(session.theme || 'Session')}</span>${session.subtitle ? `<span class="calSessionSubtitle">${escapeText(session.subtitle)}</span>` : ''}<span class="calSessionScore">${score ? `${score}/10` : 'Not reviewed'}</span>`;
+      dot.innerHTML = `<span class="calSessionTitle">${escapeText(sessionTitle(session))}</span>${session.subtitle ? `<span class="calSessionSubtitle">${escapeText(session.subtitle)}</span>` : ''}<span class="calSessionScore">${score ? `${score}/10` : 'Not reviewed'}</span>`;
     });
   });
 }

@@ -1,4 +1,5 @@
 import { GAME_MODEL_PRINCIPLES, principleById, LEARNING_EMPHASES } from './game-model-core.js?v=personal-model-1';
+import {sessionTitle} from './session-identity.js?v=personal-model-1';
 import {
   GAME_CONTEXTS,
   PRACTICE_PURPOSES_V3,
@@ -588,7 +589,7 @@ function renderSessionLibraryV4() {
     const primary = principleById(plan.primaryPrincipleId);
     const emphasis = LEARNING_EMPHASES.find(item=>item.id===plan.emphasis);
     const mix = practicePurposeMix(session);
-    return `<article class="gmV4SessionCard"><div class="small">${esc(session.date || 'No date')}${session.team?` · ${esc(session.team)}`:''}</div><h3>${esc(context?.label || session.theme || 'Session')}</h3><div class="gmV4SessionMeta">${primary?`<span class="pill">${esc(primary.message)}</span>`:''}${emphasis?`<span class="pill">${esc(emphasis.label)}</span>`:''}<span class="pill">${(session.drills||[]).length} practices</span></div><div class="gmV4SessionProblem"><b>Player problem:</b> ${esc(plan.playerProblem || 'Legacy session — no player problem saved')}${plan.successLooksLike?`<br><b>Success:</b> ${esc(plan.successLooksLike)}`:''}</div><div class="gmV4PurposeMix">${mix.map(item=>`<span>${esc(item)}</span>`).join('')}</div><div class="gmV4Actions"><button data-v4-session="view" data-index="${index}">View</button><button data-v4-session="diagrams" data-index="${index}">🗺 Diagrams</button><button data-v4-session="edit" data-index="${index}">Edit</button></div></article>`;
+    return `<article class="gmV4SessionCard"><div class="small">${esc(session.date || 'No date')}${session.team?` · ${esc(session.team)}`:''}</div><h3>${esc(sessionTitle(session))}</h3><div class="gmV4SessionMeta">${primary?`<span class="pill">${esc(primary.message)}</span>`:''}${emphasis?`<span class="pill">${esc(emphasis.label)}</span>`:''}<span class="pill">${(session.drills||[]).length} practices</span></div><div class="gmV4SessionProblem"><b>Player problem:</b> ${esc(plan.playerProblem || 'Legacy session — no player problem saved')}${plan.successLooksLike?`<br><b>Success:</b> ${esc(plan.successLooksLike)}`:''}</div><div class="gmV4PurposeMix">${mix.map(item=>`<span>${esc(item)}</span>`).join('')}</div><div class="gmV4Actions"><button data-v4-session="view" data-index="${index}">View</button><button data-v4-session="diagrams" data-index="${index}">🗺 Diagrams</button><button data-v4-session="edit" data-index="${index}">Edit</button></div></article>`;
   }).join('')}</div>` : '<div class="notice">No saved sessions match that combination.</div>';
 }
 
